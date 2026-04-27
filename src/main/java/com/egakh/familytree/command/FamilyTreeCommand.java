@@ -2,6 +2,7 @@ package com.egakh.familytree.command;
 
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
+import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.util.TimeUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -12,6 +13,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 public final class FamilyTreeCommand {
 
@@ -25,6 +27,17 @@ public final class FamilyTreeCommand {
                     return 1;
                 })
                 .then(Commands.literal("list").executes(ctx -> runList(ctx.getSource())))
+                .then(Commands.literal("pair")
+                        .then(Commands.argument("parent_a", StringArgumentType.string())
+                                .then(Commands.argument("parent_b", StringArgumentType.string())
+                                        .then(Commands.argument("child", StringArgumentType.string())
+                                                .executes(ctx -> runPair(
+                                                        ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "parent_a"),
+                                                        StringArgumentType.getString(ctx, "parent_b"),
+                                                        StringArgumentType.getString(ctx, "child")
+                                                ))))))
+                .then(Commands.literal("scan").executes(ctx -> runScan(ctx.getSource())))
                 .then(Commands.literal("info")
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(ctx -> runInfo(ctx.getSource(),
@@ -80,6 +93,58 @@ public final class FamilyTreeCommand {
             }
         }
         return 1;
+    }
+
+    private static int runScan(CommandSourceStack source) {
+        PetLifecycleListeners.ScanResult result = PetLifecycleListeners.scanLoadedPets(source.getServer());
+        source.sendSuccess(() -> Component.translatable("familytree.command.scan.result",
+                result.imported(), result.refreshed()), false);
+        return result.totalTouched();
+    }
+
+    private static int runPair(CommandSourceStack source, String parentAName, String parentBName, String childName) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        AnimalRecord parentA = findByName(state, parentAName);
+        AnimalRecord parentB = findByName(state, parentBName);
+        AnimalRecord child = findByName(state, childName);
+
+        if (parentA == null) {
+            source.sendFailure(Component.translatable("familytree.command.info.unknown", parentAName));
+            return 0;
+        }
+        if (parentB == null) {
+            source.sendFailure(Component.translatable("familytree.command.info.unknown", parentBName));
+            return 0;
+        }
+        if (child == null) {
+            source.sendFailure(Component.translatable("familytree.command.info.unknown", childName));
+            return 0;
+        }
+        if (parentA.id().equals(parentB.id())) {
+            source.sendFailure(Component.translatable("familytree.command.pair.same_parent"));
+            return 0;
+        }
+        if (child.id().equals(parentA.id()) || child.id().equals(parentB.id())) {
+            source.sendFailure(Component.translatable("familytree.command.pair.child_matches_parent"));
+            return 0;
+        }
+        if (!parentA.speciesId().equals(parentB.speciesId()) || !parentA.speciesId().equals(child.speciesId())) {
+            source.sendFailure(Component.translatable("familytree.command.pair.species_mismatch"));
+            return 0;
+        }
+
+        state.update(child.id(), record -> record.setParents(parentA.id(), parentB.id()));
+        source.sendSuccess(() -> Component.translatable("familytree.command.pair.result",
+                parentA.name(), parentB.name(), child.name()), false);
+        return 1;
+    }
+
+    private static AnimalRecord findByName(FamilyTreeState state, String name) {
+        String normalized = name.toLowerCase(Locale.ROOT);
+        return state.all().stream()
+                .filter(record -> record.name().toLowerCase(Locale.ROOT).equals(normalized))
+                .findFirst()
+                .orElse(null);
     }
 
     private static String formatLine(AnimalRecord r, long currentDay, long currentEpoch) {

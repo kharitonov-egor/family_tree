@@ -13,6 +13,7 @@
   "familytree.screen.species.all": "All Pets",
   "familytree.screen.species.dogs": "Dogs",
   "familytree.screen.species.cats": "Cats",
+  "familytree.screen.species.parrots": "Parrots",
   "familytree.screen.back": "Back",
 
   "familytree.node.born_world": "Day %s",
@@ -23,7 +24,12 @@
   "familytree.node.lifespan_world": "Lived %s d (world)",
   "familytree.node.lifespan_real": "Lived %s d (real)",
 
-  "familytree.command.usage": "/familytree <list|info <name>>",
+  "familytree.command.usage": "/familytree <list|scan|pair <parentA> <parentB> <child>|info <name>>",
   "familytree.command.list.header": "Tracked pets:",
-  "familytree.command.info.unknown": "No record for '%s'."
+  "familytree.command.info.unknown": "No record for '%s'.",
+  "familytree.command.scan.result": "Family Tree scan complete: imported %s pets, refreshed %s existing records.",
+  "familytree.command.pair.same_parent": "Parent A and Parent B must be different pets.",
+  "familytree.command.pair.child_matches_parent": "The child must be different from both parents.",
+  "familytree.command.pair.species_mismatch": "Parents and child must all be the same species.",
+  "familytree.command.pair.result": "Linked %s and %s as parents of %s."
 }

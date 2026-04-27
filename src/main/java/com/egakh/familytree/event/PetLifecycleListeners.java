@@ -9,12 +9,16 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
 
+import java.util.Objects;
 import java.util.UUID;
 
 public final class PetLifecycleListeners {
@@ -82,6 +86,26 @@ public final class PetLifecycleListeners {
         }
     }
 
+    public static void onTamableAnimalTamed(TamableAnimal entity, ServerPlayer player) {
+        if (!(entity.level() instanceof ServerLevel world)) return;
+        FamilyTreeState state = FamilyTreeState.get(world);
+        boolean wasTracked = state.contains(entity.getUUID());
+        ensureRecord(world, state, entity);
+        if (!wasTracked) {
+            state.update(entity.getUUID(), record -> record.setOwner(player.getUUID()));
+        }
+    }
+
+    public static void onHorseTamed(AbstractHorse entity, ServerPlayer player) {
+        if (!(entity.level() instanceof ServerLevel world)) return;
+        FamilyTreeState state = FamilyTreeState.get(world);
+        boolean wasTracked = state.contains(entity.getUUID());
+        ensureRecord(world, state, entity);
+        if (!wasTracked) {
+            state.update(entity.getUUID(), record -> record.setOwner(player.getUUID()));
+        }
+    }
+
     private static void onDeath(LivingEntity entity, DamageSource source) {
         if (entity.level().isClientSide()) return;
         if (!(entity.level() instanceof ServerLevel world)) return;
@@ -125,6 +149,30 @@ public final class PetLifecycleListeners {
         state.put(rec);
     }
 
+    public static ScanResult scanLoadedPets(net.minecraft.server.MinecraftServer server) {
+        FamilyTreeState state = FamilyTreeState.get(server);
+        int imported = 0;
+        int refreshed = 0;
+
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (!PetFilter.isTrackable(entity)) continue;
+                UUID id = entity.getUUID();
+                boolean existed = state.contains(id);
+                ensureRecord(level, state, entity);
+                if (state.contains(id)) {
+                    if (existed) {
+                        refreshed++;
+                    } else {
+                        imported++;
+                    }
+                }
+            }
+        }
+
+        return new ScanResult(imported, refreshed);
+    }
+
     private static String nameOrNull(Entity entity) {
         if (!entity.hasCustomName()) return null;
         Component name = entity.getCustomName();
@@ -138,5 +186,11 @@ public final class PetLifecycleListeners {
             return ownable.getOwnerReference().getUUID();
         }
         return null;
+    }
+
+    public record ScanResult(int imported, int refreshed) {
+        public int totalTouched() {
+            return imported + refreshed;
+        }
     }
 }

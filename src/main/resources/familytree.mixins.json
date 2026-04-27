@@ -3,8 +3,10 @@
   "package": "com.egakh.familytree.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "AbstractHorseTameMixin",
     "AnimalEntityBreedMixin",
-    "EntitySetCustomNameMixin"
+    "EntitySetCustomNameMixin",
+    "TamableAnimalTameMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -75,6 +75,11 @@ public final class AnimalRecord {
         this.speciesId = speciesId;
     }
 
+    public void setParents(UUID parentA, UUID parentB) {
+        this.parentA = parentA;
+        this.parentB = parentB;
+    }
+
     public static final Codec<AnimalRecord> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             UUIDUtil.CODEC.fieldOf("id").forGetter(AnimalRecord::id),
             Codec.STRING.fieldOf("species").forGetter(AnimalRecord::speciesId),
