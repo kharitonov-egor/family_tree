@@ -24,7 +24,7 @@
   "familytree.node.lifespan_world": "Lived %s d (world)",
   "familytree.node.lifespan_real": "Lived %s d (real)",
 
-  "familytree.command.usage": "/familytree <list|scan|pair <parentA> <parentB> <child>|unpair <child>|info [name]>",
+  "familytree.command.usage": "/familytree <list|scan|pair <parentA> <parentB> <child>|unpair <child>|setage <name> <days>|setbirth <name> <day>|info [name]>",
   "familytree.command.list.header": "Tracked pets:",
   "familytree.command.info.unknown": "No record for '%s'.",
   "familytree.command.scan.result": "Family Tree scan complete: imported %s pets, refreshed %s existing records.",
@@ -33,10 +33,16 @@
   "familytree.command.pair.species_mismatch": "Parents and child must all be the same species.",
   "familytree.command.pair.result": "Linked %s and %s as parents of %s.",
   "familytree.command.unpair.result": "Cleared parent links for %s.",
+  "familytree.command.setage.invalid": "Cannot set age to %s days when the latest valid world day is %s.",
+  "familytree.command.setage.result": "Set %s to %s days old. Birth day is now %s.",
+  "familytree.command.setbirth.invalid": "Cannot set birth day to %s when the latest valid world day is %s.",
+  "familytree.command.setbirth.result": "Set %s to be born on day %s. Relative age is now %s days.",
   "familytree.command.info.help.title": "Family Tree tracks your tamed pets, breeding lines, names, ownership, and deaths.",
   "familytree.command.info.help.summary": "Use the Family Tree screen to browse pets and lineage, or use commands to manage data directly.",
-  "familytree.command.info.help.commands": "Commands: /familytree list, /familytree scan, /familytree pair, /familytree unpair, /familytree info <name>.",
+  "familytree.command.info.help.commands": "Commands: /familytree list, /familytree scan, /familytree pair, /familytree unpair, /familytree setage, /familytree setbirth, /familytree info <name>.",
   "familytree.command.info.help.scan": "/familytree scan imports already-tamed pets that are loaded in the world.",
   "familytree.command.info.help.pair": "/familytree pair links two parents to a child record.",
-  "familytree.command.info.help.unpair": "/familytree unpair clears the parent links from a child record."
+  "familytree.command.info.help.unpair": "/familytree unpair clears the parent links from a child record.",
+  "familytree.command.info.help.setage": "/familytree setage changes a pet to a relative age in world days, for example 15 days old.",
+  "familytree.command.info.help.setbirth": "/familytree setbirth sets the pet's birth day directly, for example born on day 20."
 }

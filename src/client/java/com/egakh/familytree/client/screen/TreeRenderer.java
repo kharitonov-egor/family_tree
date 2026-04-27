@@ -1,7 +1,6 @@
 package com.egakh.familytree.client.screen;
 
 import com.egakh.familytree.data.AnimalRecord;
-import com.egakh.familytree.util.TimeUtil;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -53,23 +52,17 @@ public final class TreeRenderer {
                 left, line2, TEXT_SECONDARY);
 
         long worldAge;
-        long realAge;
         if (r.deceased() && r.deathWorldDay() != null && r.deathEpochMillis() != null) {
             worldAge = r.deathWorldDay() - r.birthWorldDay();
-            realAge = TimeUtil.realDaysBetween(r.birthEpochMillis(), r.deathEpochMillis());
         } else {
             worldAge = currentWorldDay - r.birthWorldDay();
-            realAge = TimeUtil.realDaysBetween(r.birthEpochMillis(), currentEpochMillis);
         }
 
-        String dayLine = "Day " + r.birthWorldDay() + " | " + worldAge + "d (W)";
+        String dayLine = "Day " + r.birthWorldDay() + " | " + worldAge + "d";
         gfx.text(font, Component.literal(trimToWidth(font, dayLine, textWidth)), left, line3, TEXT_SECONDARY);
 
-        String realLine = TimeUtil.formatRealDate(r.birthEpochMillis()) + " | " + realAge + "d (R)";
-        gfx.text(font, Component.literal(trimToWidth(font, realLine, textWidth)), left, line4, TEXT_SECONDARY);
-
         if (r.deceased()) {
-            gfx.text(font, Component.translatable("familytree.node.deceased"), left, line5, 0xFFB94A4A);
+            gfx.text(font, Component.translatable("familytree.node.deceased"), left, line4, 0xFFB94A4A);
         }
     }
 

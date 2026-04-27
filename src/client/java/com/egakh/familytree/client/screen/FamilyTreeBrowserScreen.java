@@ -2,7 +2,6 @@ package com.egakh.familytree.client.screen;
 
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
-import com.egakh.familytree.util.TimeUtil;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -152,12 +151,8 @@ public class FamilyTreeBrowserScreen extends Screen {
             long worldAge = r.deceased() && r.deathWorldDay() != null
                     ? r.deathWorldDay() - r.birthWorldDay()
                     : snapshot.currentWorldDay() - r.birthWorldDay();
-            long realAge = r.deceased() && r.deathEpochMillis() != null
-                    ? TimeUtil.realDaysBetween(r.birthEpochMillis(), r.deathEpochMillis())
-                    : TimeUtil.realDaysBetween(r.birthEpochMillis(), snapshot.currentEpochMillis());
             String right = "Day " + r.birthWorldDay()
-                    + " | " + worldAge + "d (W)"
-                    + " | " + realAge + "d (R)"
+                    + " | " + worldAge + "d"
                     + (r.deceased() ? " | deceased" : "");
             int rw = this.font.width(right);
             gfx.text(this.font, Component.literal(right),

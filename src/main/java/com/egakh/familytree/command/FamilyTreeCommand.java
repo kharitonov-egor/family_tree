@@ -5,6 +5,7 @@ import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.util.TimeUtil;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -42,6 +43,20 @@ public final class FamilyTreeCommand {
                                 .executes(ctx -> runUnpair(
                                         ctx.getSource(),
                                         StringArgumentType.getString(ctx, "child")))))
+                .then(Commands.literal("setage")
+                        .then(Commands.argument("name", StringArgumentType.string())
+                                .then(Commands.argument("days", LongArgumentType.longArg(0))
+                                        .executes(ctx -> runSetAge(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name"),
+                                                LongArgumentType.getLong(ctx, "days"))))))
+                .then(Commands.literal("setbirth")
+                        .then(Commands.argument("name", StringArgumentType.string())
+                                .then(Commands.argument("day", LongArgumentType.longArg(0))
+                                        .executes(ctx -> runSetBirthDay(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name"),
+                                                LongArgumentType.getLong(ctx, "day"))))))
                 .then(Commands.literal("scan").executes(ctx -> runScan(ctx.getSource())))
                 .then(Commands.literal("info").executes(ctx -> runInfoHelp(ctx.getSource()))
                         .then(Commands.argument("name", StringArgumentType.greedyString())
@@ -63,9 +78,8 @@ public final class FamilyTreeCommand {
 
         source.sendSuccess(() -> Component.translatable("familytree.command.list.header"), false);
         long currentDay = TimeUtil.currentWorldDay(source.getLevel());
-        long currentEpoch = TimeUtil.currentEpochMillis();
         for (AnimalRecord r : all) {
-            String line = formatLine(r, currentDay, currentEpoch);
+            String line = formatLine(r, currentDay);
             source.sendSuccess(() -> Component.literal(line), false);
         }
         return all.size();
@@ -82,8 +96,7 @@ public final class FamilyTreeCommand {
         }
 
         long currentDay = TimeUtil.currentWorldDay(source.getLevel());
-        long currentEpoch = TimeUtil.currentEpochMillis();
-        source.sendSuccess(() -> Component.literal(formatLine(match, currentDay, currentEpoch))
+        source.sendSuccess(() -> Component.literal(formatLine(match, currentDay))
                 .withStyle(ChatFormatting.YELLOW), false);
         if (match.parentA() != null) {
             AnimalRecord pa = state.get(match.parentA());
@@ -127,6 +140,54 @@ public final class FamilyTreeCommand {
         source.sendSuccess(() -> Component.translatable("familytree.command.info.help.scan"), false);
         source.sendSuccess(() -> Component.translatable("familytree.command.info.help.pair"), false);
         source.sendSuccess(() -> Component.translatable("familytree.command.info.help.unpair"), false);
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.setage"), false);
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.setbirth"), false);
+        return 1;
+    }
+
+    private static int runSetAge(CommandSourceStack source, String name, long days) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        AnimalRecord pet = findByName(state, name);
+        if (pet == null) {
+            source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
+            return 0;
+        }
+
+        long anchorDay = pet.deceased() && pet.deathWorldDay() != null
+                ? pet.deathWorldDay()
+                : TimeUtil.currentWorldDay(source.getLevel());
+        if (days > anchorDay) {
+            source.sendFailure(Component.translatable("familytree.command.setage.invalid", days, anchorDay));
+            return 0;
+        }
+
+        long birthDay = anchorDay - days;
+        state.update(pet.id(), record -> record.setBirthWorldDay(birthDay));
+        source.sendSuccess(() -> Component.translatable("familytree.command.setage.result",
+                pet.name(), days, birthDay), false);
+        return 1;
+    }
+
+    private static int runSetBirthDay(CommandSourceStack source, String name, long birthDay) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        AnimalRecord pet = findByName(state, name);
+        if (pet == null) {
+            source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
+            return 0;
+        }
+
+        long maxDay = pet.deceased() && pet.deathWorldDay() != null
+                ? pet.deathWorldDay()
+                : TimeUtil.currentWorldDay(source.getLevel());
+        if (birthDay > maxDay) {
+            source.sendFailure(Component.translatable("familytree.command.setbirth.invalid", birthDay, maxDay));
+            return 0;
+        }
+
+        state.update(pet.id(), record -> record.setBirthWorldDay(birthDay));
+        long ageDays = maxDay - birthDay;
+        source.sendSuccess(() -> Component.translatable("familytree.command.setbirth.result",
+                pet.name(), birthDay, ageDays), false);
         return 1;
     }
 
@@ -175,17 +236,14 @@ public final class FamilyTreeCommand {
                 .orElse(null);
     }
 
-    private static String formatLine(AnimalRecord r, long currentDay, long currentEpoch) {
+    private static String formatLine(AnimalRecord r, long currentDay) {
         long worldAge = r.deceased() && r.deathWorldDay() != null
                 ? r.deathWorldDay() - r.birthWorldDay()
                 : currentDay - r.birthWorldDay();
-        long realAge = r.deceased() && r.deathEpochMillis() != null
-                ? TimeUtil.realDaysBetween(r.birthEpochMillis(), r.deathEpochMillis())
-                : TimeUtil.realDaysBetween(r.birthEpochMillis(), currentEpoch);
 
         String suffix = r.deceased()
-                ? " (deceased; lived " + worldAge + " world-days / " + realAge + " real-days)"
-                : " - born day " + r.birthWorldDay() + " (" + worldAge + " world-days old, " + realAge + " real-days old)";
+                ? " (deceased; lived " + worldAge + " world-days)"
+                : " - born day " + r.birthWorldDay() + " (" + worldAge + " world-days old)";
         return "- " + r.name() + " [" + shortSpecies(r.speciesId()) + "]" + suffix;
     }
 
