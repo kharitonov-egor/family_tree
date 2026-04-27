@@ -37,8 +37,13 @@ public final class FamilyTreeCommand {
                                                         StringArgumentType.getString(ctx, "parent_b"),
                                                         StringArgumentType.getString(ctx, "child")
                                                 ))))))
+                .then(Commands.literal("unpair")
+                        .then(Commands.argument("child", StringArgumentType.string())
+                                .executes(ctx -> runUnpair(
+                                        ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "child")))))
                 .then(Commands.literal("scan").executes(ctx -> runScan(ctx.getSource())))
-                .then(Commands.literal("info")
+                .then(Commands.literal("info").executes(ctx -> runInfoHelp(ctx.getSource()))
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(ctx -> runInfo(ctx.getSource(),
                                         StringArgumentType.getString(ctx, "name")))))
@@ -100,6 +105,29 @@ public final class FamilyTreeCommand {
         source.sendSuccess(() -> Component.translatable("familytree.command.scan.result",
                 result.imported(), result.refreshed()), false);
         return result.totalTouched();
+    }
+
+    private static int runUnpair(CommandSourceStack source, String childName) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        AnimalRecord child = findByName(state, childName);
+        if (child == null) {
+            source.sendFailure(Component.translatable("familytree.command.info.unknown", childName));
+            return 0;
+        }
+
+        state.update(child.id(), record -> record.setParents(null, null));
+        source.sendSuccess(() -> Component.translatable("familytree.command.unpair.result", child.name()), false);
+        return 1;
+    }
+
+    private static int runInfoHelp(CommandSourceStack source) {
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.title"), false);
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.summary"), false);
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.commands"), false);
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.scan"), false);
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.pair"), false);
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.unpair"), false);
+        return 1;
     }
 
     private static int runPair(CommandSourceStack source, String parentAName, String parentBName, String childName) {
