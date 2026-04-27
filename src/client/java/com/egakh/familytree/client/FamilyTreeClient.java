@@ -2,6 +2,7 @@ package com.egakh.familytree.client;
 
 import com.egakh.familytree.client.keybind.FamilyTreeKeybinds;
 import com.egakh.familytree.client.screen.FamilyTreeBrowserScreen;
+import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import com.egakh.familytree.network.payloads.OpenFamilyTreeRequest;
 import net.fabricmc.api.ClientModInitializer;
@@ -13,6 +14,7 @@ public class FamilyTreeClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        FamilyTreeClientSettings.load();
         FamilyTreeKeybinds.register();
 
         ClientPlayNetworking.registerGlobalReceiver(FamilyTreeSnapshotPayload.TYPE, (payload, context) -> {

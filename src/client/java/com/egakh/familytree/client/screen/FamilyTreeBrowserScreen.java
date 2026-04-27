@@ -1,6 +1,8 @@
 package com.egakh.familytree.client.screen;
 
+import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.data.AnimalRecord;
+import net.minecraft.client.renderer.RenderPipelines;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -8,6 +10,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -20,6 +23,13 @@ import java.util.Map;
 import java.util.UUID;
 
 public class FamilyTreeBrowserScreen extends Screen {
+    private static final Identifier DEFAULT_CAT_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "textures/entity/cat/cat_tabby.png");
+    private static final int CAT_TEXTURE_WIDTH = 64;
+    private static final int CAT_TEXTURE_HEIGHT = 32;
+    private static final float CAT_FACE_U = 5.0f;
+    private static final float CAT_FACE_V = 4.0f;
+    private static final int CAT_FACE_WIDTH = 6;
+    private static final int CAT_FACE_HEIGHT = 6;
 
     private static WeakReference<FamilyTreeBrowserScreen> ACTIVE = new WeakReference<>(null);
 
@@ -30,13 +40,14 @@ public class FamilyTreeBrowserScreen extends Screen {
     private Button filterAll;
     private Button filterAlive;
     private Button filterDeceased;
+    private Button settingsButton;
     private final List<Button> speciesButtons = new ArrayList<>();
 
     private enum Filter { ALL, ALIVE, DECEASED }
     private Filter filter = Filter.ALL;
 
     private int scroll = 0;
-    private static final int ROW_HEIGHT = 28;
+    private static final int ROW_HEIGHT = 40;
     private int speciesRows = 0;
 
     public FamilyTreeBrowserScreen() {
@@ -79,6 +90,13 @@ public class FamilyTreeBrowserScreen extends Screen {
         this.filterDeceased = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.filter.deceased"),
                         b -> { filter = Filter.DECEASED; recompute(); })
                 .bounds(leftPad + (btnW + 4) * 2, btnY, btnW, 18).build());
+        this.settingsButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.settings"),
+                        b -> {
+                            if (this.minecraft != null) {
+                                this.minecraft.setScreen(new FamilyTreeSettingsScreen(this));
+                            }
+                        })
+                .bounds(this.width - 100, btnY, 84, 18).build());
 
         refreshSpeciesButtons();
     }
@@ -140,23 +158,38 @@ public class FamilyTreeBrowserScreen extends Screen {
             gfx.fill(listLeft + 4, rowTop, listRight - 4, rowBottom,
                     hover ? 0x40FFFFFF : 0x20000000);
 
+            boolean isCat = isCat(r);
+            int iconSize = isCat ? 26 : 0;
+            int textLeft = listLeft + 10 + (isCat ? iconSize + 8 : 0);
+            if (isCat) {
+                drawCatFace(gfx, catTexture(r), listLeft + 10, rowTop + 8, iconSize);
+            }
+
             int textColor = r.deceased() ? 0xFF888888 : 0xFFFFFFFF;
             gfx.text(this.font, Component.literal(r.name()),
-                    listLeft + 10, rowTop + 4, textColor);
+                    textLeft, rowTop + 4, textColor);
 
             String species = shortSpecies(r.speciesId());
             gfx.text(this.font, Component.literal(species),
-                    listLeft + 10, rowTop + 15, 0xFFAAAAAA);
+                    textLeft, rowTop + 15, 0xFFAAAAAA);
+            String tamedBy = buildTamedByLine(r);
+            if (!tamedBy.isEmpty()) {
+                gfx.text(this.font, Component.literal(tamedBy),
+                        textLeft, rowTop + 26, 0xFFAAAAAA);
+            }
 
             long worldAge = r.deceased() && r.deathWorldDay() != null
                     ? r.deathWorldDay() - r.birthWorldDay()
                     : snapshot.currentWorldDay() - r.birthWorldDay();
-            String right = "Day " + r.birthWorldDay()
-                    + " | " + worldAge + "d"
-                    + (r.deceased() ? " | deceased" : "");
-            int rw = this.font.width(right);
-            gfx.text(this.font, Component.literal(right),
-                    listRight - 10 - rw, rowTop + 9, 0xFFCCCCCC);
+            String right = buildAgeSummary(r.birthWorldDay(), worldAge);
+            if (r.deceased()) {
+                right = right.isEmpty() ? "deceased" : right + " | deceased";
+            }
+            if (!right.isEmpty()) {
+                int rw = this.font.width(right);
+                gfx.text(this.font, Component.literal(right),
+                        listRight - 10 - rw, rowTop + 9, 0xFFCCCCCC);
+            }
         }
         gfx.disableScissor();
     }
@@ -283,5 +316,61 @@ public class FamilyTreeBrowserScreen extends Screen {
         String titled = Character.toUpperCase(base.charAt(0)) + base.substring(1);
         if (titled.endsWith("s")) return titled;
         return titled + "s";
+    }
+
+    private static String buildAgeSummary(long birthDay, long worldAge) {
+        boolean showBirthDay = FamilyTreeClientSettings.showBirthDay();
+        boolean showAge = FamilyTreeClientSettings.showAge();
+        if (showBirthDay && showAge) {
+            return "Day " + birthDay + " | " + worldAge + "d";
+        }
+        if (showBirthDay) {
+            return "Day " + birthDay;
+        }
+        if (showAge) {
+            return worldAge + "d";
+        }
+        return "";
+    }
+
+    private static boolean isCat(AnimalRecord record) {
+        return "minecraft:cat".equals(record.speciesId());
+    }
+
+    private static Identifier catTexture(AnimalRecord record) {
+        if (record.textureId() != null && !record.textureId().isBlank()) {
+            Identifier texture = normalizeCatTexture(record.textureId());
+            if (texture != null) {
+                return texture;
+            }
+        }
+        return DEFAULT_CAT_TEXTURE;
+    }
+
+    private static Identifier normalizeCatTexture(String rawId) {
+        Identifier id = Identifier.tryParse(rawId);
+        if (id == null) {
+            return null;
+        }
+        if (id.getPath().startsWith("textures/")) {
+            return id;
+        }
+        return id.withPrefix("textures/").withSuffix(".png");
+    }
+
+    private static void drawCatFace(GuiGraphicsExtractor gfx, Identifier texture, int x, int y, int size) {
+        gfx.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, CAT_FACE_U, CAT_FACE_V,
+                size, size, CAT_FACE_WIDTH, CAT_FACE_HEIGHT, CAT_TEXTURE_WIDTH, CAT_TEXTURE_HEIGHT);
+    }
+
+    private Component tamedByComponent(String ownerName) {
+        return Component.translatable("familytree.owner.tamed_by", ownerName);
+    }
+
+    private String buildTamedByLine(AnimalRecord record) {
+        if (record.ownerName() == null || record.ownerName().isBlank()) {
+            return "";
+        }
+        return tamedByComponent(record.ownerName()).getString();
     }
 }
