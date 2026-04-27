@@ -1,0 +1,26 @@
+{
+  "key.categories.familytree": "Family Tree",
+  "key.familytree.open_tree": "Open Family Tree",
+
+  "familytree.screen.browser.title": "Family Tree - Tracked Pets",
+  "familytree.screen.view.title": "Family Tree of %s",
+  "familytree.screen.loading": "Loading lineage data...",
+  "familytree.screen.empty": "No tracked pets yet. Tame and breed a cat, wolf, parrot, or horse to start.",
+  "familytree.screen.search": "Search by name or species",
+  "familytree.screen.filter.all": "All",
+  "familytree.screen.filter.alive": "Alive",
+  "familytree.screen.filter.deceased": "Deceased",
+  "familytree.screen.back": "Back",
+
+  "familytree.node.born_world": "Day %s",
+  "familytree.node.age_world": "%s d (world)",
+  "familytree.node.born_real": "%s",
+  "familytree.node.age_real": "%s d (real)",
+  "familytree.node.deceased": "deceased",
+  "familytree.node.lifespan_world": "Lived %s d (world)",
+  "familytree.node.lifespan_real": "Lived %s d (real)",
+
+  "familytree.command.usage": "/familytree <list|info <name>>",
+  "familytree.command.list.header": "Tracked pets:",
+  "familytree.command.info.unknown": "No record for '%s'."
+}

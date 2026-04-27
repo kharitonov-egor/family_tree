@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "familytree",
+  "version": "${version}",
+  "name": "Family Tree",
+  "description": "Tracks the lineage of bred tameable pets (cats, wolves, parrots, horses, donkeys, mules, llamas, camels) and shows them in an in-game family tree viewer.",
+  "authors": ["egakh"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.egakh.familytree.FamilyTreeMod"],
+    "client": ["com.egakh.familytree.client.FamilyTreeClient"]
+  },
+  "mixins": [
+    "familytree.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~26.1",
+    "java": ">=25"
+  }
+}
