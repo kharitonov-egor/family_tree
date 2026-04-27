@@ -27,6 +27,8 @@ public class FamilyTreeBrowserScreen extends Screen {
     private Button filterAll;
     private Button filterAlive;
     private Button filterDeceased;
+    private Button speciesDogs;
+    private Button speciesCats;
 
     private enum Filter { ALL, ALIVE, DECEASED }
     private Filter filter = Filter.ALL;
@@ -73,6 +75,14 @@ public class FamilyTreeBrowserScreen extends Screen {
         this.filterDeceased = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.filter.deceased"),
                         b -> { filter = Filter.DECEASED; recompute(); })
                 .bounds(leftPad + (btnW + 4) * 2, btnY, btnW, 18).build());
+
+        int speciesY = btnY + 24;
+        this.speciesDogs = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.species.dogs"),
+                        b -> openSpeciesForest("minecraft:wolf", Component.translatable("familytree.screen.species.dogs")))
+                .bounds(leftPad, speciesY, btnW, 18).build());
+        this.speciesCats = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.species.cats"),
+                        b -> openSpeciesForest("minecraft:cat", Component.translatable("familytree.screen.species.cats")))
+                .bounds(leftPad + btnW + 4, speciesY, btnW, 18).build());
     }
 
     private void recompute() {
@@ -100,7 +110,7 @@ public class FamilyTreeBrowserScreen extends Screen {
 
         gfx.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFFFF);
 
-        int listTop = 84;
+        int listTop = 108;
         int listBottom = this.height - 16;
         int listLeft = 16;
         int listRight = this.width - 16;
@@ -165,7 +175,7 @@ public class FamilyTreeBrowserScreen extends Screen {
         double mouseX = event.x();
         double mouseY = event.y();
 
-        int listTop = 84;
+        int listTop = 108;
         int listBottom = this.height - 16;
         int listLeft = 16;
         int listRight = this.width - 16;
@@ -200,5 +210,10 @@ public class FamilyTreeBrowserScreen extends Screen {
     private static String shortSpecies(String id) {
         int colon = id.indexOf(':');
         return colon >= 0 ? id.substring(colon + 1) : id;
+    }
+
+    private void openSpeciesForest(String speciesId, Component title) {
+        if (this.minecraft == null || snapshot == null) return;
+        this.minecraft.setScreen(FamilyTreeViewScreen.forSpecies(this, snapshot, speciesId, title));
     }
 }

@@ -12,10 +12,10 @@ import java.util.UUID;
 
 public final class TreeLayout {
 
-    public static final int NODE_WIDTH = 140;
-    public static final int NODE_HEIGHT = 64;
-    public static final int H_SPACING = 24;
-    public static final int V_SPACING = 60;
+    public static final int NODE_WIDTH = 220;
+    public static final int NODE_HEIGHT = 92;
+    public static final int H_SPACING = 32;
+    public static final int V_SPACING = 72;
 
     public static final int MAX_ANCESTOR_GENERATIONS = 6;
     public static final int MAX_DESCENDANT_GENERATIONS = 6;
@@ -48,6 +48,89 @@ public final class TreeLayout {
     }
 
     private TreeLayout() {}
+
+    public static Result layoutForest(List<UUID> includedIds,
+                                      Map<UUID, AnimalRecord> records,
+                                      Map<UUID, List<UUID>> childIndex) {
+        Result result = new Result();
+        if (includedIds.isEmpty()) return result;
+
+        Set<UUID> included = new HashSet<>(includedIds);
+        Map<UUID, List<UUID>> undirected = new HashMap<>();
+        for (UUID id : included) {
+            undirected.put(id, new ArrayList<>());
+        }
+        for (UUID id : included) {
+            AnimalRecord record = records.get(id);
+            if (record == null) continue;
+            if (record.parentA() != null && included.contains(record.parentA())) {
+                undirected.get(id).add(record.parentA());
+                undirected.get(record.parentA()).add(id);
+            }
+            if (record.parentB() != null && included.contains(record.parentB())) {
+                undirected.get(id).add(record.parentB());
+                undirected.get(record.parentB()).add(id);
+            }
+            for (UUID childId : childIndex.getOrDefault(id, List.of())) {
+                if (included.contains(childId)) {
+                    undirected.get(id).add(childId);
+                    undirected.get(childId).add(id);
+                }
+            }
+        }
+
+        Set<UUID> visited = new HashSet<>();
+        List<List<UUID>> components = new ArrayList<>();
+        for (UUID id : included) {
+            if (!visited.add(id)) continue;
+            List<UUID> component = new ArrayList<>();
+            List<UUID> queue = new ArrayList<>();
+            queue.add(id);
+            for (int i = 0; i < queue.size(); i++) {
+                UUID current = queue.get(i);
+                component.add(current);
+                for (UUID neighbor : undirected.getOrDefault(current, List.of())) {
+                    if (visited.add(neighbor)) {
+                        queue.add(neighbor);
+                    }
+                }
+            }
+            components.add(component);
+        }
+
+        double xOffset = 0.0;
+        double globalMinX = Double.POSITIVE_INFINITY;
+        double globalMaxX = Double.NEGATIVE_INFINITY;
+        double globalMinY = Double.POSITIVE_INFINITY;
+        double globalMaxY = Double.NEGATIVE_INFINITY;
+
+        for (List<UUID> component : components) {
+            Result componentLayout = layoutForestComponent(component, records, childIndex);
+            double componentWidth = componentLayout.nodes.isEmpty() ? 0.0 : componentLayout.maxX - componentLayout.minX;
+            for (Node node : componentLayout.nodes) {
+                node.x += xOffset - componentLayout.minX;
+                result.nodes.add(node);
+                result.byId.put(node.id, node);
+                globalMinX = Math.min(globalMinX, node.x);
+                globalMaxX = Math.max(globalMaxX, node.x + NODE_WIDTH);
+                globalMinY = Math.min(globalMinY, node.y);
+                globalMaxY = Math.max(globalMaxY, node.y + NODE_HEIGHT);
+            }
+            result.edges.addAll(componentLayout.edges);
+            xOffset += componentWidth + 96.0;
+        }
+
+        if (result.nodes.isEmpty()) {
+            result.minX = result.maxX = result.minY = result.maxY = 0.0;
+        } else {
+            result.minX = globalMinX;
+            result.maxX = globalMaxX;
+            result.minY = globalMinY;
+            result.maxY = globalMaxY;
+        }
+
+        return result;
+    }
 
     public static Result layout(UUID focusId,
                                 Map<UUID, AnimalRecord> records,
@@ -126,6 +209,99 @@ public final class TreeLayout {
             r.minX = r.maxX = r.minY = r.maxY = 0;
         }
         return r;
+    }
+
+    private static Result layoutForestComponent(List<UUID> componentIds,
+                                                Map<UUID, AnimalRecord> records,
+                                                Map<UUID, List<UUID>> childIndex) {
+        Result result = new Result();
+        Set<UUID> included = new HashSet<>(componentIds);
+        Map<UUID, Integer> generationById = new HashMap<>();
+        Map<Integer, List<Node>> byGen = new HashMap<>();
+        Map<UUID, Integer> remainingParents = new HashMap<>();
+        List<UUID> queue = new ArrayList<>();
+
+        for (UUID id : componentIds) {
+            AnimalRecord record = records.get(id);
+            if (record == null) continue;
+            int parentCount = 0;
+            if (record.parentA() != null && included.contains(record.parentA())) parentCount++;
+            if (record.parentB() != null && included.contains(record.parentB())) parentCount++;
+            remainingParents.put(id, parentCount);
+            if (parentCount == 0) {
+                queue.add(id);
+                generationById.put(id, 0);
+            }
+        }
+        if (queue.isEmpty() && !componentIds.isEmpty()) {
+            UUID fallback = componentIds.getFirst();
+            queue.add(fallback);
+            generationById.put(fallback, 0);
+        }
+
+        for (int i = 0; i < queue.size(); i++) {
+            UUID parentId = queue.get(i);
+            int parentGen = generationById.getOrDefault(parentId, 0);
+            AnimalRecord parentRecord = records.get(parentId);
+            if (parentRecord == null) continue;
+
+            Node parentNode = result.byId.computeIfAbsent(parentId, id -> {
+                Node node = new Node(id, parentRecord, parentGen);
+                result.nodes.add(node);
+                byGen.computeIfAbsent(parentGen, k -> new ArrayList<>()).add(node);
+                return node;
+            });
+
+            for (UUID childId : childIndex.getOrDefault(parentId, List.of())) {
+                if (!included.contains(childId)) continue;
+                AnimalRecord childRecord = records.get(childId);
+                if (childRecord == null) continue;
+                int childGen = Math.max(generationById.getOrDefault(childId, 0), parentGen + 1);
+                generationById.put(childId, childGen);
+                remainingParents.computeIfPresent(childId, (id, count) -> Math.max(0, count - 1));
+                if (remainingParents.getOrDefault(childId, 0) == 0 && !queue.contains(childId)) {
+                    queue.add(childId);
+                }
+
+                Node childNode = result.byId.get(childId);
+                if (childNode == null) {
+                    childNode = new Node(childId, childRecord, childGen);
+                    result.nodes.add(childNode);
+                    result.byId.put(childId, childNode);
+                    byGen.computeIfAbsent(childGen, k -> new ArrayList<>()).add(childNode);
+                }
+                result.edges.add(new Edge(parentNode, childNode));
+            }
+        }
+
+        result.minX = Double.POSITIVE_INFINITY;
+        result.maxX = Double.NEGATIVE_INFINITY;
+        result.minY = Double.POSITIVE_INFINITY;
+        result.maxY = Double.NEGATIVE_INFINITY;
+
+        for (Map.Entry<Integer, List<Node>> entry : byGen.entrySet()) {
+            int gen = entry.getKey();
+            List<Node> row = entry.getValue();
+            int count = row.size();
+            int rowWidth = count * NODE_WIDTH + Math.max(0, count - 1) * H_SPACING;
+            double startX = -rowWidth / 2.0;
+            double y = gen * (NODE_HEIGHT + V_SPACING);
+            for (int i = 0; i < count; i++) {
+                Node node = row.get(i);
+                node.x = startX + i * (NODE_WIDTH + H_SPACING);
+                node.y = y;
+                result.minX = Math.min(result.minX, node.x);
+                result.maxX = Math.max(result.maxX, node.x + NODE_WIDTH);
+                result.minY = Math.min(result.minY, node.y);
+                result.maxY = Math.max(result.maxY, node.y + NODE_HEIGHT);
+            }
+        }
+
+        if (result.nodes.isEmpty()) {
+            result.minX = result.maxX = result.minY = result.maxY = 0.0;
+        }
+
+        return result;
     }
 
     private static void addParent(UUID parentId,

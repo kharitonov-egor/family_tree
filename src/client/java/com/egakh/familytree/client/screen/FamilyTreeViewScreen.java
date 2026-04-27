@@ -19,6 +19,7 @@ public class FamilyTreeViewScreen extends Screen {
     private final Screen parent;
     private final FamilyTreeSnapshotPayload snapshot;
     private final UUID focusId;
+    private final String aggregateSpeciesId;
 
     private final Map<UUID, AnimalRecord> records = new HashMap<>();
     private final Map<UUID, List<UUID>> childIndex = new HashMap<>();
@@ -38,6 +39,25 @@ public class FamilyTreeViewScreen extends Screen {
         this.parent = parent;
         this.snapshot = snapshot;
         this.focusId = focusId;
+        this.aggregateSpeciesId = null;
+        loadRecords();
+    }
+
+    private FamilyTreeViewScreen(Screen parent, FamilyTreeSnapshotPayload snapshot, String aggregateSpeciesId, Component title) {
+        super(title);
+        this.parent = parent;
+        this.snapshot = snapshot;
+        this.focusId = null;
+        this.aggregateSpeciesId = aggregateSpeciesId;
+        loadRecords();
+    }
+
+    public static FamilyTreeViewScreen forSpecies(Screen parent, FamilyTreeSnapshotPayload snapshot,
+                                                  String speciesId, Component title) {
+        return new FamilyTreeViewScreen(parent, snapshot, speciesId, title);
+    }
+
+    private void loadRecords() {
         for (AnimalRecord r : snapshot.records()) {
             records.put(r.id(), r);
         }
@@ -53,11 +73,28 @@ public class FamilyTreeViewScreen extends Screen {
 
     @Override
     protected void init() {
-        tree = TreeLayout.layout(focusId, records, childIndex);
-        TreeLayout.Node focus = tree.byId.get(focusId);
-        if (focus != null) {
-            panX = this.width / 2.0 - (focus.x + TreeLayout.NODE_WIDTH / 2.0);
-            panY = this.height / 2.0 - (focus.y + TreeLayout.NODE_HEIGHT / 2.0);
+        if (aggregateSpeciesId == null) {
+            tree = TreeLayout.layout(focusId, records, childIndex);
+        } else {
+            List<UUID> includedIds = snapshot.records().stream()
+                    .filter(r -> aggregateSpeciesId.equals(r.speciesId()))
+                    .map(AnimalRecord::id)
+                    .toList();
+            tree = TreeLayout.layoutForest(includedIds, records, childIndex);
+        }
+        if (tree != null && !tree.nodes.isEmpty()) {
+            double availableWidth = Math.max(200.0, this.width - 80.0);
+            double availableHeight = Math.max(200.0, this.height - 120.0);
+            double treeWidth = Math.max(1.0, tree.maxX - tree.minX);
+            double treeHeight = Math.max(1.0, tree.maxY - tree.minY);
+            double fitX = availableWidth / treeWidth;
+            double fitY = availableHeight / treeHeight;
+            zoom = Math.max(0.35, Math.min(1.25, Math.min(fitX, fitY)));
+
+            double scaledTreeWidth = treeWidth * zoom;
+            double scaledTreeHeight = treeHeight * zoom;
+            panX = (this.width - scaledTreeWidth) / 2.0 - tree.minX * zoom;
+            panY = (this.height - scaledTreeHeight) / 2.0 - tree.minY * zoom;
         }
         this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"),
                         b -> {
@@ -92,6 +129,13 @@ public class FamilyTreeViewScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (super.mouseClicked(event, doubleClick)) return true;
+        TreeLayout.Node hit = findNodeAt(event.x(), event.y());
+        if (hit != null) {
+            if (this.minecraft != null && aggregateSpeciesId != null) {
+                this.minecraft.setScreen(new FamilyTreeViewScreen(parent, snapshot, hit.id));
+            }
+            return true;
+        }
         if (event.button() == 0) {
             dragging = true;
             lastMouseX = event.x();
@@ -125,7 +169,7 @@ public class FamilyTreeViewScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         double oldZoom = zoom;
         double factor = Math.pow(1.1, verticalAmount);
-        zoom = Math.max(0.3, Math.min(2.5, zoom * factor));
+        zoom = Math.max(0.2, Math.min(2.75, zoom * factor));
         double scale = zoom / oldZoom;
         panX = mouseX - (mouseX - panX) * scale;
         panY = mouseY - (mouseY - panY) * scale;
@@ -135,5 +179,19 @@ public class FamilyTreeViewScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private TreeLayout.Node findNodeAt(double mouseX, double mouseY) {
+        if (tree == null) return null;
+        for (TreeLayout.Node node : tree.nodes) {
+            int x = (int) Math.round(node.x * zoom + panX);
+            int y = (int) Math.round(node.y * zoom + panY);
+            int w = Math.max(110, (int) Math.round(TreeLayout.NODE_WIDTH * zoom));
+            int h = Math.max(50, (int) Math.round(TreeLayout.NODE_HEIGHT * zoom));
+            if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h) {
+                return node;
+            }
+        }
+        return null;
     }
 }

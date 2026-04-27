@@ -25,8 +25,8 @@ public final class TreeRenderer {
                                 double panX, double panY, double zoom) {
         int x = (int) Math.round(node.x * zoom + panX);
         int y = (int) Math.round(node.y * zoom + panY);
-        int w = Math.max(32, (int) Math.round(TreeLayout.NODE_WIDTH * zoom));
-        int h = Math.max(24, (int) Math.round(TreeLayout.NODE_HEIGHT * zoom));
+        int w = Math.max(110, (int) Math.round(TreeLayout.NODE_WIDTH * zoom));
+        int h = Math.max(50, (int) Math.round(TreeLayout.NODE_HEIGHT * zoom));
         AnimalRecord r = node.record;
 
         int bg = r.deceased() ? BG_DECEASED : BG_ALIVE;
@@ -39,14 +39,18 @@ public final class TreeRenderer {
         gfx.fill(x + w - 1, y, x + w, y + h, border);
 
         int textColor = r.deceased() ? TEXT_DECEASED : TEXT_PRIMARY;
-        int line1 = y + 5;
-        int line2 = y + Math.max(14, (int) Math.round(16 * zoom));
-        int line3 = y + Math.max(23, (int) Math.round(28 * zoom));
-        int line4 = y + Math.max(32, (int) Math.round(39 * zoom));
-        int line5 = y + Math.max(41, (int) Math.round(50 * zoom));
+        int left = x + Math.max(8, (int) Math.round(10 * zoom));
+        int lineHeight = Math.max(font.lineHeight + 2, (int) Math.round((font.lineHeight + 2) * zoom));
+        int line1 = y + Math.max(6, (int) Math.round(8 * zoom));
+        int line2 = line1 + lineHeight;
+        int line3 = line2 + lineHeight;
+        int line4 = line3 + lineHeight;
+        int line5 = line4 + lineHeight;
+        int textWidth = Math.max(24, w - 20);
 
-        gfx.text(font, Component.literal(r.name()), x + 6, line1, textColor);
-        gfx.text(font, Component.literal(shortSpecies(r.speciesId())), x + 6, line2, TEXT_SECONDARY);
+        gfx.text(font, Component.literal(trimToWidth(font, r.name(), textWidth)), left, line1, textColor);
+        gfx.text(font, Component.literal(trimToWidth(font, shortSpecies(r.speciesId()), textWidth)),
+                left, line2, TEXT_SECONDARY);
 
         long worldAge;
         long realAge;
@@ -59,22 +63,23 @@ public final class TreeRenderer {
         }
 
         String dayLine = "Day " + r.birthWorldDay() + " | " + worldAge + "d (W)";
-        gfx.text(font, Component.literal(dayLine), x + 6, line3, TEXT_SECONDARY);
+        gfx.text(font, Component.literal(trimToWidth(font, dayLine, textWidth)), left, line3, TEXT_SECONDARY);
 
         String realLine = TimeUtil.formatRealDate(r.birthEpochMillis()) + " | " + realAge + "d (R)";
-        gfx.text(font, Component.literal(realLine), x + 6, line4, TEXT_SECONDARY);
+        gfx.text(font, Component.literal(trimToWidth(font, realLine, textWidth)), left, line4, TEXT_SECONDARY);
 
         if (r.deceased()) {
-            gfx.text(font, Component.translatable("familytree.node.deceased"),
-                    x + 6, line5, 0xFFB94A4A);
+            gfx.text(font, Component.translatable("familytree.node.deceased"), left, line5, 0xFFB94A4A);
         }
     }
 
     public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Node parent, TreeLayout.Node child,
                                 double panX, double panY, double zoom) {
-        int px = (int) Math.round((parent.x + TreeLayout.NODE_WIDTH / 2.0) * zoom + panX);
-        int py = (int) Math.round((parent.y + TreeLayout.NODE_HEIGHT) * zoom + panY);
-        int cx = (int) Math.round((child.x + TreeLayout.NODE_WIDTH / 2.0) * zoom + panX);
+        int scaledNodeWidth = Math.max(110, (int) Math.round(TreeLayout.NODE_WIDTH * zoom));
+        int scaledNodeHeight = Math.max(50, (int) Math.round(TreeLayout.NODE_HEIGHT * zoom));
+        int px = (int) Math.round(parent.x * zoom + panX + scaledNodeWidth / 2.0);
+        int py = (int) Math.round(parent.y * zoom + panY + scaledNodeHeight);
+        int cx = (int) Math.round(child.x * zoom + panX + scaledNodeWidth / 2.0);
         int cy = (int) Math.round(child.y * zoom + panY);
 
         int midY = (py + cy) / 2;
@@ -96,5 +101,10 @@ public final class TreeRenderer {
     private static String shortSpecies(String id) {
         int colon = id.indexOf(':');
         return colon >= 0 ? id.substring(colon + 1) : id;
+    }
+
+    private static String trimToWidth(Font font, String text, int maxWidth) {
+        if (font.width(text) <= maxWidth) return text;
+        return font.plainSubstrByWidth(text, Math.max(0, maxWidth - font.width("..."))) + "...";
     }
 }

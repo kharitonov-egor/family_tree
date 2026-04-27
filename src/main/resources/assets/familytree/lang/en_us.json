@@ -10,6 +10,9 @@
   "familytree.screen.filter.all": "All",
   "familytree.screen.filter.alive": "Alive",
   "familytree.screen.filter.deceased": "Deceased",
+  "familytree.screen.species.all": "All Pets",
+  "familytree.screen.species.dogs": "Dogs",
+  "familytree.screen.species.cats": "Cats",
   "familytree.screen.back": "Back",
 
   "familytree.node.born_world": "Day %s",
