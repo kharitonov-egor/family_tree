@@ -229,7 +229,7 @@ public class FamilyTreeBrowserScreen extends Screen {
 
         if (snapshot == null) return;
 
-        Map<String, Component> species = collectOwnedSpecies(snapshot.records());
+        Map<String, Component> species = collectSpecies(snapshot.records());
         if (species.isEmpty()) {
             return;
         }
@@ -255,19 +255,9 @@ public class FamilyTreeBrowserScreen extends Screen {
         speciesRows = (species.size() + perRow - 1) / perRow;
     }
 
-    private Map<String, Component> collectOwnedSpecies(Collection<AnimalRecord> records) {
+    private Map<String, Component> collectSpecies(Collection<AnimalRecord> records) {
         Map<String, Component> species = new LinkedHashMap<>();
-        UUID localPlayerId = this.minecraft != null && this.minecraft.player != null
-                ? this.minecraft.player.getUUID()
-                : null;
-
-        boolean hasOwnedRecords = localPlayerId != null && records.stream()
-                .anyMatch(record -> localPlayerId.equals(record.ownerId()));
-
         records.stream()
-                .filter(record -> !hasOwnedRecords
-                        || localPlayerId.equals(record.ownerId())
-                        || record.ownerId() == null)
                 .sorted(Comparator.comparing(record -> speciesSortKey(record.speciesId())))
                 .forEach(record -> species.putIfAbsent(record.speciesId(), speciesLabel(record.speciesId())));
 
