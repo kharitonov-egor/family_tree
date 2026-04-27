@@ -3,6 +3,7 @@ package com.egakh.familytree.client.screen;
 import com.egakh.familytree.data.AnimalRecord;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,6 +17,7 @@ public final class TreeLayout {
     public static final int NODE_HEIGHT = 92;
     public static final int H_SPACING = 32;
     public static final int V_SPACING = 72;
+    private static final int FOREST_EXTRA_SPACING = 56;
 
     public static final int MAX_ANCESTOR_GENERATIONS = 6;
     public static final int MAX_DESCENDANT_GENERATIONS = 6;
@@ -218,15 +220,24 @@ public final class TreeLayout {
         Set<UUID> included = new HashSet<>(componentIds);
         Map<UUID, Integer> generationById = new HashMap<>();
         Map<Integer, List<Node>> byGen = new HashMap<>();
+        Map<UUID, List<UUID>> parentIds = new HashMap<>();
         Map<UUID, Integer> remainingParents = new HashMap<>();
         List<UUID> queue = new ArrayList<>();
 
         for (UUID id : componentIds) {
             AnimalRecord record = records.get(id);
             if (record == null) continue;
+            List<UUID> parents = new ArrayList<>(2);
             int parentCount = 0;
-            if (record.parentA() != null && included.contains(record.parentA())) parentCount++;
-            if (record.parentB() != null && included.contains(record.parentB())) parentCount++;
+            if (record.parentA() != null && included.contains(record.parentA())) {
+                parentCount++;
+                parents.add(record.parentA());
+            }
+            if (record.parentB() != null && included.contains(record.parentB())) {
+                parentCount++;
+                parents.add(record.parentB());
+            }
+            parentIds.put(id, parents);
             remainingParents.put(id, parentCount);
             if (parentCount == 0) {
                 queue.add(id);
@@ -234,7 +245,7 @@ public final class TreeLayout {
             }
         }
         if (queue.isEmpty() && !componentIds.isEmpty()) {
-            UUID fallback = componentIds.getFirst();
+            UUID fallback = componentIds.get(0);
             queue.add(fallback);
             generationById.put(fallback, 0);
         }
@@ -274,26 +285,83 @@ public final class TreeLayout {
             }
         }
 
+        for (UUID id : componentIds) {
+            if (result.byId.containsKey(id)) continue;
+            AnimalRecord record = records.get(id);
+            if (record == null) continue;
+            int generation = generationById.getOrDefault(id, 0);
+            Node node = new Node(id, record, generation);
+            result.nodes.add(node);
+            result.byId.put(id, node);
+            byGen.computeIfAbsent(generation, k -> new ArrayList<>()).add(node);
+        }
+
+        int maxGeneration = byGen.keySet().stream().mapToInt(Integer::intValue).max().orElse(0);
+        for (List<Node> row : byGen.values()) {
+            row.sort(Comparator.comparing(node -> node.record.name(), String.CASE_INSENSITIVE_ORDER));
+        }
+        for (int pass = 0; pass < 3; pass++) {
+            for (int generation = 1; generation <= maxGeneration; generation++) {
+                List<Node> row = byGen.get(generation);
+                if (row == null) continue;
+                Map<UUID, Integer> parentOrder = indexById(byGen.get(generation - 1));
+                row.sort(Comparator.comparingDouble(node ->
+                        barycenterForParents(node.id, parentIds, parentOrder, row)));
+            }
+            for (int generation = maxGeneration - 1; generation >= 0; generation--) {
+                List<Node> row = byGen.get(generation);
+                if (row == null) continue;
+                Map<UUID, Integer> childOrder = indexById(byGen.get(generation + 1));
+                row.sort(Comparator.comparingDouble(node ->
+                        barycenterForChildren(node.id, childIndex, included, generationById, childOrder, row)));
+            }
+        }
+
         result.minX = Double.POSITIVE_INFINITY;
         result.maxX = Double.NEGATIVE_INFINITY;
         result.minY = Double.POSITIVE_INFINITY;
         result.maxY = Double.NEGATIVE_INFINITY;
 
-        for (Map.Entry<Integer, List<Node>> entry : byGen.entrySet()) {
-            int gen = entry.getKey();
-            List<Node> row = entry.getValue();
-            int count = row.size();
-            int rowWidth = count * NODE_WIDTH + Math.max(0, count - 1) * H_SPACING;
-            double startX = -rowWidth / 2.0;
-            double y = gen * (NODE_HEIGHT + V_SPACING);
-            for (int i = 0; i < count; i++) {
+        for (int generation = 0; generation <= maxGeneration; generation++) {
+            List<Node> row = byGen.get(generation);
+            if (row == null || row.isEmpty()) continue;
+
+            double rowGap = H_SPACING + FOREST_EXTRA_SPACING;
+            double y = generation * (NODE_HEIGHT + V_SPACING);
+            List<Double> desiredCenters = new ArrayList<>(row.size());
+            for (int i = 0; i < row.size(); i++) {
                 Node node = row.get(i);
-                node.x = startX + i * (NODE_WIDTH + H_SPACING);
-                node.y = y;
-                result.minX = Math.min(result.minX, node.x);
-                result.maxX = Math.max(result.maxX, node.x + NODE_WIDTH);
-                result.minY = Math.min(result.minY, node.y);
-                result.maxY = Math.max(result.maxY, node.y + NODE_HEIGHT);
+                desiredCenters.add(desiredCenter(node, i, rowGap, parentIds, childIndex, included, generationById, result.byId));
+            }
+
+            List<Placement> placements = new ArrayList<>(row.size());
+            for (int i = 0; i < row.size(); i++) {
+                placements.add(new Placement(row.get(i), desiredCenters.get(i)));
+            }
+            placements.sort(Comparator.comparingDouble(placement -> placement.desiredCenter));
+
+            double cursor = Double.NEGATIVE_INFINITY;
+            double minLeft = Double.POSITIVE_INFINITY;
+            double maxRight = Double.NEGATIVE_INFINITY;
+            for (Placement placement : placements) {
+                double targetLeft = placement.desiredCenter - NODE_WIDTH / 2.0;
+                double left = Math.max(targetLeft, cursor);
+                placement.node.x = left;
+                placement.node.y = y;
+                cursor = left + NODE_WIDTH + rowGap;
+                minLeft = Math.min(minLeft, left);
+                maxRight = Math.max(maxRight, left + NODE_WIDTH);
+            }
+
+            double desiredMid = placements.stream().mapToDouble(placement -> placement.desiredCenter).average().orElse(0.0);
+            double actualMid = (minLeft + maxRight) / 2.0;
+            double shift = desiredMid - actualMid;
+            for (Placement placement : placements) {
+                placement.node.x += shift;
+                result.minX = Math.min(result.minX, placement.node.x);
+                result.maxX = Math.max(result.maxX, placement.node.x + NODE_WIDTH);
+                result.minY = Math.min(result.minY, placement.node.y);
+                result.maxY = Math.max(result.maxY, placement.node.y + NODE_HEIGHT);
             }
         }
 
@@ -303,6 +371,109 @@ public final class TreeLayout {
 
         return result;
     }
+
+    private static Map<UUID, Integer> indexById(List<Node> row) {
+        Map<UUID, Integer> order = new HashMap<>();
+        if (row == null) return order;
+        for (int i = 0; i < row.size(); i++) {
+            order.put(row.get(i).id, i);
+        }
+        return order;
+    }
+
+    private static double barycenterForParents(UUID nodeId,
+                                               Map<UUID, List<UUID>> parentIds,
+                                               Map<UUID, Integer> parentOrder,
+                                               List<Node> currentRow) {
+        List<UUID> parents = parentIds.getOrDefault(nodeId, List.of());
+        double sum = 0.0;
+        int count = 0;
+        for (UUID parentId : parents) {
+            Integer index = parentOrder.get(parentId);
+            if (index != null) {
+                sum += index;
+                count++;
+            }
+        }
+        if (count == 0) {
+            return fallbackIndex(nodeId, currentRow);
+        }
+        return sum / count;
+    }
+
+    private static double barycenterForChildren(UUID nodeId,
+                                                Map<UUID, List<UUID>> childIndex,
+                                                Set<UUID> included,
+                                                Map<UUID, Integer> generationById,
+                                                Map<UUID, Integer> childOrder,
+                                                List<Node> currentRow) {
+        double sum = 0.0;
+        int count = 0;
+        int currentGeneration = generationById.getOrDefault(nodeId, 0);
+        for (UUID childId : childIndex.getOrDefault(nodeId, List.of())) {
+            if (!included.contains(childId)) continue;
+            if (generationById.getOrDefault(childId, currentGeneration + 1) != currentGeneration + 1) continue;
+            Integer index = childOrder.get(childId);
+            if (index != null) {
+                sum += index;
+                count++;
+            }
+        }
+        if (count == 0) {
+            return fallbackIndex(nodeId, currentRow);
+        }
+        return sum / count;
+    }
+
+    private static int fallbackIndex(UUID nodeId, List<Node> row) {
+        for (int i = 0; i < row.size(); i++) {
+            if (row.get(i).id.equals(nodeId)) return i;
+        }
+        return 0;
+    }
+
+    private static double desiredCenter(Node node,
+                                        int fallbackIndex,
+                                        double rowGap,
+                                        Map<UUID, List<UUID>> parentIds,
+                                        Map<UUID, List<UUID>> childIndex,
+                                        Set<UUID> included,
+                                        Map<UUID, Integer> generationById,
+                                        Map<UUID, Node> allNodes) {
+        List<UUID> parents = parentIds.getOrDefault(node.id, List.of());
+        double parentSum = 0.0;
+        int parentCount = 0;
+        for (UUID parentId : parents) {
+            Node parent = allNodes.get(parentId);
+            if (parent != null) {
+                parentSum += parent.x + NODE_WIDTH / 2.0;
+                parentCount++;
+            }
+        }
+        if (parentCount > 0) {
+            return parentSum / parentCount;
+        }
+
+        double childSum = 0.0;
+        int childCount = 0;
+        int currentGeneration = generationById.getOrDefault(node.id, 0);
+        for (UUID childId : childIndex.getOrDefault(node.id, List.of())) {
+            if (!included.contains(childId)) continue;
+            if (generationById.getOrDefault(childId, currentGeneration + 1) != currentGeneration + 1) continue;
+            Node child = allNodes.get(childId);
+            if (child != null && child.x != 0.0) {
+                childSum += child.x + NODE_WIDTH / 2.0;
+                childCount++;
+            }
+        }
+        if (childCount > 0) {
+            return childSum / childCount;
+        }
+
+        return fallbackIndex * (NODE_WIDTH + rowGap);
+    }
+
+    private record Placement(Node node, double desiredCenter) {}
 
     private static void addParent(UUID parentId,
                                   Map<UUID, AnimalRecord> records,

@@ -12,9 +12,13 @@ import net.minecraft.network.chat.Component;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 public class FamilyTreeBrowserScreen extends Screen {
 
@@ -27,14 +31,14 @@ public class FamilyTreeBrowserScreen extends Screen {
     private Button filterAll;
     private Button filterAlive;
     private Button filterDeceased;
-    private Button speciesDogs;
-    private Button speciesCats;
+    private final List<Button> speciesButtons = new ArrayList<>();
 
     private enum Filter { ALL, ALIVE, DECEASED }
     private Filter filter = Filter.ALL;
 
     private int scroll = 0;
     private static final int ROW_HEIGHT = 28;
+    private int speciesRows = 0;
 
     public FamilyTreeBrowserScreen() {
         super(Component.translatable("familytree.screen.browser.title"));
@@ -49,6 +53,7 @@ public class FamilyTreeBrowserScreen extends Screen {
     private void applySnapshot(FamilyTreeSnapshotPayload payload) {
         this.snapshot = payload;
         recompute();
+        refreshSpeciesButtons();
     }
 
     @Override
@@ -76,13 +81,7 @@ public class FamilyTreeBrowserScreen extends Screen {
                         b -> { filter = Filter.DECEASED; recompute(); })
                 .bounds(leftPad + (btnW + 4) * 2, btnY, btnW, 18).build());
 
-        int speciesY = btnY + 24;
-        this.speciesDogs = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.species.dogs"),
-                        b -> openSpeciesForest("minecraft:wolf", Component.translatable("familytree.screen.species.dogs")))
-                .bounds(leftPad, speciesY, btnW, 18).build());
-        this.speciesCats = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.species.cats"),
-                        b -> openSpeciesForest("minecraft:cat", Component.translatable("familytree.screen.species.cats")))
-                .bounds(leftPad + btnW + 4, speciesY, btnW, 18).build());
+        refreshSpeciesButtons();
     }
 
     private void recompute() {
@@ -110,7 +109,7 @@ public class FamilyTreeBrowserScreen extends Screen {
 
         gfx.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFFFF);
 
-        int listTop = 108;
+        int listTop = getListTop();
         int listBottom = this.height - 16;
         int listLeft = 16;
         int listRight = this.width - 16;
@@ -175,7 +174,7 @@ public class FamilyTreeBrowserScreen extends Screen {
         double mouseX = event.x();
         double mouseY = event.y();
 
-        int listTop = 108;
+        int listTop = getListTop();
         int listBottom = this.height - 16;
         int listLeft = 16;
         int listRight = this.width - 16;
@@ -197,7 +196,7 @@ public class FamilyTreeBrowserScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         scroll = Math.max(0, scroll - (int) (verticalAmount * ROW_HEIGHT));
-        int max = Math.max(0, filtered.size() * ROW_HEIGHT - (this.height - 16 - 88));
+        int max = Math.max(0, filtered.size() * ROW_HEIGHT - (this.height - 16 - getListTop()));
         if (scroll > max) scroll = max;
         return true;
     }
@@ -212,8 +211,92 @@ public class FamilyTreeBrowserScreen extends Screen {
         return colon >= 0 ? id.substring(colon + 1) : id;
     }
 
+    private int getListTop() {
+        return 84 + speciesRows * 22;
+    }
+
     private void openSpeciesForest(String speciesId, Component title) {
         if (this.minecraft == null || snapshot == null) return;
         this.minecraft.setScreen(FamilyTreeViewScreen.forSpecies(this, snapshot, speciesId, title));
+    }
+
+    private void refreshSpeciesButtons() {
+        for (Button button : speciesButtons) {
+            this.removeWidget(button);
+        }
+        speciesButtons.clear();
+        speciesRows = 0;
+
+        if (snapshot == null) return;
+
+        Map<String, Component> species = collectOwnedSpecies(snapshot.records());
+        if (species.isEmpty()) {
+            return;
+        }
+
+        int leftPad = 16;
+        int btnY = 36 + 24 + 24;
+        int btnW = 96;
+        int btnGap = 4;
+        int perRow = Math.max(1, (this.width - leftPad * 2 + btnGap) / (btnW + btnGap));
+
+        int index = 0;
+        for (Map.Entry<String, Component> entry : species.entrySet()) {
+            int row = index / perRow;
+            int col = index % perRow;
+            int x = leftPad + col * (btnW + btnGap);
+            int y = btnY + row * 22;
+            Button button = this.addRenderableWidget(Button.builder(entry.getValue(),
+                            b -> openSpeciesForest(entry.getKey(), entry.getValue()))
+                    .bounds(x, y, btnW, 18).build());
+            speciesButtons.add(button);
+            index++;
+        }
+        speciesRows = (species.size() + perRow - 1) / perRow;
+    }
+
+    private Map<String, Component> collectOwnedSpecies(Collection<AnimalRecord> records) {
+        Map<String, Component> species = new LinkedHashMap<>();
+        UUID localPlayerId = this.minecraft != null && this.minecraft.player != null
+                ? this.minecraft.player.getUUID()
+                : null;
+
+        boolean hasOwnedRecords = localPlayerId != null && records.stream()
+                .anyMatch(record -> localPlayerId.equals(record.ownerId()));
+
+        records.stream()
+                .filter(record -> !hasOwnedRecords
+                        || localPlayerId.equals(record.ownerId())
+                        || record.ownerId() == null)
+                .sorted(Comparator.comparing(record -> speciesSortKey(record.speciesId())))
+                .forEach(record -> species.putIfAbsent(record.speciesId(), speciesLabel(record.speciesId())));
+
+        return species;
+    }
+
+    private static String speciesSortKey(String speciesId) {
+        return switch (speciesId) {
+            case "minecraft:wolf" -> "01_dogs";
+            case "minecraft:cat" -> "02_cats";
+            case "minecraft:parrot" -> "03_parrots";
+            default -> "99_" + shortSpecies(speciesId);
+        };
+    }
+
+    private static Component speciesLabel(String speciesId) {
+        return switch (speciesId) {
+            case "minecraft:wolf" -> Component.translatable("familytree.screen.species.dogs");
+            case "minecraft:cat" -> Component.translatable("familytree.screen.species.cats");
+            case "minecraft:parrot" -> Component.translatable("familytree.screen.species.parrots");
+            default -> Component.literal(titleCasePlural(shortSpecies(speciesId)));
+        };
+    }
+
+    private static String titleCasePlural(String value) {
+        if (value.isEmpty()) return value;
+        String base = value.replace('_', ' ');
+        String titled = Character.toUpperCase(base.charAt(0)) + base.substring(1);
+        if (titled.endsWith("s")) return titled;
+        return titled + "s";
     }
 }
