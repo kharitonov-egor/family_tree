@@ -31,6 +31,8 @@ public final class PetLifecycleListeners {
     }
 
     public static void onBred(ServerLevel world, Animal parentA, Animal parentB, Animal child) {
+        if (!PetFilter.isTameableSpecies(child)) return;
+
         FamilyTreeState state = FamilyTreeState.get(world);
 
         ensureRecord(world, state, parentA);
@@ -87,9 +89,9 @@ public final class PetLifecycleListeners {
     }
 
     public static void onCustomNameChanged(Entity entity, Component newName) {
+        if (!PetFilter.isTameableSpecies(entity)) return;
         if (entity.level().isClientSide()) return;
         if (!(entity.level() instanceof ServerLevel serverLevel)) return;
-        if (!PetFilter.isTameableSpecies(entity)) return;
 
         FamilyTreeState state = FamilyTreeState.get(serverLevel);
         UUID id = entity.getUUID();

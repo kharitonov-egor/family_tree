@@ -1,6 +1,10 @@
 package com.egakh.familytree.data;
 
+import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.Lifecycle;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -22,14 +26,17 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 public class FamilyTreeState extends SavedData {
 
     private static final String LEGACY_STATE_KEY = "familytree";
     private static final Identifier STATE_ID = Identifier.fromNamespaceAndPath("familytree", "familytree");
+    private static final int CURRENT_DATA_VERSION = 1;
 
     private final Map<UUID, AnimalRecord> records = new ConcurrentHashMap<>();
 
@@ -59,6 +66,19 @@ public class FamilyTreeState extends SavedData {
         setDirty();
     }
 
+    public int removeMatching(Predicate<AnimalRecord> predicate) {
+        int removed = 0;
+        for (AnimalRecord record : new ArrayList<>(records.values())) {
+            if (predicate.test(record) && records.remove(record.id()) != null) {
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            setDirty();
+        }
+        return removed;
+    }
+
     private static FamilyTreeState fromRecords(Collection<AnimalRecord> records) {
         FamilyTreeState state = new FamilyTreeState();
         for (AnimalRecord record : records) {
@@ -67,10 +87,32 @@ public class FamilyTreeState extends SavedData {
         return state;
     }
 
+    private static final Codec<List<AnimalRecord>> RECORDS_CODEC = tolerantList(AnimalRecord.CODEC);
+
     private static final Codec<FamilyTreeState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            AnimalRecord.CODEC.listOf().fieldOf("records")
+            Codec.INT.optionalFieldOf("data_version", CURRENT_DATA_VERSION).forGetter(state -> CURRENT_DATA_VERSION),
+            RECORDS_CODEC.optionalFieldOf("records", List.of())
                     .forGetter(state -> new ArrayList<>(state.records.values()))
-    ).apply(instance, FamilyTreeState::fromRecords));
+    ).apply(instance, (version, records) -> fromRecords(records)));
+
+    private static <A> Codec<List<A>> tolerantList(Codec<A> elementCodec) {
+        return new Codec<>() {
+            @Override
+            public <T> DataResult<Pair<List<A>, T>> decode(DynamicOps<T> ops, T input) {
+                return ops.getList(input).map(consumer -> {
+                    List<A> result = new ArrayList<>();
+                    consumer.accept(element ->
+                            elementCodec.parse(ops, element).result().ifPresent(result::add));
+                    return Pair.of(result, ops.empty());
+                }).setLifecycle(Lifecycle.stable());
+            }
+
+            @Override
+            public <T> DataResult<T> encode(List<A> input, DynamicOps<T> ops, T prefix) {
+                return elementCodec.listOf().encode(input, ops, prefix);
+            }
+        };
+    }
 
     private static final SavedDataType<FamilyTreeState> TYPE = new SavedDataType<>(
             STATE_ID,
@@ -87,6 +129,7 @@ public class FamilyTreeState extends SavedData {
             FamilyTreeState legacyState = tryLoadLegacy(server);
             if (legacyState != null && !legacyState.all().isEmpty()) {
                 storage.set(TYPE, legacyState);
+                legacyState.setDirty();
                 return legacyState;
             }
         }

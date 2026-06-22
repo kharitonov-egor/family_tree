@@ -58,6 +58,15 @@ public final class FamilyTreeCommand {
                                                 StringArgumentType.getString(ctx, "name"),
                                                 LongArgumentType.getLong(ctx, "day"))))))
                 .then(Commands.literal("scan").executes(ctx -> runScan(ctx.getSource())))
+                .then(Commands.literal("prune")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.literal("deceased")
+                                .executes(ctx -> runPruneDeceased(ctx.getSource())))
+                        .then(Commands.literal("species")
+                                .then(Commands.argument("species_id", StringArgumentType.greedyString())
+                                        .executes(ctx -> runPruneSpecies(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "species_id"))))))
                 .then(Commands.literal("info").executes(ctx -> runInfoHelp(ctx.getSource()))
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(ctx -> runInfo(ctx.getSource(),
@@ -118,6 +127,21 @@ public final class FamilyTreeCommand {
         source.sendSuccess(() -> Component.translatable("familytree.command.scan.result",
                 result.imported(), result.refreshed()), false);
         return result.totalTouched();
+    }
+
+    private static int runPruneDeceased(CommandSourceStack source) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        int removed = state.removeMatching(AnimalRecord::deceased);
+        source.sendSuccess(() -> Component.translatable("familytree.command.prune.result", removed), false);
+        return removed;
+    }
+
+    private static int runPruneSpecies(CommandSourceStack source, String speciesId) {
+        String normalized = speciesId.trim();
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        int removed = state.removeMatching(record -> record.speciesId().equalsIgnoreCase(normalized));
+        source.sendSuccess(() -> Component.translatable("familytree.command.prune.result", removed), false);
+        return removed;
     }
 
     private static int runUnpair(CommandSourceStack source, String childName) {

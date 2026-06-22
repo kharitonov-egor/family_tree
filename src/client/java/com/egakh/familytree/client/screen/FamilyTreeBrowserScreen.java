@@ -1,5 +1,6 @@
 package com.egakh.familytree.client.screen;
 
+import com.egakh.familytree.client.FamilyTreeClient;
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.data.AnimalRecord;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -41,6 +42,8 @@ public class FamilyTreeBrowserScreen extends Screen {
     private Button filterAlive;
     private Button filterDeceased;
     private Button settingsButton;
+    private Button scopeButton;
+    private boolean viewingAll = true;
     private final List<Button> speciesButtons = new ArrayList<>();
 
     private enum Filter { ALL, ALIVE, DECEASED }
@@ -62,8 +65,24 @@ public class FamilyTreeBrowserScreen extends Screen {
 
     private void applySnapshot(FamilyTreeSnapshotPayload payload) {
         this.snapshot = payload;
+        this.viewingAll = payload.viewingAll();
         recompute();
         refreshSpeciesButtons();
+        refreshScopeButton();
+    }
+
+    private void refreshScopeButton() {
+        if (scopeButton == null) return;
+        boolean canToggle = snapshot != null && snapshot.mayViewAll();
+        scopeButton.visible = canToggle;
+        scopeButton.active = canToggle;
+        scopeButton.setMessage(scopeLabel());
+    }
+
+    private Component scopeLabel() {
+        return Component.translatable(viewingAll
+                ? "familytree.screen.scope.all"
+                : "familytree.screen.scope.mine");
     }
 
     @Override
@@ -98,7 +117,12 @@ public class FamilyTreeBrowserScreen extends Screen {
                         })
                 .bounds(this.width - 100, btnY, 84, 18).build());
 
+        this.scopeButton = this.addRenderableWidget(Button.builder(scopeLabel(),
+                        b -> toggleScope())
+                .bounds(this.width - 100 - 88, btnY, 84, 18).build());
+
         refreshSpeciesButtons();
+        refreshScopeButton();
     }
 
     private void recompute() {
@@ -241,6 +265,11 @@ public class FamilyTreeBrowserScreen extends Screen {
 
     private int getListTop() {
         return 84 + speciesRows * 22;
+    }
+
+    private void toggleScope() {
+        if (snapshot == null || !snapshot.mayViewAll()) return;
+        FamilyTreeClient.requestSnapshot(!viewingAll);
     }
 
     private void openSpeciesForest(String speciesId, Component title) {

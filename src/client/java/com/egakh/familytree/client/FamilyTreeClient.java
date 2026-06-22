@@ -9,6 +9,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 public class FamilyTreeClient implements ClientModInitializer {
 
@@ -25,9 +26,20 @@ public class FamilyTreeClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (FamilyTreeKeybinds.OPEN_TREE.consumeClick()) {
                 if (client.level == null || client.player == null) continue;
+                if (!ClientPlayNetworking.canSend(OpenFamilyTreeRequest.TYPE)) {
+                    client.gui.setOverlayMessage(
+                            Component.translatable("familytree.not_available"), false);
+                    continue;
+                }
                 client.setScreen(new FamilyTreeBrowserScreen());
-                ClientPlayNetworking.send(new OpenFamilyTreeRequest());
+                requestSnapshot(true);
             }
         });
+    }
+
+    public static void requestSnapshot(boolean requestAll) {
+        if (ClientPlayNetworking.canSend(OpenFamilyTreeRequest.TYPE)) {
+            ClientPlayNetworking.send(new OpenFamilyTreeRequest(requestAll));
+        }
     }
 }
