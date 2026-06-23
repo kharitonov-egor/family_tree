@@ -5,6 +5,7 @@ import com.egakh.familytree.data.AnimalRecord;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 
 public final class TreeRenderer {
     private static final int BG_ALIVE = 0xFF202830;
@@ -38,22 +39,29 @@ public final class TreeRenderer {
         gfx.fill(x + w - 1, y, x + w, y + h, border);
 
         int textColor = r.deceased() ? TEXT_DECEASED : TEXT_PRIMARY;
-        int left = x + Math.max(8, (int) Math.round(10 * zoom));
+        boolean hasFace = PetFaceRenderer.hasFace(r);
+        int basePad = Math.max(8, (int) Math.round(10 * zoom));
+        int iconSize = hasFace ? Math.max(28, (int) Math.round(36 * zoom)) : 0;
+        int iconPadding = hasFace ? Math.max(6, (int) Math.round(8 * zoom)) : 0;
+        int left = x + basePad + (hasFace ? iconSize + iconPadding : 0);
         int lineHeight = Math.max(font.lineHeight + 2, (int) Math.round((font.lineHeight + 2) * zoom));
-        int line1 = y + Math.max(6, (int) Math.round(8 * zoom));
-        int line2 = line1 + lineHeight;
-        int line3 = line2 + lineHeight;
-        int textWidth = Math.max(24, w - 20);
+        int textWidth = Math.max(24, w - basePad * 2 - (hasFace ? iconSize + iconPadding : 0));
 
-        gfx.text(font, Component.literal(trimToWidth(font, r.name(), textWidth)), left, line1, textColor);
+        if (hasFace) {
+            int iconX = x + basePad;
+            int iconY = y + Math.max(8, (int) Math.round(9 * zoom));
+            PetFaceRenderer.drawFace(gfx, font, r, iconX, iconY, iconSize);
+        }
+
+        int cursorY = y + Math.max(6, (int) Math.round(8 * zoom));
+        cursorY = drawWrapped(gfx, font, r.name(), left, cursorY, textWidth, lineHeight, textColor);
         gfx.text(font, Component.literal(trimToWidth(font, shortSpecies(r.speciesId()), textWidth)),
-                left, line2, TEXT_SECONDARY);
+                left, cursorY, TEXT_SECONDARY);
+        cursorY += lineHeight;
 
-        int nextLine = line3;
         String tamedBy = buildTamedByLine(r);
         if (!tamedBy.isEmpty()) {
-            gfx.text(font, Component.literal(trimToWidth(font, tamedBy, textWidth)), left, nextLine, TEXT_SECONDARY);
-            nextLine += lineHeight;
+            cursorY = drawWrapped(gfx, font, tamedBy, left, cursorY, textWidth, lineHeight, TEXT_SECONDARY);
         }
 
         long worldAge;
@@ -65,13 +73,23 @@ public final class TreeRenderer {
 
         String dayLine = buildAgeSummary(r.birthWorldDay(), worldAge);
         if (!dayLine.isEmpty()) {
-            gfx.text(font, Component.literal(trimToWidth(font, dayLine, textWidth)), left, nextLine, TEXT_SECONDARY);
-            nextLine += lineHeight;
+            gfx.text(font, Component.literal(trimToWidth(font, dayLine, textWidth)), left, cursorY, TEXT_SECONDARY);
+            cursorY += lineHeight;
         }
 
         if (r.deceased()) {
-            gfx.text(font, Component.translatable("familytree.node.deceased"), left, nextLine, 0xFFB94A4A);
+            gfx.text(font, Component.translatable("familytree.node.deceased"), left, cursorY, 0xFFB94A4A);
         }
+    }
+
+    private static int drawWrapped(GuiGraphicsExtractor gfx, Font font, String text,
+                                   int left, int top, int maxWidth, int lineHeight, int color) {
+        int y = top;
+        for (FormattedCharSequence line : font.split(Component.literal(text), maxWidth)) {
+            gfx.text(font, line, left, y, color);
+            y += lineHeight;
+        }
+        return y;
     }
 
     public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Node parent, TreeLayout.Node child,

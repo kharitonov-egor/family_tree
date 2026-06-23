@@ -5,8 +5,10 @@
   "mixins": [
     "AbstractHorseTameMixin",
     "AnimalEntityBreedMixin",
+    "CatVariantInvoker",
     "EntitySetCustomNameMixin",
-    "TamableAnimalTameMixin"
+    "TamableAnimalTameMixin",
+    "WolfVariantInvoker"
   ],
   "injectors": {
     "defaultRequire": 1
