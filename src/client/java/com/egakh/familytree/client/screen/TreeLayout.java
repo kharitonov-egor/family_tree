@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public final class TreeLayout {
 
-    public static final int NODE_WIDTH = 220;
+    public static final int NODE_WIDTH = 250;
     public static final int NODE_HEIGHT = 110;
     public static final int H_SPACING = 32;
     public static final int V_SPACING = 72;

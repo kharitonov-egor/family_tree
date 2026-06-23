@@ -373,6 +373,12 @@ public class FamilyTreeBrowserScreen extends Screen {
     }
 
     private void drawAvatar(GuiGraphicsExtractor gfx, AnimalRecord r, int accent, int x, int y) {
+        if (PetFaceRenderer.hasFace(r)) {
+            gfx.fill(x, y, x + AVATAR_SIZE, y + AVATAR_SIZE, 0xFF2A2A2A);
+            drawBorder(gfx, x, y, x + AVATAR_SIZE, y + AVATAR_SIZE, accent);
+            PetFaceRenderer.drawFace(gfx, this.font, r, x + 3, y + 3, AVATAR_SIZE - 6);
+            return;
+        }
         gfx.fill(x, y, x + AVATAR_SIZE, y + AVATAR_SIZE, accent);
         gfx.fill(x, y, x + AVATAR_SIZE, y + 1, 0x33FFFFFF);
         String initial = avatarInitial(r.name());
