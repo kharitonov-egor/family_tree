@@ -3,7 +3,6 @@ package com.egakh.familytree.client.screen;
 import com.egakh.familytree.client.FamilyTreeClient;
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.data.AnimalRecord;
-import net.minecraft.client.renderer.RenderPipelines;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -11,7 +10,6 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -24,14 +22,6 @@ import java.util.Map;
 import java.util.UUID;
 
 public class FamilyTreeBrowserScreen extends Screen {
-    private static final Identifier DEFAULT_CAT_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "textures/entity/cat/cat_tabby.png");
-    private static final int CAT_TEXTURE_WIDTH = 64;
-    private static final int CAT_TEXTURE_HEIGHT = 32;
-    private static final float CAT_FACE_U = 5.0f;
-    private static final float CAT_FACE_V = 4.0f;
-    private static final int CAT_FACE_WIDTH = 6;
-    private static final int CAT_FACE_HEIGHT = 6;
-
     private static WeakReference<FamilyTreeBrowserScreen> ACTIVE = new WeakReference<>(null);
 
     private FamilyTreeSnapshotPayload snapshot;
@@ -50,7 +40,17 @@ public class FamilyTreeBrowserScreen extends Screen {
     private Filter filter = Filter.ALL;
 
     private int scroll = 0;
-    private static final int ROW_HEIGHT = 40;
+    private static final int ROW_HEIGHT = 42;
+    private static final int CARD_BG_ALIVE = 0x99202830;
+    private static final int CARD_BG_DECEASED = 0x991A1A1A;
+    private static final int CARD_HOVER_OVERLAY = 0x22FFFFFF;
+    private static final int AVATAR_SIZE = 28;
+    private static final int PILL_ALIVE = 0xFF3A9D5B;
+    private static final int PILL_DECEASED = 0xFF9E3B3B;
+    private static final int TEXT_PRIMARY = 0xFFFFFFFF;
+    private static final int TEXT_PRIMARY_DIM = 0xFFBBBBBB;
+    private static final int TEXT_SECONDARY = 0xFFAAB1BB;
+    private static final int TEXT_MUTED = 0xFF8A909A;
     private int speciesRows = 0;
 
     public FamilyTreeBrowserScreen() {
@@ -156,6 +156,7 @@ public class FamilyTreeBrowserScreen extends Screen {
         int listRight = this.width - 16;
 
         gfx.fill(listLeft, listTop, listRight, listBottom, 0x80000000);
+        drawPanelBorder(gfx, listLeft, listTop, listRight, listBottom, 0x40FFFFFF);
 
         if (snapshot == null) {
             gfx.centeredText(this.font, Component.translatable("familytree.screen.loading"),
@@ -179,41 +180,7 @@ public class FamilyTreeBrowserScreen extends Screen {
             if (rowBottom < listTop || rowTop > listBottom) continue;
             boolean hover = mouseX >= listLeft && mouseX <= listRight
                     && mouseY >= rowTop && mouseY <= rowBottom;
-            gfx.fill(listLeft + 4, rowTop, listRight - 4, rowBottom,
-                    hover ? 0x40FFFFFF : 0x20000000);
-
-            boolean isCat = isCat(r);
-            int iconSize = isCat ? 26 : 0;
-            int textLeft = listLeft + 10 + (isCat ? iconSize + 8 : 0);
-            if (isCat) {
-                drawCatFace(gfx, catTexture(r), listLeft + 10, rowTop + 8, iconSize);
-            }
-
-            int textColor = r.deceased() ? 0xFF888888 : 0xFFFFFFFF;
-            gfx.text(this.font, Component.literal(r.name()),
-                    textLeft, rowTop + 4, textColor);
-
-            String species = shortSpecies(r.speciesId());
-            gfx.text(this.font, Component.literal(species),
-                    textLeft, rowTop + 15, 0xFFAAAAAA);
-            String tamedBy = buildTamedByLine(r);
-            if (!tamedBy.isEmpty()) {
-                gfx.text(this.font, Component.literal(tamedBy),
-                        textLeft, rowTop + 26, 0xFFAAAAAA);
-            }
-
-            long worldAge = r.deceased() && r.deathWorldDay() != null
-                    ? r.deathWorldDay() - r.birthWorldDay()
-                    : snapshot.currentWorldDay() - r.birthWorldDay();
-            String right = buildAgeSummary(r.birthWorldDay(), worldAge);
-            if (r.deceased()) {
-                right = right.isEmpty() ? "deceased" : right + " | deceased";
-            }
-            if (!right.isEmpty()) {
-                int rw = this.font.width(right);
-                gfx.text(this.font, Component.literal(right),
-                        listRight - 10 - rw, rowTop + 9, 0xFFCCCCCC);
-            }
+            drawCard(gfx, r, listLeft + 4, rowTop, listRight - 4, rowBottom, hover);
         }
         gfx.disableScissor();
     }
@@ -362,34 +329,105 @@ public class FamilyTreeBrowserScreen extends Screen {
         return "";
     }
 
-    private static boolean isCat(AnimalRecord record) {
-        return "minecraft:cat".equals(record.speciesId());
+    private void drawCard(GuiGraphicsExtractor gfx, AnimalRecord r,
+                          int left, int top, int right, int bottom, boolean hover) {
+        int height = bottom - top;
+        int accent = speciesAccentColor(r.speciesId());
+
+        gfx.fill(left, top, right, bottom, r.deceased() ? CARD_BG_DECEASED : CARD_BG_ALIVE);
+        if (hover) {
+            gfx.fill(left, top, right, bottom, CARD_HOVER_OVERLAY);
+        }
+        gfx.fill(left, top, left + 3, bottom, accent);
+
+        int avatarX = left + 10;
+        int avatarY = top + (height - AVATAR_SIZE) / 2;
+        drawAvatar(gfx, r, accent, avatarX, avatarY);
+
+        boolean deceased = r.deceased();
+        String statusText = Component.translatable(deceased
+                ? "familytree.screen.status.deceased"
+                : "familytree.screen.status.alive").getString();
+        int pillW = this.font.width(statusText) + 12;
+        int pillH = 14;
+        int pillX = right - 10 - pillW;
+        int pillY = top + 8;
+        drawPill(gfx, pillX, pillY, pillW, pillH, statusText,
+                deceased ? PILL_DECEASED : PILL_ALIVE);
+
+        long worldAge = deceased && r.deathWorldDay() != null
+                ? r.deathWorldDay() - r.birthWorldDay()
+                : snapshot.currentWorldDay() - r.birthWorldDay();
+        String ageStr = buildAgeSummary(r.birthWorldDay(), worldAge);
+        if (!ageStr.isEmpty()) {
+            int aw = this.font.width(ageStr);
+            gfx.text(this.font, Component.literal(ageStr), right - 10 - aw, pillY + pillH + 4, TEXT_MUTED);
+        }
+
+        int textLeft = avatarX + AVATAR_SIZE + 10;
+        int textMax = Math.max(10, pillX - 8 - textLeft);
+        gfx.text(this.font, Component.literal(trimToWidth(r.name(), textMax)),
+                textLeft, top + 9, deceased ? TEXT_PRIMARY_DIM : TEXT_PRIMARY);
+        gfx.text(this.font, Component.literal(trimToWidth(buildSubtitle(r), textMax)),
+                textLeft, top + 22, TEXT_SECONDARY);
     }
 
-    private static Identifier catTexture(AnimalRecord record) {
-        if (record.textureId() != null && !record.textureId().isBlank()) {
-            Identifier texture = normalizeCatTexture(record.textureId());
-            if (texture != null) {
-                return texture;
-            }
-        }
-        return DEFAULT_CAT_TEXTURE;
+    private void drawAvatar(GuiGraphicsExtractor gfx, AnimalRecord r, int accent, int x, int y) {
+        gfx.fill(x, y, x + AVATAR_SIZE, y + AVATAR_SIZE, accent);
+        gfx.fill(x, y, x + AVATAR_SIZE, y + 1, 0x33FFFFFF);
+        String initial = avatarInitial(r.name());
+        gfx.centeredText(this.font, Component.literal(initial),
+                x + AVATAR_SIZE / 2, y + (AVATAR_SIZE - this.font.lineHeight) / 2 + 1, 0xFFFFFFFF);
     }
 
-    private static Identifier normalizeCatTexture(String rawId) {
-        Identifier id = Identifier.tryParse(rawId);
-        if (id == null) {
-            return null;
-        }
-        if (id.getPath().startsWith("textures/")) {
-            return id;
-        }
-        return id.withPrefix("textures/").withSuffix(".png");
+    private void drawPill(GuiGraphicsExtractor gfx, int x, int y, int w, int h, String text, int bg) {
+        gfx.fill(x, y, x + w, y + h, bg);
+        gfx.fill(x, y, x + w, y + 1, 0x33FFFFFF);
+        gfx.centeredText(this.font, Component.literal(text),
+                x + w / 2, y + (h - this.font.lineHeight) / 2 + 1, 0xFFFFFFFF);
     }
 
-    private static void drawCatFace(GuiGraphicsExtractor gfx, Identifier texture, int x, int y, int size) {
-        gfx.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, CAT_FACE_U, CAT_FACE_V,
-                size, size, CAT_FACE_WIDTH, CAT_FACE_HEIGHT, CAT_TEXTURE_WIDTH, CAT_TEXTURE_HEIGHT);
+    private static void drawPanelBorder(GuiGraphicsExtractor gfx, int l, int t, int r, int b, int color) {
+        drawBorder(gfx, l, t, r, b, color);
+    }
+
+    private static void drawBorder(GuiGraphicsExtractor gfx, int l, int t, int r, int b, int color) {
+        gfx.fill(l, t, r, t + 1, color);
+        gfx.fill(l, b - 1, r, b, color);
+        gfx.fill(l, t, l + 1, b, color);
+        gfx.fill(r - 1, t, r, b, color);
+    }
+
+    private static int speciesAccentColor(String speciesId) {
+        return switch (speciesId) {
+            case "minecraft:wolf" -> 0xFF9AA0A8;
+            case "minecraft:cat" -> 0xFFE0883B;
+            case "minecraft:parrot" -> 0xFF4FAE5A;
+            default -> 0xFF5B8DEF;
+        };
+    }
+
+    private static String avatarInitial(String name) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) return "?";
+        return trimmed.substring(0, 1).toUpperCase(Locale.ROOT);
+    }
+
+    private String buildSubtitle(AnimalRecord r) {
+        String species = capitalize(shortSpecies(r.speciesId()));
+        String tamedBy = buildTamedByLine(r);
+        return tamedBy.isEmpty() ? species : species + "  ·  " + tamedBy;
+    }
+
+    private static String capitalize(String value) {
+        if (value.isEmpty()) return value;
+        String base = value.replace('_', ' ');
+        return Character.toUpperCase(base.charAt(0)) + base.substring(1);
+    }
+
+    private String trimToWidth(String text, int maxWidth) {
+        if (this.font.width(text) <= maxWidth) return text;
+        return this.font.plainSubstrByWidth(text, Math.max(0, maxWidth - this.font.width("..."))) + "...";
     }
 
     private Component tamedByComponent(String ownerName) {

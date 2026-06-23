@@ -4,19 +4,9 @@ import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.data.AnimalRecord;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 public final class TreeRenderer {
-    private static final Identifier DEFAULT_CAT_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "textures/entity/cat/cat_tabby.png");
-    private static final int CAT_TEXTURE_WIDTH = 64;
-    private static final int CAT_TEXTURE_HEIGHT = 32;
-    private static final float CAT_FACE_U = 5.0f;
-    private static final float CAT_FACE_V = 4.0f;
-    private static final int CAT_FACE_WIDTH = 6;
-    private static final int CAT_FACE_HEIGHT = 6;
-
     private static final int BG_ALIVE = 0xFF202830;
     private static final int BG_DECEASED = 0xFF1A1A1A;
     private static final int BORDER_ALIVE = 0xFF6FB3FF;
@@ -48,22 +38,12 @@ public final class TreeRenderer {
         gfx.fill(x + w - 1, y, x + w, y + h, border);
 
         int textColor = r.deceased() ? TEXT_DECEASED : TEXT_PRIMARY;
-        boolean isCat = isCat(r);
-        int iconSize = isCat ? Math.max(28, (int) Math.round(36 * zoom)) : 0;
-        int iconPadding = isCat ? Math.max(6, (int) Math.round(8 * zoom)) : 0;
-        int left = x + Math.max(8, (int) Math.round(10 * zoom)) + (isCat ? iconSize + iconPadding : 0);
+        int left = x + Math.max(8, (int) Math.round(10 * zoom));
         int lineHeight = Math.max(font.lineHeight + 2, (int) Math.round((font.lineHeight + 2) * zoom));
         int line1 = y + Math.max(6, (int) Math.round(8 * zoom));
         int line2 = line1 + lineHeight;
         int line3 = line2 + lineHeight;
         int textWidth = Math.max(24, w - 20);
-
-        if (isCat) {
-            int iconX = x + Math.max(8, (int) Math.round(10 * zoom));
-            int iconY = y + Math.max(8, (int) Math.round(9 * zoom));
-            drawCatFace(gfx, catTexture(r), iconX, iconY, iconSize);
-            textWidth = Math.max(24, w - 20 - iconSize - iconPadding);
-        }
 
         gfx.text(font, Component.literal(trimToWidth(font, r.name(), textWidth)), left, line1, textColor);
         gfx.text(font, Component.literal(trimToWidth(font, shortSpecies(r.speciesId()), textWidth)),
@@ -142,36 +122,6 @@ public final class TreeRenderer {
             return worldAge + "d";
         }
         return "";
-    }
-
-    private static boolean isCat(AnimalRecord record) {
-        return "minecraft:cat".equals(record.speciesId());
-    }
-
-    private static Identifier catTexture(AnimalRecord record) {
-        if (record.textureId() != null && !record.textureId().isBlank()) {
-            Identifier texture = normalizeCatTexture(record.textureId());
-            if (texture != null) {
-                return texture;
-            }
-        }
-        return DEFAULT_CAT_TEXTURE;
-    }
-
-    private static Identifier normalizeCatTexture(String rawId) {
-        Identifier id = Identifier.tryParse(rawId);
-        if (id == null) {
-            return null;
-        }
-        if (id.getPath().startsWith("textures/")) {
-            return id;
-        }
-        return id.withPrefix("textures/").withSuffix(".png");
-    }
-
-    private static void drawCatFace(GuiGraphicsExtractor gfx, Identifier texture, int x, int y, int size) {
-        gfx.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, CAT_FACE_U, CAT_FACE_V,
-                size, size, CAT_FACE_WIDTH, CAT_FACE_HEIGHT, CAT_TEXTURE_WIDTH, CAT_TEXTURE_HEIGHT);
     }
 
     private static String buildTamedByLine(AnimalRecord record) {

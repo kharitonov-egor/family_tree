@@ -13,6 +13,8 @@
   "familytree.screen.settings": "Settings",
   "familytree.screen.scope.all": "Showing: All",
   "familytree.screen.scope.mine": "Showing: Mine",
+  "familytree.screen.status.alive": "Alive",
+  "familytree.screen.status.deceased": "Deceased",
   "familytree.not_available": "Family Tree is not installed on this server.",
   "familytree.screen.settings.title": "Family Tree Settings",
   "familytree.screen.settings.show_age": "Show age: %s",
