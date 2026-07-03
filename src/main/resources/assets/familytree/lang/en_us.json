@@ -57,5 +57,23 @@
   "familytree.command.info.help.pair": "/familytree pair links two parents to a child record.",
   "familytree.command.info.help.unpair": "/familytree unpair clears the parent links from a child record.",
   "familytree.command.info.help.setage": "/familytree setage changes a pet to a relative age in world days, for example 15 days old.",
-  "familytree.command.info.help.setbirth": "/familytree setbirth sets the pet's birth day directly, for example born on day 20."
+  "familytree.command.info.help.setbirth": "/familytree setbirth sets the pet's birth day directly, for example born on day 20.",
+
+  "familytree.tool.selected_parent1": "Selected %s as parent 1.",
+  "familytree.tool.selected_parent2": "Selected %s as parent 2.",
+  "familytree.tool.selected_child": "Selected %s as child.",
+  "familytree.tool.known_parents": "  Parents: %s + %s",
+  "familytree.tool.known_parents_none": "  Parents: none recorded",
+  "familytree.tool.known_children": "  Children: %s",
+  "familytree.tool.known_children_none": "  Children: none recorded",
+  "familytree.tool.confirm_link": "Set %s + %s as parents of %s?",
+  "familytree.tool.confirm_unlink": "Clear the recorded parents of %s?",
+  "familytree.tool.confirm_button": "[Confirm]",
+  "familytree.tool.cancel_button": "[Cancel]",
+  "familytree.tool.already_selected": "%s is already selected.",
+  "familytree.tool.not_tamed": "That animal is not tamed, so it cannot be linked.",
+  "familytree.tool.no_parents": "%s has no recorded parents.",
+  "familytree.tool.restarted": "Previous selection discarded.",
+  "familytree.tool.cancelled": "Selection cancelled.",
+  "familytree.tool.nothing_pending": "Nothing to confirm."
 }

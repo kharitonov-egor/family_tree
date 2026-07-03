@@ -17,8 +17,8 @@ public final class FamilyTreeClientSettings {
             .getConfigDir()
             .resolve("familytree-client.properties");
 
-    private static boolean showAge = true;
-    private static boolean showBirthDay = true;
+    private static boolean showAge = false;
+    private static boolean showBirthDay = false;
 
     private FamilyTreeClientSettings() {}
 
@@ -30,8 +30,8 @@ public final class FamilyTreeClientSettings {
             } catch (IOException ignored) {
             }
         }
-        showAge = Boolean.parseBoolean(properties.getProperty(SHOW_AGE_KEY, "true"));
-        showBirthDay = Boolean.parseBoolean(properties.getProperty(SHOW_BIRTH_DAY_KEY, "true"));
+        showAge = Boolean.parseBoolean(properties.getProperty(SHOW_AGE_KEY, "false"));
+        showBirthDay = Boolean.parseBoolean(properties.getProperty(SHOW_BIRTH_DAY_KEY, "false"));
     }
 
     public static void save() {

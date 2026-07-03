@@ -228,18 +228,15 @@ public final class TreeLayout {
             AnimalRecord record = records.get(id);
             if (record == null) continue;
             List<UUID> parents = new ArrayList<>(2);
-            int parentCount = 0;
             if (record.parentA() != null && included.contains(record.parentA())) {
-                parentCount++;
                 parents.add(record.parentA());
             }
             if (record.parentB() != null && included.contains(record.parentB())) {
-                parentCount++;
                 parents.add(record.parentB());
             }
             parentIds.put(id, parents);
-            remainingParents.put(id, parentCount);
-            if (parentCount == 0) {
+            remainingParents.put(id, parents.size());
+            if (parents.isEmpty()) {
                 queue.add(id);
                 generationById.put(id, 0);
             }
@@ -253,47 +250,40 @@ public final class TreeLayout {
         for (int i = 0; i < queue.size(); i++) {
             UUID parentId = queue.get(i);
             int parentGen = generationById.getOrDefault(parentId, 0);
-            AnimalRecord parentRecord = records.get(parentId);
-            if (parentRecord == null) continue;
-
-            Node parentNode = result.byId.computeIfAbsent(parentId, id -> {
-                Node node = new Node(id, parentRecord, parentGen);
-                result.nodes.add(node);
-                byGen.computeIfAbsent(parentGen, k -> new ArrayList<>()).add(node);
-                return node;
-            });
-
             for (UUID childId : childIndex.getOrDefault(parentId, List.of())) {
                 if (!included.contains(childId)) continue;
-                AnimalRecord childRecord = records.get(childId);
-                if (childRecord == null) continue;
                 int childGen = Math.max(generationById.getOrDefault(childId, 0), parentGen + 1);
                 generationById.put(childId, childGen);
                 remainingParents.computeIfPresent(childId, (id, count) -> Math.max(0, count - 1));
                 if (remainingParents.getOrDefault(childId, 0) == 0 && !queue.contains(childId)) {
                     queue.add(childId);
                 }
-
-                Node childNode = result.byId.get(childId);
-                if (childNode == null) {
-                    childNode = new Node(childId, childRecord, childGen);
-                    result.nodes.add(childNode);
-                    result.byId.put(childId, childNode);
-                    byGen.computeIfAbsent(childGen, k -> new ArrayList<>()).add(childNode);
-                }
-                result.edges.add(new Edge(parentNode, childNode));
             }
         }
 
         for (UUID id : componentIds) {
-            if (result.byId.containsKey(id)) continue;
+            generationById.putIfAbsent(id, 0);
+        }
+
+        pullParentsDown(componentIds, childIndex, included, generationById);
+
+        for (UUID id : componentIds) {
             AnimalRecord record = records.get(id);
             if (record == null) continue;
-            int generation = generationById.getOrDefault(id, 0);
-            Node node = new Node(id, record, generation);
+            Node node = new Node(id, record, generationById.get(id));
             result.nodes.add(node);
             result.byId.put(id, node);
-            byGen.computeIfAbsent(generation, k -> new ArrayList<>()).add(node);
+            byGen.computeIfAbsent(node.generation, k -> new ArrayList<>()).add(node);
+        }
+        for (UUID id : componentIds) {
+            Node parentNode = result.byId.get(id);
+            if (parentNode == null) continue;
+            for (UUID childId : childIndex.getOrDefault(id, List.of())) {
+                Node childNode = result.byId.get(childId);
+                if (childNode != null) {
+                    result.edges.add(new Edge(parentNode, childNode));
+                }
+            }
         }
 
         int maxGeneration = byGen.keySet().stream().mapToInt(Integer::intValue).max().orElse(0);
@@ -370,6 +360,27 @@ public final class TreeLayout {
         }
 
         return result;
+    }
+
+    private static void pullParentsDown(List<UUID> componentIds,
+                                        Map<UUID, List<UUID>> childIndex,
+                                        Set<UUID> included,
+                                        Map<UUID, Integer> generationById) {
+        List<UUID> order = new ArrayList<>(componentIds);
+        order.sort(Comparator.comparingInt((UUID id) -> generationById.getOrDefault(id, 0)).reversed());
+        for (UUID id : order) {
+            int minChildGen = Integer.MAX_VALUE;
+            for (UUID childId : childIndex.getOrDefault(id, List.of())) {
+                if (!included.contains(childId)) continue;
+                Integer childGen = generationById.get(childId);
+                if (childGen != null) {
+                    minChildGen = Math.min(minChildGen, childGen);
+                }
+            }
+            if (minChildGen != Integer.MAX_VALUE) {
+                generationById.put(id, Math.max(generationById.getOrDefault(id, 0), minChildGen - 1));
+            }
+        }
     }
 
     private static Map<UUID, Integer> indexById(List<Node> row) {

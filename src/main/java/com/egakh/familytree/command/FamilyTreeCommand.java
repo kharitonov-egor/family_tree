@@ -3,6 +3,7 @@ package com.egakh.familytree.command;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.event.PetLifecycleListeners;
+import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.util.TimeUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
@@ -58,6 +59,8 @@ public final class FamilyTreeCommand {
                                                 StringArgumentType.getString(ctx, "name"),
                                                 LongArgumentType.getLong(ctx, "day"))))))
                 .then(Commands.literal("scan").executes(ctx -> runScan(ctx.getSource())))
+                .then(Commands.literal("confirmlink").executes(ctx -> LinkingTool.confirm(ctx.getSource())))
+                .then(Commands.literal("cancellink").executes(ctx -> LinkingTool.cancel(ctx.getSource())))
                 .then(Commands.literal("prune")
                         .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.literal("deceased")

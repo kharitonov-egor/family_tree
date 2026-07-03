@@ -2,6 +2,7 @@ package com.egakh.familytree;
 
 import com.egakh.familytree.command.FamilyTreeCommand;
 import com.egakh.familytree.event.PetLifecycleListeners;
+import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.network.FamilyTreePackets;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import net.fabricmc.api.ModInitializer;
@@ -20,6 +21,7 @@ public class FamilyTreeMod implements ModInitializer {
         FamilyTreePackets.registerCommon();
         FamilyTreePackets.registerServer();
         PetLifecycleListeners.register();
+        LinkingTool.register();
 
         ServerLifecycleEvents.SERVER_STARTING.register(server -> FamilyTreeServerSettings.load());
 
