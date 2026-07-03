@@ -10,9 +10,9 @@ Tame two animals, breed them, and Family Tree records the baby's parents, birth 
 
 > **Versions:** Minecraft `26.1.x` · Fabric Loader `0.19.2` · Fabric API · Java `25`
 
-![Tracked Pets browser](https://cdn.modrinth.com/data/cached_images/244e3a3656eb3761014288a2355934a49bbada0a_0.webp)
+![Tracked Pets browser](docs/tracked-pets-browser.webp)
 
-![Family tree view](https://cdn.modrinth.com/data/cached_images/6317072ede58bd5bdad5b569a5a409b11b3b2393_0.webp)
+![Family tree view](docs/family-tree-view.webp)
 
 ## Features
 
