@@ -11,7 +11,11 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 
 import java.util.Comparator;
 import java.util.List;
@@ -58,6 +62,11 @@ public final class FamilyTreeCommand {
                                                 ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "name"),
                                                 LongArgumentType.getLong(ctx, "day"))))))
+                .then(Commands.literal("locate")
+                        .then(Commands.argument("name", StringArgumentType.greedyString())
+                                .executes(ctx -> runLocate(
+                                        ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("scan").executes(ctx -> runScan(ctx.getSource())))
                 .then(Commands.literal("confirmlink").executes(ctx -> LinkingTool.confirm(ctx.getSource())))
                 .then(Commands.literal("cancellink").executes(ctx -> LinkingTool.cancel(ctx.getSource())))
@@ -122,6 +131,95 @@ public final class FamilyTreeCommand {
                 source.sendSuccess(() -> Component.literal("  parent B: " + pb.name()), false);
             }
         }
+        return 1;
+    }
+
+    private static int runLocate(CommandSourceStack source, String name) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        String normalized = name.toLowerCase(Locale.ROOT);
+        List<AnimalRecord> matches = state.all().stream()
+                .filter(record -> record.name().toLowerCase(Locale.ROOT).equals(normalized))
+                .sorted(Comparator.comparing(AnimalRecord::birthWorldDay))
+                .toList();
+        if (matches.isEmpty()) {
+            source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
+            return 0;
+        }
+
+        if (matches.size() > 1) {
+            source.sendSuccess(() -> Component.translatable("familytree.command.locate.multiple",
+                    matches.size(), name).withStyle(ChatFormatting.GRAY), false);
+        }
+        int located = 0;
+        for (AnimalRecord pet : matches) {
+            located += locateOne(source, state, pet);
+        }
+        return located;
+    }
+
+    private static int locateOne(CommandSourceStack source, FamilyTreeState state, AnimalRecord pet) {
+        double x;
+        double y;
+        double z;
+        String dimension;
+        Long lastSeenDay = null;
+        Entity live = null;
+        for (ServerLevel level : source.getServer().getAllLevels()) {
+            live = level.getEntity(pet.id());
+            if (live != null) {
+                PetLifecycleListeners.stampPosition(level, state, live);
+                break;
+            }
+        }
+        if (live != null) {
+            x = live.getX();
+            y = live.getY();
+            z = live.getZ();
+            dimension = live.level().dimension().identifier().toString();
+        } else {
+            AnimalRecord.LastSeen seen = pet.lastSeen();
+            if (seen == null) {
+                source.sendFailure(Component.translatable("familytree.command.locate.no_position", pet.name()));
+                return 0;
+            }
+            x = seen.x();
+            y = seen.y();
+            z = seen.z();
+            dimension = seen.dimension();
+            lastSeenDay = seen.worldDay();
+        }
+
+        if (pet.deceased()) {
+            long deathDay = pet.deathWorldDay() != null ? pet.deathWorldDay() : 0;
+            source.sendSuccess(() -> Component.translatable("familytree.command.locate.deceased",
+                    pet.name(), deathDay), false);
+        }
+
+        int bx = (int) Math.round(x);
+        int by = (int) Math.round(y);
+        int bz = (int) Math.round(z);
+        MutableComponent coords = Component.literal(bx + ", " + by + ", " + bz);
+        if (Commands.LEVEL_GAMEMASTERS.check(source.permissions())) {
+            String tp = "/execute in " + dimension + " run tp @s " + bx + " " + by + " " + bz;
+            coords = coords.withStyle(s -> s
+                    .withColor(ChatFormatting.AQUA)
+                    .withUnderlined(true)
+                    .withClickEvent(new ClickEvent.SuggestCommand(tp)));
+        }
+
+        MutableComponent result = Component.translatable("familytree.command.locate.result",
+                pet.name(), coords, shortSpecies(dimension));
+        Entity sender = source.getEntity();
+        if (sender != null && sender.level().dimension().identifier().toString().equals(dimension)) {
+            long distance = Math.round(Math.sqrt(sender.distanceToSqr(x, y, z)));
+            result.append(Component.translatable("familytree.command.locate.distance", distance));
+        }
+        if (lastSeenDay != null) {
+            result.append(Component.translatable("familytree.command.locate.last_seen", lastSeenDay)
+                    .withStyle(ChatFormatting.GRAY));
+        }
+        MutableComponent line = result;
+        source.sendSuccess(() -> line, false);
         return 1;
     }
 
@@ -268,8 +366,12 @@ public final class FamilyTreeCommand {
                 ? r.deathWorldDay() - r.birthWorldDay()
                 : currentDay - r.birthWorldDay();
 
+        String cause = "";
+        if (r.deceased() && r.deathCause() != null && r.deathCause().attacker() != null) {
+            cause = "; slain by " + r.deathCause().attacker();
+        }
         String suffix = r.deceased()
-                ? " (deceased; lived " + worldAge + " world-days)"
+                ? " (deceased; lived " + worldAge + " world-days" + cause + ")"
                 : " - born day " + r.birthWorldDay() + " (" + worldAge + " world-days old)";
         return "- " + r.name() + " [" + shortSpecies(r.speciesId()) + "]" + suffix;
     }

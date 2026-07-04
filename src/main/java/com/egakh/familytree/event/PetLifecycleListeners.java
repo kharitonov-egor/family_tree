@@ -7,6 +7,7 @@ import com.egakh.familytree.naming.NameGenerator;
 import com.egakh.familytree.util.PetFilter;
 import com.egakh.familytree.util.TimeUtil;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -31,6 +32,13 @@ public final class PetLifecycleListeners {
 
     public static void register() {
         ServerLivingEntityEvents.AFTER_DEATH.register(PetLifecycleListeners::onDeath);
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+            if (!PetFilter.isTrackable(entity)) return;
+            FamilyTreeState state = FamilyTreeState.get(world);
+            if (state.contains(entity.getUUID())) {
+                stampPosition(world, state, entity);
+            }
+        });
     }
 
     public static void onBred(ServerLevel world, Animal parentA, Animal parentB, Animal child) {
@@ -86,9 +94,11 @@ public final class PetLifecycleListeners {
                 TimeUtil.currentWorldDay(world),
                 TimeUtil.currentEpochMillis(),
                 false, null, null,
-                owner, ownerName, variantOf(child)
+                owner, ownerName, variantOf(child),
+                null, null
         );
         state.put(rec);
+        stampPosition(world, state, child);
     }
 
     public static void onCustomNameChanged(Entity entity, Component newName) {
@@ -140,7 +150,11 @@ public final class PetLifecycleListeners {
         FamilyTreeState state = FamilyTreeState.get(world);
         UUID id = entity.getUUID();
         if (!state.contains(id)) return;
-        state.update(id, r -> r.markDeceased(TimeUtil.currentWorldDay(world), TimeUtil.currentEpochMillis()));
+        Entity killer = source.getEntity();
+        String attacker = killer != null ? killer.getDisplayName().getString() : null;
+        AnimalRecord.DeathCause cause = new AnimalRecord.DeathCause(attacker, source.getMsgId());
+        state.update(id, r -> r.markDeceased(TimeUtil.currentWorldDay(world), TimeUtil.currentEpochMillis(), cause));
+        stampPosition(world, state, entity);
     }
 
     public static void ensureRecord(ServerLevel world, FamilyTreeState state, Entity entity) {
@@ -167,6 +181,7 @@ public final class PetLifecycleListeners {
                     state.update(id, rec -> rec.rename(currentName, false));
                 }
             }
+            stampPosition(world, state, entity);
             return;
         }
 
@@ -181,9 +196,18 @@ public final class PetLifecycleListeners {
                 TimeUtil.currentWorldDay(world),
                 TimeUtil.currentEpochMillis(),
                 false, null, null,
-                ownerOf(entity), ownerNameOf(world, ownerOf(entity)), variantOf(entity)
+                ownerOf(entity), ownerNameOf(world, ownerOf(entity)), variantOf(entity),
+                null, null
         );
         state.put(rec);
+        stampPosition(world, state, entity);
+    }
+
+    public static void stampPosition(ServerLevel world, FamilyTreeState state, Entity entity) {
+        state.update(entity.getUUID(), r -> r.updateLastSeen(
+                entity.getX(), entity.getY(), entity.getZ(),
+                world.dimension().identifier().toString(),
+                TimeUtil.currentWorldDay(world)));
     }
 
     public static ScanResult scanLoadedPets(net.minecraft.server.MinecraftServer server) {

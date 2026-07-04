@@ -78,8 +78,28 @@ public final class TreeRenderer {
         }
 
         if (r.deceased()) {
-            gfx.text(font, Component.translatable("familytree.node.deceased"), left, cursorY, 0xFFB94A4A);
+            gfx.text(font, Component.literal(trimToWidth(font, buildDeathLine(r), textWidth)),
+                    left, cursorY, 0xFFB94A4A);
         }
+    }
+
+    private static String buildDeathLine(AnimalRecord r) {
+        AnimalRecord.DeathCause cause = r.deathCause();
+        if (cause == null || (cause.attacker() == null && cause.msgId() == null) || r.deathWorldDay() == null) {
+            return Component.translatable("familytree.node.deceased").getString();
+        }
+        if (cause.attacker() != null) {
+            return Component.translatable("familytree.node.slain_by", cause.attacker(), r.deathWorldDay()).getString();
+        }
+        return Component.translatable("familytree.node.died_of", prettifyMsgId(cause.msgId()), r.deathWorldDay()).getString();
+    }
+
+    private static String prettifyMsgId(String msgId) {
+        String spaced = msgId.replace('_', ' ')
+                .replaceAll("([a-z])([A-Z])", "$1 $2")
+                .replace('.', ' ')
+                .toLowerCase(java.util.Locale.ROOT);
+        return spaced.isBlank() ? msgId : spaced;
     }
 
     private static int drawWrapped(GuiGraphicsExtractor gfx, Font font, String text,
