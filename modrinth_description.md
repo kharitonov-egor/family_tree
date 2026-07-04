@@ -10,7 +10,7 @@ Automatically tracks the lineage of your tamed, bred pets and shows it to you in
 
 Whenever a tracked pet breeds, Family Tree records the baby with **both parents, its birth day (and real-world timestamp), an auto-generated name, its owner, and its species**. Over time this builds a complete, browsable family history of your animals. When a tracked pet dies, it's marked as deceased and kept in the records rather than vanishing.
 
-The data lives on the server (or your singleplayer world) and is the source of truth — the GUI just displays it.
+The data lives on the server (or your singleplayer world) and is the source of truth. The GUI just displays it.
 
 ## Tracked species
 
@@ -18,26 +18,27 @@ Cats, wolves, parrots, horses, donkeys, mules, llamas, and camels.
 
 ## Features
 
-- 🐾 **Automatic lineage tracking** — parents, birth day, owner, name, and species recorded on breeding, no setup required.
-- 🪄 **Linking stick** *(new!)* — rename a plain stick to `familytree` in an anvil and right-click pets to record parentage in existing worlds: click parent 1, parent 2, then the child, and confirm with clickable chat buttons. Sneak-click a pet to clear its recorded parents. Each click also shows the pet's currently-known parents and children, creates a record on the spot for pets tamed before the mod was installed, and picks up nametag names.
-- 🖼️ **Tracked Pets browser** — a searchable, filterable list of every pet with **live 3D model heads** (showing each pet's real coat variant) for cats and dogs, species-colored cards, and an Alive / Deceased status pill.
-- 🔎 **Filter & search** — show All / Alive / Deceased, search by name or species, and open a species' combined tree.
-- 🌳 **Family tree view** — pan and zoom an ancestry graph for any pet; nodes show the 3D head, name, species, owner, age, and death state. Mates are placed side by side with their children below them.
-- ⚰️ **Deceased tracking** — pets that die are marked deceased (with their death day), not deleted.
-- ⚙️ **Display settings** — toggle showing age and/or birth day, right from the screen (both off by default).
-- 🛠️ **Management commands** — manually pair/unpair parents, fix ages, import existing pets, and prune records.
-- 🎮 **Server-friendly** — operators can view every player's pets; vanilla clients can still join a server running the mod.
+- 🐾 **Automatic lineage tracking**: parents, birth day, owner, name, and species recorded on breeding, no setup required.
+- 📍 **Pet locator** *(new!)*: `/familytree locate <name>` shows where a pet is, with coordinates, dimension, and distance. If the pet's chunk is unloaded you get its last known spot. Lost cats are a solved problem.
+- ⚰️ **Death cause** *(new!)*: when a pet dies, the mod records what killed it. The tree shows "Slain by Creeper, day 43" or "Died of fall, day 12" instead of just "deceased".
+- 🪄 **Linking stick**: rename a plain stick to `familytree` in an anvil and right-click pets to record parentage in existing worlds: click parent 1, parent 2, then the child, and confirm with clickable chat buttons. Sneak-click a pet to clear its recorded parents. The clicked pet briefly glows, so you can tell which cat in a pile you actually selected. Each click also shows the pet's known parents and children, and creates a record on the spot for pets tamed before the mod was installed.
+- 🖼️ **Tracked Pets browser**: a searchable, filterable list of every pet with **live 3D model heads** (showing each pet's real coat variant) for cats and dogs, species-colored cards, and an Alive / Deceased status pill.
+- 🔎 **Filter & search**: show All / Alive / Deceased, search by name or species, and open a species' combined tree.
+- 🌳 **Family tree view**: pan and zoom an ancestry graph for any pet. Nodes show the 3D head, name, species, owner, age, and death state. Mates are placed side by side with their children below them.
+- ⚙️ **Display settings**: toggle showing age and/or birth day, right from the screen (both off by default).
+- 🛠️ **Management commands**: manually pair/unpair parents, fix ages, import existing pets, and prune records.
+- 🎮 **Server-friendly**: operators can view every player's pets; vanilla clients can still join a server running the mod.
 
 ## How to open the screen
 
-The mod adds an **"Open Family Tree"** keybind. It is **unbound by default** — set it under **Options → Controls → Family Tree**, then press it in-game.
+The mod adds an **"Open Family Tree"** keybind. It is **unbound by default**, so set it under **Options > Controls > Family Tree**, then press it in-game.
 
 ## Linking pets with the stick
 
 For worlds where your pets already exist and were never bred with the mod installed:
 
 1. Rename a regular **stick** to `familytree` in an anvil (case doesn't matter).
-2. Right-click the first parent, then the second parent, then the child — chat confirms each selection.
+2. Right-click the first parent, then the second parent, then the child. Chat confirms each selection and the pet glows for a few seconds.
 3. Click **[Confirm]** in chat to save the link (or **[Cancel]** to discard it).
 4. Sneak + right-click a pet to clear its recorded parents (with the same confirmation).
 
@@ -51,6 +52,7 @@ All commands are under `/familytree`:
 | --- | --- |
 | `/familytree list` | List all tracked pets in chat. |
 | `/familytree scan` | Import already-tamed pets currently loaded in the world, and refresh coat variants on existing records. |
+| `/familytree locate <name>` | Show a pet's coordinates, dimension, and distance. Falls back to the last known position if the pet is not loaded. Lists every pet with that name. |
 | `/familytree info [name]` | Show details for a pet, or command help if no name is given. |
 | `/familytree pair <parentA> <parentB> <child>` | Manually link two parents to a child (same species, all distinct). |
 | `/familytree unpair <child>` | Clear a child's parent links. |
