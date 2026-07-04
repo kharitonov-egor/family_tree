@@ -31,7 +31,7 @@ Cats, wolves, parrots, horses, donkeys, mules, llamas, and camels.
 
 ## How to open the screen
 
-The mod adds an **"Open Family Tree"** keybind. It is **unbound by default**, so set it under **Options > Controls > Family Tree**, then press it in-game.
+The mod adds an **"Open Family Tree"** keybind. It is bound to **H** by default (rebindable under **Options > Controls > Family Tree**); press it in-game.
 
 ## Linking pets with the stick
 

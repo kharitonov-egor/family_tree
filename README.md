@@ -42,7 +42,7 @@ Install it like any Fabric mod: drop the jar (and Fabric API) into your `mods/` 
 
 ### Opening the screen
 
-The mod adds an **"Open Family Tree"** keybind. It is **unbound by default**, so set it in `Options > Controls > Family Tree`, then press it in-game to open the Tracked Pets browser.
+The mod adds an **"Open Family Tree"** keybind. It is bound to **H** by default (rebindable in `Options > Controls > Family Tree`); press it in-game to open the Tracked Pets browser.
 
 ### Commands
 

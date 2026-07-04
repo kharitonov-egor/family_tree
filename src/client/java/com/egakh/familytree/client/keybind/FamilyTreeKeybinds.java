@@ -11,7 +11,7 @@ public final class FamilyTreeKeybinds {
     public static final KeyMapping OPEN_TREE = new KeyMapping(
             "key.familytree.open_tree",
             InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_UNKNOWN,
+            GLFW.GLFW_KEY_H,
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath("familytree", "familytree"))
     );
 

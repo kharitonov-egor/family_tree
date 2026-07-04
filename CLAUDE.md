@@ -50,7 +50,7 @@ src/client/java/com/egakh/familytree/client/
   screen/TreeRenderer.java             node cards (name, age, owner, death line)
   screen/TreeLayout.java               tree layout
   screen/PetFaceRenderer.java          3D pet head portraits
-  keybind/, settings/                  open-tree keybind (unbound by default), display toggles
+  keybind/, settings/                  open-tree keybind (H by default), display toggles
 ```
 
 ## How data flows
