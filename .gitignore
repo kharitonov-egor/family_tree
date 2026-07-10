@@ -18,6 +18,9 @@ run/
 Thumbs.db
 Desktop.ini
 
+# Secrets
+.env
+
 # Logs and temp files
 *.log
 hs_err_pid*

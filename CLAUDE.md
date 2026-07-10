@@ -6,6 +6,10 @@ Family Tree is a Fabric mod (Minecraft 26.1.1, Java 25, Loom auto-mappings / Moj
 
 Mod id `familytree`, package `com.egakh.familytree`. Version lives in `gradle.properties` (`mod_version`).
 
+## Publishing releases
+
+The mod is published on Modrinth. When the user wants to publish a new version, use the Modrinth API and follow `docs/MODRINTH_API.md` (auth, headers, version-upload endpoint, curl example).
+
 ## Backward compatibility is priority #1
 
 Players keep long-running worlds with years of pet history. A version upgrade must NEVER lose or corrupt their data. Every change is checked against this first, before features, before cleanliness. Concretely:
