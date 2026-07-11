@@ -1,0 +1,28 @@
+plugins {
+    id 'dev.kikugie.stonecutter'
+}
+
+stonecutter.active '26.1.1' /* [SC] DO NOT EDIT */
+
+// Build every Minecraft version's jar in one go: ./gradlew buildAll
+// (keep this list in sync with the versions in settings.gradle)
+tasks.register('buildAll') {
+    group = 'project'
+    description = 'Builds the mod jar for every configured Minecraft version.'
+    dependsOn ':26.1.1:build', ':26.2:build'
+}
+
+// Source is authored against 26.1.1 (the vcsVersion). These replacements rewrite the
+// handful of renamed APIs when building newer Minecraft versions. Keep authoring in
+// 26.1 names; add a new `string(...)` gate here when a future version renames an API.
+stonecutter.parameters {
+    replacements {
+        string(current.parsed >= '26.2') {
+            replace 'setScreen(', 'setScreenAndShow('
+            replace 'EntityType.CAT', 'net.minecraft.world.entity.EntityTypes.CAT'
+            replace 'EntityType.WOLF', 'net.minecraft.world.entity.EntityTypes.WOLF'
+            replace 'client.gui.setOverlayMessage(Component.translatable("familytree.not_available"), false)',
+                    'client.player.sendOverlayMessage(Component.translatable("familytree.not_available"))'
+        }
+    }
+}

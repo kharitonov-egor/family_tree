@@ -1,9 +1,21 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'dev.kikugie.loom-back-compat'
     id 'java'
 }
 
-version = project.mod_version
+def mcVersion = stonecutter.current.version
+
+def fabricApiVersions = [
+        '26.1.1': '0.145.4+26.1.1',
+        '26.2'  : '0.154.1+26.2',
+]
+def fabricApiVersion = fabricApiVersions[mcVersion]
+if (fabricApiVersion == null) {
+    throw new GradleException("No Fabric API version mapped for Minecraft ${mcVersion} — add it to build.gradle")
+}
+def minecraftDep = mcVersion.startsWith('26.2') ? '~26.2' : '~26.1'
+
+version = "${project.mod_version}+${mcVersion}"
 group = project.maven_group
 
 base {
@@ -27,16 +39,18 @@ loom {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    minecraft "com.mojang:minecraft:${mcVersion}"
+    loomx.applyMojangMappings()
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
 }
 
 processResources {
-    inputs.property "version", project.version
+    inputs.property 'version', project.version
+    inputs.property 'minecraft', minecraftDep
 
-    filesMatching("fabric.mod.json") {
-        expand "version": project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version, 'minecraft': minecraftDep
     }
 }
 

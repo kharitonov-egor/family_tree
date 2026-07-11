@@ -8,7 +8,7 @@ Tame two animals, breed them, and Family Tree records the baby's parents, birth 
 
 **Download:** [Modrinth](https://modrinth.com/mod/familytree) · [GitHub Releases](https://github.com/kharitonov-egor/family_tree/releases)
 
-> **Versions:** Minecraft `26.1.x` · Fabric Loader `0.19.2` · Fabric API · Java `25`
+> **Versions:** Minecraft `26.1.x` and `26.2` · Fabric Loader `0.19.2` · Fabric API · Java `25`
 
 ![Tracked Pets browser](docs/tracked-pets-browser.webp)
 
@@ -22,19 +22,20 @@ Tame two animals, breed them, and Family Tree records the baby's parents, birth 
   - Live **3D model heads** for cats and dogs (correct coat variant), species-colored cards, and an Alive/Deceased status pill.
   - Filter by **All / Alive / Deceased**, search by name or species, and jump into a species' combined tree.
   - Operators can toggle **Showing: Mine / All** to view every player's pets.
-- **Family tree view**: pan and zoom an ancestry graph for any pet. Nodes show the 3D head, name, species, owner, age, and death state.
+- **Family tree view**: pan and zoom an ancestry graph for any pet. Nodes show the 3D head, name, generation, owner, age, and death state.
+- **Generation numbers**: every pet shows its lineage depth — a founder (no tracked parents) is **Gen 1**, its offspring **Gen 2**, and so on. Displayed on tree cards and in `/familytree info`.
 - **Pet locator**: `/familytree locate <name>` tells you where a pet is (coordinates, dimension, and distance). If its chunk is unloaded, you get the last known spot instead. Pets with the same name are all listed.
 - **Death cause tracking**: when a tracked pet dies, the mod records what killed it and when. The tree shows things like "Slain by Creeper, day 43" or "Died of fall, day 12".
-- **Display settings**: toggle showing age and/or birth day from the in-screen Settings button.
+- **Display settings**: toggle showing generation, age, and/or birth day from the in-screen Settings button.
 - **Linking stick**: rename a stick to `familytree` in an anvil, then right-click parent 1, parent 2, and child, and confirm in chat to record parentage for pets from existing worlds. Sneak-click clears a pet's parents. The clicked pet glows for a few seconds so you always know which one you selected.
 - **Management commands**: manually pair/unpair parents, fix ages, import existing pets, and prune records.
 
 ## Requirements
 
-- Minecraft `26.1.1`
+- Minecraft `26.1.1` or `26.2` (download the matching jar)
 - [Fabric Loader](https://fabricmc.net/) `>= 0.16`
 - [Fabric API](https://modrinth.com/mod/fabric-api)
-- Java `25` (required by this Minecraft version)
+- Java `25` (required by these Minecraft versions)
 
 Install it like any Fabric mod: drop the jar (and Fabric API) into your `mods/` folder. Works in single-player and on dedicated servers. The mod must be installed on the **server** (or single-player world) for tracking; clients without it that join a server with it will simply not see the screen.
 
@@ -65,13 +66,21 @@ All commands are under `/familytree`:
 
 ## Building from source
 
-This is a standard Fabric Loom project.
+This is a Fabric Loom project that targets multiple Minecraft versions from one source tree using [Stonecutter](https://stonecutter.kikugie.dev/).
 
 ```bash
-./gradlew build
+./gradlew buildAll          # build a jar for every supported Minecraft version
+./gradlew :26.2:build       # or just one version
 ```
 
-The built jar lands in `build/libs/`. To launch a dev client/server use `./gradlew runClient` / `./gradlew runServer`.
+Jars land in `versions/<mcver>/build/libs/familytree-<modver>+<mcver>.jar`. To launch a dev client/server, switch the active version first, then run:
+
+```bash
+./gradlew "Set active project to 26.2"
+./gradlew runClient   # or runServer
+```
+
+The set of targeted Minecraft versions lives in `settings.gradle`; contributors adding a new version should read the "Multi-version build" section of `CLAUDE.md`.
 
 ## Project layout
 

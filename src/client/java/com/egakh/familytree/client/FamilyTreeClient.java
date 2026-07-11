@@ -27,8 +27,7 @@ public class FamilyTreeClient implements ClientModInitializer {
             while (FamilyTreeKeybinds.OPEN_TREE.consumeClick()) {
                 if (client.level == null || client.player == null) continue;
                 if (!ClientPlayNetworking.canSend(OpenFamilyTreeRequest.TYPE)) {
-                    client.gui.setOverlayMessage(
-                            Component.translatable("familytree.not_available"), false);
+                    client.gui.setOverlayMessage(Component.translatable("familytree.not_available"), false);
                     continue;
                 }
                 client.setScreen(new FamilyTreeBrowserScreen());

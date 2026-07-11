@@ -2,6 +2,10 @@
 .gradle/
 build/
 
+# Stonecutter (generated per-version subprojects and cache)
+versions/
+.stonecutter/
+
 # Fabric dev runtime
 run/
 
@@ -20,6 +24,9 @@ Desktop.ini
 
 # Secrets
 .env
+.env.*
+!.env.example
+*.pat
 
 # Logs and temp files
 *.log
