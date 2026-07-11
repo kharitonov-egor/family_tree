@@ -4,6 +4,7 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
+import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.TimeUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
@@ -119,6 +120,14 @@ public final class FamilyTreeCommand {
         long currentDay = TimeUtil.currentWorldDay(source.getLevel());
         source.sendSuccess(() -> Component.literal(formatLine(match, currentDay))
                 .withStyle(ChatFormatting.YELLOW), false);
+
+        java.util.Map<java.util.UUID, AnimalRecord> byId = new java.util.HashMap<>();
+        for (AnimalRecord r : state.all()) {
+            byId.put(r.id(), r);
+        }
+        int generation = Genealogy.generationOf(match.id(), byId);
+        source.sendSuccess(() -> Component.translatable("familytree.command.info.generation", generation), false);
+
         if (match.parentA() != null) {
             AnimalRecord pa = state.get(match.parentA());
             if (pa != null) {

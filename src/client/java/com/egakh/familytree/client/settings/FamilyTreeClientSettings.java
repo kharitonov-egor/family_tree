@@ -13,12 +13,14 @@ public final class FamilyTreeClientSettings {
 
     private static final String SHOW_AGE_KEY = "showAge";
     private static final String SHOW_BIRTH_DAY_KEY = "showBirthDay";
+    private static final String SHOW_GENERATION_KEY = "showGeneration";
     private static final Path CONFIG_PATH = FabricLoader.getInstance()
             .getConfigDir()
             .resolve("familytree-client.properties");
 
     private static boolean showAge = false;
     private static boolean showBirthDay = false;
+    private static boolean showGeneration = true;
 
     private FamilyTreeClientSettings() {}
 
@@ -32,12 +34,14 @@ public final class FamilyTreeClientSettings {
         }
         showAge = Boolean.parseBoolean(properties.getProperty(SHOW_AGE_KEY, "false"));
         showBirthDay = Boolean.parseBoolean(properties.getProperty(SHOW_BIRTH_DAY_KEY, "false"));
+        showGeneration = Boolean.parseBoolean(properties.getProperty(SHOW_GENERATION_KEY, "true"));
     }
 
     public static void save() {
         Properties properties = new Properties();
         properties.setProperty(SHOW_AGE_KEY, Boolean.toString(showAge));
         properties.setProperty(SHOW_BIRTH_DAY_KEY, Boolean.toString(showBirthDay));
+        properties.setProperty(SHOW_GENERATION_KEY, Boolean.toString(showGeneration));
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             try (OutputStream out = Files.newOutputStream(CONFIG_PATH)) {
@@ -62,6 +66,15 @@ public final class FamilyTreeClientSettings {
 
     public static void setShowBirthDay(boolean value) {
         showBirthDay = value;
+        save();
+    }
+
+    public static boolean showGeneration() {
+        return showGeneration;
+    }
+
+    public static void setShowGeneration(boolean value) {
+        showGeneration = value;
         save();
     }
 }

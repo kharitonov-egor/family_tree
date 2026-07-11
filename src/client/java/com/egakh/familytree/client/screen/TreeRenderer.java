@@ -16,13 +16,15 @@ public final class TreeRenderer {
     private static final int TEXT_PRIMARY = 0xFFFFFFFF;
     private static final int TEXT_SECONDARY = 0xFFB0B7C0;
     private static final int TEXT_DECEASED = 0xFF888888;
+    private static final int TEXT_GENERATION = 0xFFD9B25A;
+    private static final int TEXT_GENERATION_DECEASED = 0xFF8A7A4A;
     private static final int EDGE_COLOR = 0xFF7C8DA8;
 
     private TreeRenderer() {}
 
     public static void drawNode(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node node,
                                 long currentWorldDay, long currentEpochMillis, boolean isFocus,
-                                double panX, double panY, double zoom) {
+                                int generation, double panX, double panY, double zoom) {
         int x = (int) Math.round(node.x * zoom + panX);
         int y = (int) Math.round(node.y * zoom + panY);
         int w = Math.max(110, (int) Math.round(TreeLayout.NODE_WIDTH * zoom));
@@ -55,9 +57,13 @@ public final class TreeRenderer {
 
         int cursorY = y + Math.max(6, (int) Math.round(8 * zoom));
         cursorY = drawWrapped(gfx, font, r.name(), left, cursorY, textWidth, lineHeight, textColor);
-        gfx.text(font, Component.literal(trimToWidth(font, shortSpecies(r.speciesId()), textWidth)),
-                left, cursorY, TEXT_SECONDARY);
-        cursorY += lineHeight;
+
+        if (FamilyTreeClientSettings.showGeneration() && generation > 0) {
+            String genLine = Component.translatable("familytree.node.generation", generation).getString();
+            gfx.text(font, Component.literal(trimToWidth(font, genLine, textWidth)),
+                    left, cursorY, r.deceased() ? TEXT_GENERATION_DECEASED : TEXT_GENERATION);
+            cursorY += lineHeight;
+        }
 
         String tamedBy = buildTamedByLine(r);
         if (!tamedBy.isEmpty()) {
@@ -135,11 +141,6 @@ public final class TreeRenderer {
         int a = Math.min(y1, y2);
         int b = Math.max(y1, y2);
         gfx.fill(x, a, x + 1, b + 1, EDGE_COLOR);
-    }
-
-    private static String shortSpecies(String id) {
-        int colon = id.indexOf(':');
-        return colon >= 0 ? id.substring(colon + 1) : id;
     }
 
     private static String trimToWidth(Font font, String text, int maxWidth) {

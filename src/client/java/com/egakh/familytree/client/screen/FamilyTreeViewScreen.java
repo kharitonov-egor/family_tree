@@ -2,6 +2,7 @@ package com.egakh.familytree.client.screen;
 
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
+import com.egakh.familytree.util.Genealogy;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -23,6 +24,7 @@ public class FamilyTreeViewScreen extends Screen {
 
     private final Map<UUID, AnimalRecord> records = new HashMap<>();
     private final Map<UUID, List<UUID>> childIndex = new HashMap<>();
+    private final Map<UUID, Integer> generations = new HashMap<>();
     private TreeLayout.Result tree;
 
     private double panX = 0;
@@ -69,6 +71,7 @@ public class FamilyTreeViewScreen extends Screen {
                 childIndex.computeIfAbsent(r.parentB(), k -> new ArrayList<>()).add(r.id());
             }
         }
+        generations.putAll(Genealogy.computeGenerations(records));
     }
 
     @Override
@@ -120,7 +123,7 @@ public class FamilyTreeViewScreen extends Screen {
         for (TreeLayout.Node n : tree.nodes) {
             TreeRenderer.drawNode(gfx, this.font, n,
                     snapshot.currentWorldDay(), snapshot.currentEpochMillis(),
-                    n.id.equals(focusId), panX, panY, zoom);
+                    n.id.equals(focusId), generations.getOrDefault(n.id, 0), panX, panY, zoom);
         }
 
         gfx.centeredText(this.font, this.title, this.width / 2, 14, 0xFFFFFFFF);

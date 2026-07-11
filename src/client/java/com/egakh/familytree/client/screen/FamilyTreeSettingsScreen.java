@@ -34,13 +34,20 @@ public class FamilyTreeSettingsScreen extends Screen {
                 .bounds(centerX - 100, top + 28, 200, 20)
                 .build());
 
+        this.addRenderableWidget(Button.builder(showGenerationLabel(), button -> {
+                    FamilyTreeClientSettings.setShowGeneration(!FamilyTreeClientSettings.showGeneration());
+                    button.setMessage(showGenerationLabel());
+                })
+                .bounds(centerX - 100, top + 56, 200, 20)
+                .build());
+
         this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"),
                         button -> {
                             if (this.minecraft != null) {
                                 this.minecraft.setScreen(parent);
                             }
                         })
-                .bounds(centerX - 100, top + 56, 200, 20)
+                .bounds(centerX - 100, top + 84, 200, 20)
                 .build());
     }
 
@@ -66,6 +73,13 @@ public class FamilyTreeSettingsScreen extends Screen {
     private static Component showBirthDayLabel() {
         return Component.translatable("familytree.screen.settings.show_birth_day",
                 FamilyTreeClientSettings.showBirthDay()
+                        ? Component.translatable("familytree.screen.settings.on")
+                        : Component.translatable("familytree.screen.settings.off"));
+    }
+
+    private static Component showGenerationLabel() {
+        return Component.translatable("familytree.screen.settings.show_generation",
+                FamilyTreeClientSettings.showGeneration()
                         ? Component.translatable("familytree.screen.settings.on")
                         : Component.translatable("familytree.screen.settings.off"));
     }
