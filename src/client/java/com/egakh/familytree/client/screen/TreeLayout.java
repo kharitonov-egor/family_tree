@@ -2,6 +2,7 @@ package com.egakh.familytree.client.screen;
 
 import com.egakh.familytree.data.AnimalRecord;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -50,6 +51,27 @@ public final class TreeLayout {
     }
 
     private TreeLayout() {}
+
+    /** Collapsing a branch hides all its descendants, including descendants with another parent. */
+    public static List<UUID> visibleIds(Result tree, Set<UUID> collapsed) {
+        Map<UUID, List<UUID>> children = new HashMap<>();
+        for (Edge edge : tree.edges) {
+            children.computeIfAbsent(edge.from.id, key -> new ArrayList<>()).add(edge.to.id);
+        }
+        Set<UUID> hidden = new HashSet<>();
+        for (UUID root : collapsed) {
+            Set<UUID> visited = new HashSet<>();
+            visited.add(root);
+            ArrayDeque<UUID> pending = new ArrayDeque<>(children.getOrDefault(root, List.of()));
+            while (!pending.isEmpty()) {
+                UUID id = pending.removeLast();
+                if (!visited.add(id)) continue;
+                hidden.add(id);
+                pending.addAll(children.getOrDefault(id, List.of()));
+            }
+        }
+        return tree.nodes.stream().map(node -> node.id).filter(id -> !hidden.contains(id)).toList();
+    }
 
     public static Result layoutForest(List<UUID> includedIds,
                                       Map<UUID, AnimalRecord> records,
@@ -169,6 +191,11 @@ public final class TreeLayout {
             for (Node parent : currentLevel) {
                 List<UUID> children = childIndex.getOrDefault(parent.id, List.of());
                 for (UUID childId : children) {
+                    Node existing = r.byId.get(childId);
+                    if (existing != null) {
+                        r.edges.add(new Edge(parent, existing));
+                        continue;
+                    }
                     if (!seen.add(childId)) continue;
                     AnimalRecord rec = records.get(childId);
                     if (rec == null) continue;

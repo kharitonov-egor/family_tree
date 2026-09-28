@@ -4,6 +4,7 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.util.PetFilter;
+import com.egakh.familytree.util.Genealogy;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -109,6 +110,12 @@ public final class LinkingTool {
             }
         }
 
+        if (session.pets.size() == 2 && Genealogy.wouldCreateCycle(record.id(),
+                session.pets.get(0), session.pets.get(1), state::get)) {
+            player.sendSystemMessage(Component.translatable("familytree.command.pair.cycle"));
+            return;
+        }
+
         session.pets.add(record.id());
         String key = switch (session.pets.size()) {
             case 1 -> "familytree.tool.selected_parent1";
@@ -212,6 +219,12 @@ public final class LinkingTool {
         }
         if (!parentA.speciesId().equals(parentB.speciesId()) || !parentA.speciesId().equals(child.speciesId())) {
             source.sendFailure(Component.translatable("familytree.command.pair.species_mismatch"));
+            return 0;
+        }
+
+        // Recheck after the confirmation delay, since another player may have edited the tree.
+        if (Genealogy.wouldCreateCycle(child.id(), parentA.id(), parentB.id(), state::get)) {
+            source.sendFailure(Component.translatable("familytree.command.pair.cycle"));
             return 0;
         }
 

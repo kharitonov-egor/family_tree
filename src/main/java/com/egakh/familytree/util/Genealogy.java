@@ -2,11 +2,13 @@ package com.egakh.familytree.util;
 
 import com.egakh.familytree.data.AnimalRecord;
 
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Genealogy generation numbers, derived entirely from the parent graph.
@@ -16,6 +18,25 @@ import java.util.UUID;
 public final class Genealogy {
 
     private Genealogy() {}
+
+    /** Checks both proposed parents against the current graph without changing any records. */
+    public static boolean wouldCreateCycle(UUID childId, UUID parentA, UUID parentB,
+                                           Function<UUID, AnimalRecord> lookup) {
+        ArrayDeque<UUID> pending = new ArrayDeque<>();
+        if (parentA != null) pending.add(parentA);
+        if (parentB != null) pending.add(parentB);
+        Set<UUID> visited = new HashSet<>();
+        while (!pending.isEmpty()) {
+            UUID id = pending.removeLast();
+            if (id.equals(childId)) return true;
+            if (!visited.add(id)) continue;
+            AnimalRecord record = lookup.apply(id);
+            if (record == null) continue;
+            if (record.parentA() != null) pending.add(record.parentA());
+            if (record.parentB() != null) pending.add(record.parentB());
+        }
+        return false;
+    }
 
     public static Map<UUID, Integer> computeGenerations(Map<UUID, AnimalRecord> records) {
         Map<UUID, Integer> memo = new HashMap<>();

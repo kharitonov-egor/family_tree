@@ -19,6 +19,7 @@ stonecutter.parameters {
     replacements {
         string(current.parsed >= '26.2') {
             replace 'setScreen(', 'setScreenAndShow('
+            replace 'client.screen instanceof', 'client.gui.screen() instanceof'
             replace 'EntityType.CAT', 'net.minecraft.world.entity.EntityTypes.CAT'
             replace 'EntityType.WOLF', 'net.minecraft.world.entity.EntityTypes.WOLF'
             replace 'client.gui.setOverlayMessage(Component.translatable("familytree.not_available"), false)',

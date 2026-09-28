@@ -25,6 +25,7 @@ The mod targets several Minecraft versions from a single source tree using [Ston
   | 26.1.1 | 26.2 |
   |---|---|
   | `Minecraft.setScreen(...)` | `setScreenAndShow(...)` |
+  | `client.screen` | `client.gui.screen()` |
   | `EntityType.CAT` / `.WOLF` | `EntityTypes.CAT` / `.WOLF` (fully-qualified, no import needed) |
   | `gui.setOverlayMessage(c, false)` | `player.sendOverlayMessage(c)` |
 - **Adding a new Minecraft version:** (1) add it to `versions` in `settings.gradle`; (2) add its `<fabric_api>+<mcver>` to `fabricApiVersions` in `build.gradle`; (3) add `:<mcver>:build` to the `buildAll` task's `dependsOn`; (4) build it, and for each `cannot find symbol` add a `replace` under a `string(current.parsed >= '<mcver>')` gate in `stonecutter.gradle` (find the new name with `javap`, see below). Never change the 26.1.1-authored source to a newer name — that breaks the older target.
@@ -35,7 +36,7 @@ Players keep long-running worlds with years of pet history. A version upgrade mu
 
 - **Never rename or remove existing NBT fields** in `AnimalRecord.CODEC` (`birth_world_day`, `death_epoch`, `variant_id`, ...). Old saves are parsed by field name; a rename silently drops that data for every existing pet.
 - **New persisted fields must be `optionalFieldOf`** with no required default semantics. An old save that lacks the field must parse cleanly (as `Optional.empty()` / `null`), and code reading the field must handle `null` (e.g. a pet that died before death causes existed still renders as plain "deceased").
-- **`RecordCodecBuilder` groups cap at 16 fields** and `AnimalRecord.CODEC` is currently at exactly 16. To add data, nest it: create a small record with its own `CODEC` (like `LastSeen` and `DeathCause`) and add it as one optional field, instead of adding scalars.
+- **`RecordCodecBuilder` groups cap at 16 fields.** `AnimalRecord.BASE_CODEC` keeps the original 16 fields flat. The outer `CODEC` combines that map codec with optional fields such as `tree_name`. Keep the original saved field names when extending the codec.
 - **`FamilyTreeState` uses a tolerant list codec** (`tolerantList` in `FamilyTreeState.java`): a single corrupt/unparseable record is skipped instead of failing the whole file. Keep this behavior; never replace it with a strict `listOf()`.
 - **Legacy migration stays**: `FamilyTreeState.tryLoadLegacy` imports the pre-SavedDataType `data/familytree.dat` file when the modern store is empty. There is also a `data_version` field (`CURRENT_DATA_VERSION`) reserved for future format migrations; bump it and write migration code rather than changing field meanings in place.
 - **Network `STREAM_CODEC` is append-only**: new fields go at the END of both `encode` and `decode`, in the same order. Client and server ship together, so appending is safe; reordering is not.
@@ -82,8 +83,10 @@ src/client/java/com/egakh/familytree/client/
 ## How data flows
 
 1. Mixins/events (breed, tame, rename, death, unload) call into `PetLifecycleListeners`, which mutates `FamilyTreeState` via `state.update(...)` / `state.put(...)` (both call `setDirty()` so Minecraft persists).
-2. Everything is server-authoritative. The client GUI opens by sending `OpenFamilyTreeRequest`; the server filters records by ownership/permissions and answers with `FamilyTreeSnapshotPayload`. The client never writes.
+2. Everything is server-authoritative. The client GUI sends `OpenFamilyTreeRequest`; the server filters records by ownership and permissions, then answers with `FamilyTreeSnapshotPayload`. Renaming sends `RenamePetRequest`, which the server validates before returning `RenamePetResult`. Only the server writes saved data.
 3. `AnimalRecord` is the single schema. Persisting a new fact = field + mutator + `CODEC` entry (optional!) + `STREAM_CODEC` append + wherever it gets captured, then render it in `TreeRenderer` or a command.
+
+`AnimalRecord.name()` returns the custom tree name when set. `originalName()` retains the entity name or generated name in the original `name` save field. Entity name hooks update the original name without clearing `tree_name`. Tree renames never call `Entity.setCustomName`. Commands match either name.
 
 ## Conventions and gotchas
 

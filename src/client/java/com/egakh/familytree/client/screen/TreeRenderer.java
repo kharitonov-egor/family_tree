@@ -23,12 +23,12 @@ public final class TreeRenderer {
     private TreeRenderer() {}
 
     public static void drawNode(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node node,
-                                long currentWorldDay, long currentEpochMillis, boolean isFocus,
+                                long currentWorldDay, long currentEpochMillis, boolean isFocus, boolean collapsed,
                                 int generation, double panX, double panY, double zoom) {
         int x = (int) Math.round(node.x * zoom + panX);
         int y = (int) Math.round(node.y * zoom + panY);
-        int w = Math.max(110, (int) Math.round(TreeLayout.NODE_WIDTH * zoom));
-        int h = Math.max(64, (int) Math.round(TreeLayout.NODE_HEIGHT * zoom));
+        int w = TreeViewport.nodeWidth(zoom);
+        int h = TreeViewport.nodeHeight(zoom);
         AnimalRecord r = node.record;
 
         int bg = r.deceased() ? BG_DECEASED : BG_ALIVE;
@@ -42,6 +42,14 @@ public final class TreeRenderer {
 
         int textColor = r.deceased() ? TEXT_DECEASED : TEXT_PRIMARY;
         boolean hasFace = PetFaceRenderer.hasFace(r);
+        if (zoom < 0.75) {
+            drawCompactNode(gfx, font, r, x, y, w, h, hasFace, collapsed, textColor);
+            return;
+        }
+        gfx.enableScissor(x + 1, y + 1, x + w - 1, y + h - 1);
+        if (collapsed) {
+            gfx.text(font, "+", x + w - 10, y + 3, TEXT_GENERATION);
+        }
         int basePad = Math.max(8, (int) Math.round(10 * zoom));
         int iconSize = hasFace ? Math.max(28, (int) Math.round(36 * zoom)) : 0;
         int iconPadding = hasFace ? Math.max(6, (int) Math.round(8 * zoom)) : 0;
@@ -87,6 +95,26 @@ public final class TreeRenderer {
             gfx.text(font, Component.literal(trimToWidth(font, buildDeathLine(r), textWidth)),
                     left, cursorY, 0xFFB94A4A);
         }
+        gfx.disableScissor();
+    }
+
+    private static void drawCompactNode(GuiGraphicsExtractor gfx, Font font, AnimalRecord record,
+                                        int x, int y, int w, int h, boolean hasFace,
+                                        boolean collapsed, int textColor) {
+        // At overview scales the cards remain visible, but text would be smaller than a pixel.
+        if (w < 24 || h < font.lineHeight + 4) return;
+        gfx.enableScissor(x + 1, y + 1, x + w - 1, y + h - 1);
+        int left = x + 4;
+        if (hasFace && w >= 64) {
+            int size = Math.min(h - 8, Math.min(32, w / 3));
+            PetFaceRenderer.drawFace(gfx, font, record, left, y + (h - size) / 2, size);
+            left += size + 4;
+        }
+        int rightPadding = collapsed ? 14 : 4;
+        gfx.text(font, trimToWidth(font, record.name(), Math.max(1, x + w - rightPadding - left)),
+                left, y + (h - font.lineHeight) / 2, textColor);
+        if (collapsed) gfx.text(font, "+", x + w - 10, y + (h - font.lineHeight) / 2, TEXT_GENERATION);
+        gfx.disableScissor();
     }
 
     private static String buildDeathLine(AnimalRecord r) {
@@ -120,8 +148,8 @@ public final class TreeRenderer {
 
     public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Node parent, TreeLayout.Node child,
                                 double panX, double panY, double zoom) {
-        int scaledNodeWidth = Math.max(110, (int) Math.round(TreeLayout.NODE_WIDTH * zoom));
-        int scaledNodeHeight = Math.max(50, (int) Math.round(TreeLayout.NODE_HEIGHT * zoom));
+        int scaledNodeWidth = TreeViewport.nodeWidth(zoom);
+        int scaledNodeHeight = TreeViewport.nodeHeight(zoom);
         int px = (int) Math.round(parent.x * zoom + panX + scaledNodeWidth / 2.0);
         int py = (int) Math.round(parent.y * zoom + panY + scaledNodeHeight);
         int cx = (int) Math.round(child.x * zoom + panX + scaledNodeWidth / 2.0);

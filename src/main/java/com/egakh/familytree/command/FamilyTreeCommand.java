@@ -110,7 +110,7 @@ public final class FamilyTreeCommand {
     private static int runInfo(CommandSourceStack source, String name) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         AnimalRecord match = state.all().stream()
-                .filter(r -> r.name().equalsIgnoreCase(name))
+                .filter(r -> r.matchesName(name))
                 .findFirst().orElse(null);
         if (match == null) {
             source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
@@ -145,9 +145,8 @@ public final class FamilyTreeCommand {
 
     private static int runLocate(CommandSourceStack source, String name) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        String normalized = name.toLowerCase(Locale.ROOT);
         List<AnimalRecord> matches = state.all().stream()
-                .filter(record -> record.name().toLowerCase(Locale.ROOT).equals(normalized))
+                .filter(record -> record.matchesName(name))
                 .sorted(Comparator.comparing(AnimalRecord::birthWorldDay))
                 .toList();
         if (matches.isEmpty()) {
@@ -356,6 +355,11 @@ public final class FamilyTreeCommand {
             return 0;
         }
 
+        if (Genealogy.wouldCreateCycle(child.id(), parentA.id(), parentB.id(), state::get)) {
+            source.sendFailure(Component.translatable("familytree.command.pair.cycle"));
+            return 0;
+        }
+
         state.update(child.id(), record -> record.setParents(parentA.id(), parentB.id()));
         source.sendSuccess(() -> Component.translatable("familytree.command.pair.result",
                 parentA.name(), parentB.name(), child.name()), false);
@@ -363,9 +367,8 @@ public final class FamilyTreeCommand {
     }
 
     private static AnimalRecord findByName(FamilyTreeState state, String name) {
-        String normalized = name.toLowerCase(Locale.ROOT);
         return state.all().stream()
-                .filter(record -> record.name().toLowerCase(Locale.ROOT).equals(normalized))
+                .filter(record -> record.matchesName(name))
                 .findFirst()
                 .orElse(null);
     }

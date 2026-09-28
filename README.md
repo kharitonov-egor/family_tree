@@ -22,13 +22,15 @@ Tame two animals, breed them, and Family Tree records the baby's parents, birth 
   - Live **3D model heads** for cats and dogs (correct coat variant), species-colored cards, and an Alive/Deceased status pill.
   - Filter by **All / Alive / Deceased**, search by name or species, and jump into a species' combined tree.
   - Operators can toggle **Showing: Mine / All** to view every player's pets.
-- **Family tree view**: pan and zoom an ancestry graph for any pet. Nodes show the 3D head, name, generation, owner, age, and death state.
+- **Family tree view**: pan and zoom an ancestry graph for any pet. Select a pet and use **Center pet** to bring it into view, or **Fit tree** to see the whole visible tree. **Hide branch** hides the selected pet's descendants, including shared descendants; **Show branch** restores that branch and **Show all** restores every branch. Cards show portraits and names when zoomed out, with more detail as you zoom in. Double-click a pet to open its tree. Back or Escape returns to the previous view with its zoom and branch settings intact.
 - **Generation numbers**: every pet shows its lineage depth — a founder (no tracked parents) is **Gen 1**, its offspring **Gen 2**, and so on. Displayed on tree cards and in `/familytree info`.
 - **Pet locator**: `/familytree locate <name>` tells you where a pet is (coordinates, dimension, and distance). If its chunk is unloaded, you get the last known spot instead. Pets with the same name are all listed.
 - **Death cause tracking**: when a tracked pet dies, the mod records what killed it and when. The tree shows things like "Slain by Creeper, day 43" or "Died of fall, day 12".
 - **Display settings**: toggle showing generation, age, and/or birth day from the in-screen Settings button.
 - **Linking stick**: rename a stick to `familytree` in an anvil, then right-click parent 1, parent 2, and child, and confirm in chat to record parentage for pets from existing worlds. Sneak-click clears a pet's parents. The clicked pet glows for a few seconds so you always know which one you selected.
 - **Management commands**: manually pair/unpair parents, fix ages, import existing pets, and prune records.
+- **Loop prevention**: manual pairing and the linking stick reject links that would make a pet its own ancestor.
+- **Custom tree names**: select a pet in the tree and click **Rename**. Save a name just for Family Tree, or choose **Use original** to restore its original name. The animal's name in the world stays unchanged. Owners and server operators can rename living, unloaded, or deceased pets. Commands accept either the original name or the custom tree name.
 
 ## Requirements
 
@@ -63,6 +65,8 @@ All commands are under `/familytree`:
 | `/familytree prune species <id>` | Remove all records of a species, e.g. `minecraft:wolf`. *(operators only)* |
 
 > Use `/familytree scan` after installing the mod on an existing world to back-fill pets you tamed before, and to populate coat variants for the 3D portraits.
+
+Version 0.3.3 adds an optional `tree_name` field to saved records. Existing worlds keep their pet history. Install the same mod version on the server and clients. Downgrading to an older mod version removes custom tree names when it next saves, but keeps original names and lineage.
 
 ## Building from source
 
