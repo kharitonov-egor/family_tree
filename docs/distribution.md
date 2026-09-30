@@ -22,6 +22,14 @@ Create a Minecraft mod project named "Family Tree for Minecraft pets", with the 
 
 The author portal requires a signed-in account to create the project. Platform moderation may delay public availability after submission. Record the project URL and ID here once created; do not describe a pending submission as a live listing.
 
+## Publication record
+
+On September 30 UTC, the tested source was committed as `425356c6826b851948c377162a690a4ed9f1de71` and tagged `v1.1.0`. The [GitHub release](https://github.com/kharitonov-egor/family_tree/releases/tag/v1.1.0) contains eight mod jars, eight source jars, the SHA-512 manifest, and both gameplay clips. The [Modrinth page](https://modrinth.com/mod/familytree) has all eight matching releases, the revised description, and the new gallery. NeoForge 26.3 is beta. The archived Fabric releases now declare Fabric API.
+
+The main and tag build workflows passed all eight Linux jobs. The manually dispatched download-count workflow passed and committed its sample. Public-file verification downloaded and hashed 27 files across GitHub and Modrinth. That check downloaded each of the eight new Modrinth jars once. Those downloads are release verification, not evidence of new players. The audit baseline remains 480 downloads.
+
+CurseForge creation is authorized, but the shared browser still requires the owner's GitHub login for CurseForge SSO. No project has been created or submitted. The local `build/releases/1.1.0/curseforge-upload-kit.zip` contains the eight verified jars, manifest, listing copy, icon, media, changelog, and upload instructions. Its files are ready once login succeeds.
+
 ## Measurement decisions
 
 At 30 days, compare the actual download rate with the remaining target. The audit's 180-day deadline requires roughly 53 additional downloads a day from the baseline. If the rate stays below that, broader distribution is still needed. More code alone cannot establish that the target will be reached.
