@@ -4,12 +4,25 @@ plugins {
 
 stonecutter.active '26.1.1' /* [SC] DO NOT EDIT */
 
-// Build every Minecraft version's jar in one go: ./gradlew buildAll
-// (keep this list in sync with the versions in settings.gradle)
 tasks.register('buildAll') {
     group = 'project'
-    description = 'Builds the mod jar for every configured Minecraft version.'
-    dependsOn ':26.1.1:build', ':26.2:build'
+    description = 'Builds and tests all Fabric and NeoForge targets.'
+    dependsOn ':1.21.1:build', ':26.1.1:build', ':26.1.2:build', ':26.2:build', ':26.3:build', 'buildNeoForge'
+}
+
+['1.21.1', '26.2', '26.3'].each { target ->
+    tasks.register("buildNeoForge${target.replace('.', '_')}", Exec) {
+        dependsOn ":${target}:stonecutterGenerate", ":${target}:stonecutterGenerateClient"
+        if (target == '26.2') mustRunAfter 'buildNeoForge1_21_1'
+        if (target == '26.3') mustRunAfter 'buildNeoForge26_2'
+        workingDir rootProject.projectDir
+        def wrapper = rootProject.file(System.getProperty('os.name').toLowerCase().contains('windows') ? 'gradlew.bat' : 'gradlew')
+        def arguments = [wrapper.absolutePath, '-p', 'neoforge', 'build', "-Pminecraft=${target}", '-PsharedSourcesReady', '--console=plain']
+        commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c'] + arguments : arguments)
+    }
+}
+tasks.register('buildNeoForge') {
+    dependsOn 'buildNeoForge1_21_1', 'buildNeoForge26_2', 'buildNeoForge26_3'
 }
 
 // Source is authored against 26.1.1 (the vcsVersion). These replacements rewrite the
@@ -17,6 +30,41 @@ tasks.register('buildAll') {
 // 26.1 names; add a new `string(...)` gate here when a future version renames an API.
 stonecutter.parameters {
     replacements {
+        string(current.parsed < '26.1') {
+            replace 'Identifier', 'ResourceLocation'
+            replace 'net.minecraft.util.Util.getPlatform()', 'net.minecraft.Util.getPlatform()'
+            replace 'world.entity.animal.equine.', 'world.entity.animal.horse.'
+            replace 'world.entity.animal.feline.Cat', 'world.entity.animal.Cat'
+            replace 'world.entity.animal.wolf.Wolf', 'world.entity.animal.Wolf'
+            replace '.identifier()', '.location()'
+            replace '.isClientSide()', '.isClientSide'
+            replace 'PayloadTypeRegistry.serverboundPlay()', 'PayloadTypeRegistry.playC2S()'
+            replace 'PayloadTypeRegistry.clientboundPlay()', 'PayloadTypeRegistry.playS2C()'
+            replace 'GuiGraphicsExtractor', 'GuiGraphics'
+            replace 'extractRenderState(', 'render('
+            replace 'gfx.text(', 'gfx.drawString('
+            replace 'gfx.centeredText(', 'gfx.drawCenteredString('
+            replace 'InteractionResult.SUCCESS_SERVER', 'InteractionResult.CONSUME'
+            replace 'ByteBufCodecs.LONG', 'com.egakh.familytree.network.WireCodecs.LONG'
+            replace 'new ClickEvent.RunCommand(', 'new ClickEvent(ClickEvent.Action.RUN_COMMAND, '
+            replace 'new ClickEvent.SuggestCommand(', 'new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, '
+            replace 'SavedDataStorage', 'DimensionDataStorage'
+            replace 'storage.computeIfAbsent(TYPE)', 'storage.computeIfAbsent(TYPE, LEGACY_STATE_KEY)'
+            replace 'storage.set(TYPE, legacyState)', 'storage.set(LEGACY_STATE_KEY, legacyState)'
+            replace '.getCompoundOrEmpty(', '.getCompound('
+            replace 'client.keymapping.v1.KeyMappingHelper', 'client.keybinding.v1.KeyBindingHelper'
+            replace 'KeyMappingHelper.registerKeyMapping(', 'KeyBindingHelper.registerKeyBinding('
+            replace 'InventoryScreen.extractEntityInInventoryFollowsMouse(', 'InventoryScreen.renderEntityInInventoryFollowsMouse('
+            replace '.create(level, EntitySpawnReason.LOAD)', '.create(level)'
+            replace '.registryAccess().lookupOrThrow(', '.registryAccess().registryOrThrow('
+            replace 'registry.get(ResourceKey.create(', 'registry.getHolder(ResourceKey.create('
+            replace '.get(ResourceKey.create(Registries.', '.getHolder(ResourceKey.create(Registries.'
+            replace '.adultAssetInfo().texturePath()', '.texture()'
+            replace '.adultInfo().tame().texturePath()', '.tameTexture()'
+        }
+        string(current.parsed >= '26.3') {
+            replace 'InputConstants.Type.KEYSYM', 'InputConstants.Type.KEYBOARD'
+        }
         string(current.parsed >= '26.2') {
             replace 'setScreen(', 'setScreenAndShow('
             replace 'client.screen instanceof', 'client.gui.screen() instanceof'

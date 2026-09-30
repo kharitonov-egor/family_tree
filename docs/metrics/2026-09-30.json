@@ -1,0 +1,182 @@
+{
+  "sampled_at_utc": "2026-09-30T01:41:23.355822+00:00",
+  "project_id": "CVQKDAe7",
+  "downloads": 480,
+  "followers": 5,
+  "versions": [
+    {
+      "id": "ti1SA9Y9",
+      "version": "1.0.1+26.2-neoforge",
+      "minecraft": [
+        "26.2"
+      ],
+      "loaders": [
+        "neoforge"
+      ],
+      "downloads": 1
+    },
+    {
+      "id": "6wMBl7QV",
+      "version": "1.0.1+26.2",
+      "minecraft": [
+        "26.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 2
+    },
+    {
+      "id": "zZ7XDQ7N",
+      "version": "1.0.1+26.1.1",
+      "minecraft": [
+        "26.1.1"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 2
+    },
+    {
+      "id": "eNGeeei2",
+      "version": "1.0.1+1.21.1",
+      "minecraft": [
+        "1.21.1"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 2
+    },
+    {
+      "id": "BOZjhFKj",
+      "version": "1.0.0+26.2-neoforge",
+      "minecraft": [
+        "26.2"
+      ],
+      "loaders": [
+        "neoforge"
+      ],
+      "downloads": 2
+    },
+    {
+      "id": "kY4JANHl",
+      "version": "1.0.0+26.2",
+      "minecraft": [
+        "26.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 1
+    },
+    {
+      "id": "xd1hwrgB",
+      "version": "1.0.0+26.1.1",
+      "minecraft": [
+        "26.1.1"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 1
+    },
+    {
+      "id": "fOgNsZkp",
+      "version": "1.0.0+1.21.1",
+      "minecraft": [
+        "1.21.1"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 0
+    },
+    {
+      "id": "UjzGnJhH",
+      "version": "0.3.3+26.2",
+      "minecraft": [
+        "26.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 0
+    },
+    {
+      "id": "q4SLmIfB",
+      "version": "0.3.3+26.1.1",
+      "minecraft": [
+        "26.1.1"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 0
+    },
+    {
+      "id": "9j4QmEV4",
+      "version": "0.3.2",
+      "minecraft": [
+        "26.1.1",
+        "26.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 261
+    },
+    {
+      "id": "tJWEkJby",
+      "version": "0.3.1",
+      "minecraft": [
+        "26.1",
+        "26.1.1",
+        "26.1.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 156
+    },
+    {
+      "id": "jKecFBLl",
+      "version": "0.3.0",
+      "minecraft": [
+        "26.1",
+        "26.1.1",
+        "26.1.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 6
+    },
+    {
+      "id": "7GlRejNW",
+      "version": "0.2.0",
+      "minecraft": [
+        "26.1",
+        "26.1.1",
+        "26.1.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 21
+    },
+    {
+      "id": "s4Kl7GsD",
+      "version": "0.1.1",
+      "minecraft": [
+        "26.1",
+        "26.1.1",
+        "26.1.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 25
+    }
+  ]
+}

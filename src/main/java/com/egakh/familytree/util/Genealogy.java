@@ -41,39 +41,39 @@ public final class Genealogy {
     public static Map<UUID, Integer> computeGenerations(Map<UUID, AnimalRecord> records) {
         Map<UUID, Integer> memo = new HashMap<>();
         for (UUID id : records.keySet()) {
-            resolve(id, records, memo, new HashSet<>());
+            resolve(id, records, memo);
         }
         return memo;
     }
 
     public static int generationOf(UUID id, Map<UUID, AnimalRecord> records) {
-        return resolve(id, records, new HashMap<>(), new HashSet<>());
+        return resolve(id, records, new HashMap<>());
     }
 
-    private static int resolve(UUID id, Map<UUID, AnimalRecord> records,
-                               Map<UUID, Integer> memo, Set<UUID> stack) {
-        if (id == null) return 0;
-        Integer cached = memo.get(id);
-        if (cached != null) return cached;
-        AnimalRecord record = records.get(id);
-        if (record == null) return 0;
-        if (!stack.add(id)) {
-            return 1;
+    private static int resolve(UUID id, Map<UUID, AnimalRecord> records, Map<UUID, Integer> memo) {
+        if (id == null || !records.containsKey(id)) return 0;
+        record Visit(UUID id, boolean finish) {}
+        ArrayDeque<Visit> pending = new ArrayDeque<>();
+        Set<UUID> visiting = new HashSet<>();
+        pending.push(new Visit(id, false));
+        while (!pending.isEmpty()) {
+            Visit visit = pending.pop();
+            if (memo.containsKey(visit.id())) continue;
+            AnimalRecord record = records.get(visit.id());
+            if (record == null) continue;
+            if (visit.finish()) {
+                int a = record.parentA() == null ? 0 : memo.getOrDefault(record.parentA(), 0);
+                int b = record.parentB() == null ? 0 : memo.getOrDefault(record.parentB(), 0);
+                memo.put(visit.id(), Math.max(a, b) + 1);
+                visiting.remove(visit.id());
+            } else if (visiting.add(visit.id())) {
+                pending.push(new Visit(visit.id(), true));
+                if (record.parentB() != null && !visiting.contains(record.parentB()))
+                    pending.push(new Visit(record.parentB(), false));
+                if (record.parentA() != null && !visiting.contains(record.parentA()))
+                    pending.push(new Visit(record.parentA(), false));
+            }
         }
-
-        int parentGeneration = Math.max(
-                parentGeneration(record.parentA(), records, memo, stack),
-                parentGeneration(record.parentB(), records, memo, stack));
-        int generation = parentGeneration + 1;
-
-        stack.remove(id);
-        memo.put(id, generation);
-        return generation;
-    }
-
-    private static int parentGeneration(UUID parentId, Map<UUID, AnimalRecord> records,
-                                        Map<UUID, Integer> memo, Set<UUID> stack) {
-        if (parentId == null || !records.containsKey(parentId)) return 0;
-        return resolve(parentId, records, memo, stack);
+        return memo.getOrDefault(id, 0);
     }
 }

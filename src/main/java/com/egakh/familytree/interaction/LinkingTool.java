@@ -5,7 +5,8 @@ import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.util.PetFilter;
 import com.egakh.familytree.util.Genealogy;
-import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import com.egakh.familytree.util.PetRelations;
+import com.egakh.familytree.permissions.ServerPetAccess;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
@@ -40,11 +41,7 @@ public final class LinkingTool {
 
     private LinkingTool() {}
 
-    public static void register() {
-        UseEntityCallback.EVENT.register(LinkingTool::onUseEntity);
-    }
-
-    private static InteractionResult onUseEntity(Player player, Level world, InteractionHand hand,
+    public static InteractionResult onUseEntity(Player player, Level world, InteractionHand hand,
                                                  Entity entity, EntityHitResult hit) {
         if (player.isSpectator()) return InteractionResult.PASS;
         if (!isLinkingTool(player.getItemInHand(hand))) return InteractionResult.PASS;
@@ -60,10 +57,15 @@ public final class LinkingTool {
         }
 
         FamilyTreeState state = FamilyTreeState.get(level);
+        if (state.readOnly()) return InteractionResult.SUCCESS_SERVER;
         PetLifecycleListeners.ensureRecord(level, state, entity);
         AnimalRecord record = state.get(entity.getUUID());
         if (record == null) {
             sp.sendSystemMessage(Component.translatable("familytree.tool.not_tamed"));
+            return InteractionResult.SUCCESS_SERVER;
+        }
+        if (!ServerPetAccess.canManage(sp.createCommandSourceStack(), record)) {
+            sp.sendSystemMessage(Component.translatable("familytree.access.denied"));
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -81,7 +83,7 @@ public final class LinkingTool {
 
     private static boolean isLinkingTool(ItemStack stack) {
         if (!stack.is(Items.STICK)) return false;
-        Component customName = stack.getCustomName();
+        Component customName = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
         return customName != null && customName.getString().trim().equalsIgnoreCase(TOOL_NAME);
     }
 
@@ -102,9 +104,10 @@ public final class LinkingTool {
             player.sendSystemMessage(Component.translatable("familytree.tool.already_selected", record.name()));
             return;
         }
-        if (!session.pets.isEmpty()) {
+        if (session.pets.size() == 1) {
             AnimalRecord first = state.get(session.pets.getFirst());
-            if (first != null && !first.speciesId().equals(record.speciesId())) {
+            if (first != null && !first.speciesId().equals(record.speciesId())
+                    && !java.util.Set.of(first.speciesId(), record.speciesId()).equals(java.util.Set.of("minecraft:horse", "minecraft:donkey"))) {
                 player.sendSystemMessage(Component.translatable("familytree.command.pair.species_mismatch"));
                 return;
             }
@@ -113,6 +116,11 @@ public final class LinkingTool {
         if (session.pets.size() == 2 && Genealogy.wouldCreateCycle(record.id(),
                 session.pets.get(0), session.pets.get(1), state::get)) {
             player.sendSystemMessage(Component.translatable("familytree.command.pair.cycle"));
+            return;
+        }
+        if (session.pets.size() == 2 && !PetRelations.speciesMatch(state.get(session.pets.get(0)),
+                state.get(session.pets.get(1)), record)) {
+            player.sendSystemMessage(Component.translatable("familytree.command.pair.species_mismatch"));
             return;
         }
 
@@ -150,6 +158,8 @@ public final class LinkingTool {
     private static void sendKnownRelations(ServerPlayer player, FamilyTreeState state, AnimalRecord record) {
         AnimalRecord pa = record.parentA() != null ? state.get(record.parentA()) : null;
         AnimalRecord pb = record.parentB() != null ? state.get(record.parentB()) : null;
+        if (!ServerPetAccess.canView(player.createCommandSourceStack(), pa)) pa = null;
+        if (!ServerPetAccess.canView(player.createCommandSourceStack(), pb)) pb = null;
         MutableComponent parents = pa != null || pb != null
                 ? Component.translatable("familytree.tool.known_parents",
                         pa != null ? pa.name() : "?", pb != null ? pb.name() : "?")
@@ -163,7 +173,7 @@ public final class LinkingTool {
         } else {
             String names = childIds.stream()
                     .map(state::get)
-                    .filter(r -> r != null)
+                    .filter(r -> ServerPetAccess.canView(player.createCommandSourceStack(), r))
                     .map(AnimalRecord::name)
                     .collect(Collectors.joining(", "));
             children = Component.translatable("familytree.tool.known_children", names);
@@ -191,9 +201,10 @@ public final class LinkingTool {
         }
 
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        if (state.readOnly()) return 0;
         if (session.pending == Mode.UNLINK) {
             AnimalRecord target = state.get(session.unlinkTarget);
-            if (target == null) {
+            if (!ServerPetAccess.canManage(source, target)) {
                 source.sendFailure(Component.translatable("familytree.tool.nothing_pending"));
                 return 0;
             }
@@ -209,6 +220,11 @@ public final class LinkingTool {
             source.sendFailure(Component.translatable("familytree.tool.nothing_pending"));
             return 0;
         }
+        if (!ServerPetAccess.canManage(source, parentA) || !ServerPetAccess.canManage(source, parentB)
+                || !ServerPetAccess.canManage(source, child)) {
+            source.sendFailure(Component.translatable("familytree.access.denied"));
+            return 0;
+        }
         if (parentA.id().equals(parentB.id())) {
             source.sendFailure(Component.translatable("familytree.command.pair.same_parent"));
             return 0;
@@ -217,7 +233,7 @@ public final class LinkingTool {
             source.sendFailure(Component.translatable("familytree.command.pair.child_matches_parent"));
             return 0;
         }
-        if (!parentA.speciesId().equals(parentB.speciesId()) || !parentA.speciesId().equals(child.speciesId())) {
+        if (!PetRelations.speciesMatch(parentA, parentB, child)) {
             source.sendFailure(Component.translatable("familytree.command.pair.species_mismatch"));
             return 0;
         }
@@ -246,6 +262,8 @@ public final class LinkingTool {
     }
 
     private enum Mode { NONE, LINK, UNLINK }
+    public static void disconnect(UUID player) { SESSIONS.remove(player); }
+    public static void stop() { SESSIONS.clear(); }
 
     private static final class Session {
         final List<UUID> pets = new ArrayList<>();

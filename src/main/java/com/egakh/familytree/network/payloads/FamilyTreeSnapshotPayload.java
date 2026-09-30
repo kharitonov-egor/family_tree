@@ -10,13 +10,13 @@ import net.minecraft.resources.Identifier;
 import java.util.List;
 
 public record FamilyTreeSnapshotPayload(List<AnimalRecord> records, long currentWorldDay, long currentEpochMillis,
-                                        boolean mayViewAll, boolean viewingAll)
+                                        boolean mayViewAll, boolean viewingAll, boolean mayManageAll)
         implements CustomPacketPayload {
 
     private static final int MAX_RECORDS = 8192;
 
     public static final Type<FamilyTreeSnapshotPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("familytree", "snapshot"));
+            new Type<>(Identifier.fromNamespaceAndPath("familytree", "snapshot_v2"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, FamilyTreeSnapshotPayload> STREAM_CODEC =
             StreamCodec.composite(
@@ -30,6 +30,8 @@ public record FamilyTreeSnapshotPayload(List<AnimalRecord> records, long current
                     FamilyTreeSnapshotPayload::mayViewAll,
                     ByteBufCodecs.BOOL,
                     FamilyTreeSnapshotPayload::viewingAll,
+                    ByteBufCodecs.BOOL,
+                    FamilyTreeSnapshotPayload::mayManageAll,
                     FamilyTreeSnapshotPayload::new
             );
 

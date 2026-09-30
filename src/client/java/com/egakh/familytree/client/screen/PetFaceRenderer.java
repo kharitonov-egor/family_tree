@@ -14,7 +14,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+//? if >=26.1 {
 import net.minecraft.world.entity.EntitySpawnReason;
+//?}
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.feline.Cat;
@@ -36,6 +38,8 @@ public final class PetFaceRenderer {
     private static ClientLevel cachedLevel;
 
     private PetFaceRenderer() {}
+
+    public static void clearCache() { CACHE.clear(); cachedLevel = null; }
 
     public static boolean hasFace(AnimalRecord record) {
         return isCat(record) || isWolf(record);
@@ -88,6 +92,8 @@ public final class PetFaceRenderer {
             return CACHE.get(key);
         }
         LivingEntity entity = createEntity(level, record);
+        // Preview entities never enter the level, so assign a local ID for the renderer.
+        if (entity != null) entity.setId(-CACHE.size() - 1);
         CACHE.put(key, entity);
         return entity;
     }

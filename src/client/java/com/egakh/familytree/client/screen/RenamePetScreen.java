@@ -4,18 +4,17 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.naming.PetRenaming;
 import com.egakh.familytree.network.payloads.RenamePetRequest;
 import com.egakh.familytree.network.payloads.RenamePetResult;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import com.egakh.familytree.client.platform.ClientTransport;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+
 
 import java.util.UUID;
 
-public final class RenamePetScreen extends Screen {
+public final class RenamePetScreen extends FamilyTreeScreen {
     private final FamilyTreeViewScreen parent;
     private final AnimalRecord record;
     private EditBox nameInput;
@@ -72,7 +71,7 @@ public final class RenamePetScreen extends Screen {
     private void submit(String name) {
         if (pendingRequest != null) return;
         if (!name.isEmpty() && !PetRenaming.isValidName(name)) return;
-        if (!ClientPlayNetworking.canSend(RenamePetRequest.TYPE)) {
+        if (!ClientTransport.canSend(RenamePetRequest.TYPE)) {
             error = Component.translatable("familytree.rename.unsupported");
             return;
         }
@@ -80,7 +79,7 @@ public final class RenamePetScreen extends Screen {
         pendingTicks = 0;
         error = Component.empty();
         updateButtons();
-        ClientPlayNetworking.send(new RenamePetRequest(pendingRequest, record.id(), name));
+        ClientTransport.send(new RenamePetRequest(pendingRequest, record.id(), name));
     }
 
     public void receiveResult(RenamePetResult result) {
@@ -95,6 +94,8 @@ public final class RenamePetScreen extends Screen {
             case 1 -> "familytree.rename.not_found";
             case 2 -> "familytree.rename.not_allowed";
             case 3 -> "familytree.rename.invalid";
+            case 4 -> "familytree.command.read_only";
+            case 5 -> "familytree.command.cooldown";
             default -> "familytree.rename.failed";
         };
         error = Component.translatable(key);
@@ -112,12 +113,12 @@ public final class RenamePetScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(KeyEvent event) {
-        if ((event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) && saveButton.active) {
+    protected boolean onKeyPress(int key) {
+        if ((key == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || key == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) && saveButton.active) {
             submit(nameInput.getValue());
             return true;
         }
-        return super.keyPressed(event);
+        return false;
     }
 
     @Override
@@ -137,7 +138,7 @@ public final class RenamePetScreen extends Screen {
             gfx.text(this.font, line, panelX + 12, y, pendingRequest != null ? 0xFFB0B7C0 : 0xFFFF9292);
             y += this.font.lineHeight + 2;
         }
-        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        renderWidgets(gfx, mouseX, mouseY, delta);
     }
 
     @Override

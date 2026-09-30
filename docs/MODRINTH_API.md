@@ -94,7 +94,7 @@ curl -X POST "https://api.modrinth.com/v2/version/9j4QmEV4/file" \
 {
   "project_id": "CVQKDAe7",
   "version_number": "0.3.1",
-  "version_title": "Family Tree 0.3.1",
+  "name": "Family Tree 0.3.1",
   "changelog": "Markdown changelog here",
   "dependencies": [],
   "game_versions": ["26.1.1"],
@@ -114,8 +114,22 @@ Example with curl (one MC version):
 curl -X POST "https://api.modrinth.com/v2/version" \
   -H "Authorization: $MODRINTH_TOKEN" \
   -H "User-Agent: egakh/family_tree/0.3.3 (ega.khar@gmail.com)" \
-  -F 'data={"project_id":"CVQKDAe7","version_number":"0.3.3+26.2","version_title":"Family Tree 0.3.3 (26.2)","changelog":"...","dependencies":[],"game_versions":["26.2"],"version_type":"release","loaders":["fabric"],"featured":true,"file_parts":["file"],"primary_file":"file"};type=application/json' \
+  -F 'data={"project_id":"CVQKDAe7","version_number":"0.3.3+26.2","name":"Family Tree 0.3.3 (26.2)","changelog":"...","dependencies":[],"game_versions":["26.2"],"version_type":"release","loaders":["fabric"],"featured":true,"file_parts":["file"],"primary_file":"file"};type=application/json' \
   -F "file=@versions/26.2/build/libs/familytree-0.3.3+26.2.jar;type=application/java-archive"
 ```
 
 Test against the staging API first if unsure. Verify afterwards with `GET /v2/project/{id}/version` and on the project page.
+
+## Release layout for 1.0.0
+
+Publish one release per target: `1.0.0+1.21.1`, `1.0.0+26.1.1`, `1.0.0+26.2`, and `1.0.0+26.2-neoforge`. Set each release's Minecraft version and loader to that target only. Fabric builds require project `P7dR8mSH`, Fabric API. NeoForge has no Fabric API dependency. Use the JSON field `name` for the release title.
+
+Update the project description through `PATCH /v2/project/CVQKDAe7` with `body` and `description`. This needs `PROJECT_WRITE`. Add media with `POST /v2/project/CVQKDAe7/gallery?ext=webp&featured=false&title=...`, sending raw image bytes. Read the resulting project gallery to get the CDN URL for the page body. Gallery files must be at most 5 MiB. Use `PATCH` on the same gallery endpoint with the image `url` to change its title, ordering, or featured status.
+
+## Verified publication for 1.1.0
+
+Use `python scripts/release_manifest.py` after committing the tested source, then `python scripts/publish_modrinth.py --manifest build/releases/1.1.0/manifest.json`. It publishes one version per target and checks every jar against its recorded SHA-512. Reruns verify existing versions instead of uploading duplicates.
+
+Use `--media docs/media.json` to upload the reviewed gallery assets, `--fix-archive` to correct Fabric API requirements on old versions, and `--update-page` to apply `modrinth_description.md`. Gallery PATCH calls require the image URL in the query string, not the JSON body. The publisher keeps the token out of its output.
+
+Fabric targets are 1.21.1, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge targets are 1.21.1, 26.2, and 26.3. NeoForge 26.3 is beta because its tested loader is beta. Use the actual jar copies under the manifest directory for both Modrinth and GitHub.

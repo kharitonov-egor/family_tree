@@ -1,0 +1,30 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+issueTrackerURL="https://github.com/kharitonov-egor/family_tree/issues"
+
+[[mods]]
+modId="familytree"
+version="${version}"
+displayName="Family Tree"
+displayURL="https://modrinth.com/mod/familytree"
+authors="egakh"
+${logoProperty}="assets/familytree/icon.png"
+description='''Keep your pets' family history, find missing companions, and export their family tree.'''
+
+[[dependencies.familytree]]
+modId="neoforge"
+type="required"
+versionRange="[${neoforge},${neoUpper})"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.familytree]]
+modId="minecraft"
+type="required"
+versionRange="[${minecraft}]"
+ordering="NONE"
+side="BOTH"
+
+[[mixins]]
+config="familytree.mixins.json"

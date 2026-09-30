@@ -75,6 +75,13 @@ class GenealogyTest {
         return Genealogy.wouldCreateCycle(child.id(), first.id(), second.id(), records::get);
     }
 
+    @Test void computesDeepGenerationsWithoutUsingTheJavaCallStack() {
+        AnimalRecord founder = pet(null, null), descendant = founder;
+        for (int i = 0; i < 10_000; i++) descendant = pet(descendant.id(), null);
+        assertEquals(10_001, Genealogy.generationOf(descendant.id(), records));
+        assertEquals(10_001, Genealogy.computeGenerations(records).get(descendant.id()));
+    }
+
     private AnimalRecord pet(UUID first, UUID second) {
         AnimalRecord record = new AnimalRecord(UUID.randomUUID(), "minecraft:wolf", "Wolf", false,
                 first, second, 0, 0, false, null, null, null, null, null, null, null);

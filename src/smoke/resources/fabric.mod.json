@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "familytree_smoke",
+  "version": "1.0.0",
+  "name": "Family Tree development checks",
+  "environment": "server",
+  "entrypoints": { "main": ["com.egakh.familytree.smoke.FabricSmoke"] }
+}

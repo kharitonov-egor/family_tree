@@ -1,0 +1,7 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+[[mods]]
+modId="familytree_demo"
+version="1.0.0"
+displayName="Family Tree development demo"

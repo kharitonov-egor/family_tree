@@ -1,101 +1,103 @@
 # Family Tree
 
-[![Modrinth](https://img.shields.io/modrinth/dt/familytree?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/familytree)
+[![Modrinth downloads](https://img.shields.io/modrinth/dt/familytree?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/familytree)
 
-A Fabric mod that automatically tracks the lineage of your tamed, bred pets and shows it as an in-game family tree.
+Keep the family history of your Minecraft pets. See who their parents were, find a missing pet's last known location, and save a family tree as an image.
 
-Tame two animals, breed them, and Family Tree records the baby's parents, birth day, name, owner, and species. Browse everything from a dedicated screen with live 3D portraits of each pet, or walk a pet's ancestry as a zoomable tree.
+[Download Family Tree](https://modrinth.com/mod/familytree/versions)
 
-**Download:** [Modrinth](https://modrinth.com/mod/familytree) · [GitHub Releases](https://github.com/kharitonov-egor/family_tree/releases)
+![A wolf family exported from Minecraft](docs/family-tree-gameplay-export.png)
 
-> **Versions:** Minecraft `26.1.x` and `26.2` · Fabric Loader `0.19.2` · Fabric API · Java `25`
+Keep your first wolf in the family tree after it's gone. Family Tree records parents and descendants as you play, then exports the family as a PNG.
 
-![Tracked Pets browser](docs/tracked-pets-browser.webp)
+![Vanilla wolves breed and their family tree exports](docs/family-tree-gameplay.webp)
 
-![Family tree view](docs/family-tree-view.webp)
+An automated scene in Minecraft 26.2. Vanilla feeding and AI breeding produce the actual puppy. Family Tree records its parents and retains its deceased ancestor. [Landscape video](docs/family-tree-gameplay.mp4) and [vertical video](docs/family-tree-gameplay-vertical.mp4) are ready to share.
 
-## Features
+## Install
 
-- **Automatic lineage tracking**: when a tracked species breeds, the child is recorded with both parents, its birth (world day + real timestamp), auto-generated name, and owner.
-- **Tracked species**: cats, wolves, parrots, horses, donkeys, mules, llamas, camels.
-- **Tracked Pets browser**: a searchable, filterable list of every pet:
-  - Live **3D model heads** for cats and dogs (correct coat variant), species-colored cards, and an Alive/Deceased status pill.
-  - Filter by **All / Alive / Deceased**, search by name or species, and jump into a species' combined tree.
-  - Operators can toggle **Showing: Mine / All** to view every player's pets.
-- **Family tree view**: pan and zoom an ancestry graph for any pet. Select a pet and use **Center pet** to bring it into view, or **Fit tree** to see the whole visible tree. **Hide branch** hides the selected pet's descendants, including shared descendants; **Show branch** restores that branch and **Show all** restores every branch. Cards show portraits and names when zoomed out, with more detail as you zoom in. Double-click a pet to open its tree. Back or Escape returns to the previous view with its zoom and branch settings intact.
-- **Generation numbers**: every pet shows its lineage depth — a founder (no tracked parents) is **Gen 1**, its offspring **Gen 2**, and so on. Displayed on tree cards and in `/familytree info`.
-- **Pet locator**: `/familytree locate <name>` tells you where a pet is (coordinates, dimension, and distance). If its chunk is unloaded, you get the last known spot instead. Pets with the same name are all listed.
-- **Death cause tracking**: when a tracked pet dies, the mod records what killed it and when. The tree shows things like "Slain by Creeper, day 43" or "Died of fall, day 12".
-- **Display settings**: toggle showing generation, age, and/or birth day from the in-screen Settings button.
-- **Linking stick**: rename a stick to `familytree` in an anvil, then right-click parent 1, parent 2, and child, and confirm in chat to record parentage for pets from existing worlds. Sneak-click clears a pet's parents. The clicked pet glows for a few seconds so you always know which one you selected.
-- **Management commands**: manually pair/unpair parents, fix ages, import existing pets, and prune records.
-- **Loop prevention**: manual pairing and the linking stick reject links that would make a pet its own ancestor.
-- **Custom tree names**: select a pet in the tree and click **Rename**. Save a name just for Family Tree, or choose **Use original** to restore its original name. The animal's name in the world stays unchanged. Owners and server operators can rename living, unloaded, or deceased pets. Commands accept either the original name or the custom tree name.
+Choose the file that matches both your Minecraft version and mod loader.
 
-## Requirements
+| Minecraft | Loader | Java | Extra dependency |
+| --- | --- | --- | --- |
+| 1.21.1 | Fabric | 21 or newer | [Fabric API](https://modrinth.com/mod/fabric-api) for 1.21.1 |
+| 1.21.1 | NeoForge 21.1.252 or newer within 21.1 | 21 or newer | None |
+| 26.1.1 | Fabric | 25 or newer | Fabric API for 26.1.1 |
+| 26.1.2 | Fabric | 25 or newer | Fabric API for 26.1.2 |
+| 26.2 | Fabric | 25 or newer | Fabric API for 26.2 |
+| 26.2 | NeoForge 26.2.0.88 or newer within 26.2 | 25 or newer | None |
+| 26.3 | Fabric | 25 or newer | Fabric API for 26.3 |
+| 26.3 | NeoForge 26.3.0.37-beta or newer within 26.3 | 25 or newer | Beta loader |
 
-- Minecraft `26.1.1` or `26.2` (download the matching jar)
-- [Fabric Loader](https://fabricmc.net/) `>= 0.16`
-- [Fabric API](https://modrinth.com/mod/fabric-api)
-- Java `25` (required by these Minecraft versions)
+Put the matching jar in `mods/`. Fabric builds use Fabric Loader 0.19.3 for testing. NeoForge builds do not need Fabric API.
 
-Install it like any Fabric mod: drop the jar (and Fabric API) into your `mods/` folder. Works in single-player and on dedicated servers. The mod must be installed on the **server** (or single-player world) for tracking; clients without it that join a server with it will simply not see the screen.
+Install Family Tree on the server for tracking and on your client for the screens. In singleplayer, one installation does both. Use the same Family Tree version on both sides. Players without the mod can join a server that has it, but cannot open the screens.
 
-## Usage
+## Start with the pets you already have
 
-### Opening the screen
+1. Join your world and press **H**. You can change the key under Options > Controls > Family Tree.
+2. Visit your pets. Family Tree records existing tamed pets as their chunks load. **Find existing pets** also checks the pets currently loaded on the server.
+3. Open a pet's tree, or choose a species to see its combined family trees. Breed pets while the mod is installed to record their children's parents automatically.
 
-The mod adds an **"Open Family Tree"** keybind. It is bound to **H** by default (rebindable in `Options > Controls > Family Tree`); press it in-game to open the Tracked Pets browser.
+The tracker covers tamed cats, wolves, parrots, horses, donkeys, mules, and llamas. Parrots have individual records but cannot breed in vanilla Minecraft. Cat and wolf cards have portraits that match their coat variants.
 
-### Commands
+Minecraft does not retain older parentage or birth dates. Newly discovered pets start with an unknown family and the discovery day as their recorded birth day. Select a pet and choose **Add parents** to record a family you remember. The picker searches names, species, and UUIDs. Confirm the two parents before saving. The linking stick and age commands also remain available. Horse and donkey parents can link to a mule.
 
-All commands are under `/familytree`:
+## Browse, find, and remember
 
-| Command | Description |
-| --- | --- |
-| `/familytree list` | List all tracked pets in chat. |
-| `/familytree scan` | Import already-tamed pets that are currently loaded in the world (also refreshes coat variants on existing records). |
-| `/familytree locate <name>` | Show a pet's coordinates, dimension, and distance. Falls back to the last known position if the pet is not loaded. Lists every pet with that name. |
-| `/familytree info [name]` | Show details for a pet, or command help when no name is given. |
-| `/familytree pair <parentA> <parentB> <child>` | Manually link two parents to a child (same species, all distinct). |
-| `/familytree unpair <child>` | Clear a child's parent links. |
-| `/familytree setage <name> <days>` | Set a pet's age to a relative number of world days. |
-| `/familytree setbirth <name> <day>` | Set a pet's birth day directly. |
-| `/familytree prune deceased` | Remove all deceased records. *(operators only)* |
-| `/familytree prune species <id>` | Remove all records of a species, e.g. `minecraft:wolf`. *(operators only)* |
+Search by pet name or species, filter living or deceased pets, and follow generations through a tree you can pan and zoom. Select a pet to center it, rename it in the tree, or locate it. Custom tree names leave name tags in the world unchanged.
 
-> Use `/familytree scan` after installing the mod on an existing world to back-fill pets you tamed before, and to populate coat variants for the 3D portraits.
+**Locate pet** reports coordinates, dimension, and distance in chat. If the pet is unloaded, it reports the last recorded location and day. It does not load chunks or teleport pets.
 
-Version 0.3.3 adds an optional `tree_name` field to saved records. Existing worlds keep their pet history. Install the same mod version on the server and clients. Downgrading to an older mod version removes custom tree names when it next saves, but keeps original names and lineage.
+Death records retain the pet's name, family, death day, and cause when known. Settings let you show or hide generation, age, and birth day. Hide a branch to focus on one part of a large family, then use **Show all** to restore it.
 
-## Building from source
+![The pet browser with search, status filters, and Find existing pets](docs/tracked-pets-browser.webp)
 
-This is a Fabric Loom project that targets multiple Minecraft versions from one source tree using [Stonecutter](https://stonecutter.kikugie.dev/).
+## Export a family tree
 
-```bash
-./gradlew buildAll          # build a jar for every supported Minecraft version
-./gradlew :26.2:build       # or just one version
+Click **Export family tree**, then **Open folder** to find the saved PNG. Export saves a PNG under `screenshots/familytree/` in your Minecraft folder. The image includes the whole visible tree at a fixed, readable scale, regardless of your current zoom or pan. Hidden branches stay hidden. Very large trees need to be narrowed down before export.
+
+Exports include pet names, generations, portraits where available, and living or deceased status. They omit player names and coordinates. Nothing uploads automatically.
+
+![A PNG exported from the example family](docs/family-tree-export.png)
+
+## Existing families and server permissions
+
+Rename a stick to `familytree` in an anvil. Right-click the first parent, second parent, and child, then confirm in chat. Sneak and right-click a pet to clear its parents after confirmation. Manual links require distinct pets and reject ancestry loops. Horse and donkey parents can link to a mule.
+
+Owners and server operators can locate or edit their pets. Linking two parents requires permission for all three animals. By default, only operators can browse everyone's pets. A server can change `viewPolicy` in `config/familytree-server.properties` to `EVERYONE_ALL` or `OWN_ONLY`, then restart. Public viewing does not grant editing rights or reveal other players' pet locations.
+
+[Command reference](docs/commands.md) includes locating, pairing, age corrections, and operator pruning.
+
+## Upgrading to 1.1.0
+
+Existing Family Tree history and custom names remain. This release does not change saved field names or add required save fields. Update the server and clients together because the screen protocol changed. Minecraft world version restrictions still apply, so the 1.21.1 build is for 1.21.1 worlds, not for downgrading a newer world.
+
+[Latest release notes](docs/releases/1.1.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
+
+## Build and test
+
+Install JDK 25 and JDK 21, then use the included Gradle wrapper. The 1.21.1 jar targets Java 21 bytecode.
+
+```sh
+./gradlew buildAll
+./gradlew :1.21.1:build
+./gradlew :26.2:build
+./gradlew -p neoforge build
 ```
 
-Jars land in `versions/<mcver>/build/libs/familytree-<modver>+<mcver>.jar`. To launch a dev client/server, switch the active version first, then run:
+Fabric jars are in `versions/<minecraft>/build/libs/`. NeoForge jars are in `neoforge/build/<minecraft>/libs/`. `buildAll` runs the shared tests for all eight targets. Stonecutter generates Fabric sources for each version, and NeoForge compiles the generated sources for its selected target with its own event and networking entrypoints. Do not edit generated files under `versions/`.
 
-```bash
-./gradlew "Set active project to 26.2"
-./gradlew runClient   # or runServer
-```
-
-The set of targeted Minecraft versions lives in `settings.gradle`; contributors adding a new version should read the "Multi-version build" section of `CLAUDE.md`.
-
-## Project layout
-
-```
-src/main      - common + server: tracking, data model, persistence, commands
-src/client    - client: screens (browser, tree), 3D pet rendering, keybind, settings
-src/main/resources/familytree.mixins.json - entity hooks (breeding, taming, naming, variants)
-```
-
-Pet data is stored server-side (saved data) and streamed to the client on demand; the GUI never trusts client-side state for ownership or visibility.
+See [runtime validation](docs/testing.md) for the separate server smoke tests and client demo. [CLAUDE.md](CLAUDE.md) covers the source layout and save compatibility rules.
 
 ## License
 
-MIT, see `LICENSE` (or the `license` field in `fabric.mod.json`).
+[MIT](LICENSE)
+
+## Releases and download progress
+
+Version 1.1.0 uses paged network snapshots. Update clients and servers together. It preserves existing history, keeps unreadable records in the save, and disables writes to an unsupported future save format. Operator pruning writes a backup before deleting records.
+
+[Release notes](docs/releases/1.1.0.md), [runtime checks](docs/testing.md), and [public download counts](docs/metrics/README.md) describe the release and progress toward 10,000 Modrinth downloads. Run `python scripts/download_counts.py` to update the public counters. The daily GitHub workflow does the same. Repeat downloads and upgrades count toward platform totals.
+
+Build all targets with JDK 25 and JDK 21 installed using `./gradlew buildAll --no-parallel`. Commit the tested source, then run `python scripts/release_manifest.py` to verify jar metadata, Java targets, license, icon, and hashes. Publish the copies under `build/releases/1.1.0/`.

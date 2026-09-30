@@ -3,9 +3,13 @@ package com.egakh.familytree.client.screen;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import com.egakh.familytree.network.payloads.RenamePetRequest;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import com.egakh.familytree.network.payloads.LocatePetRequest;
+import com.egakh.familytree.client.export.TreeImageExporter;
+import com.egakh.familytree.client.export.PetPortraits;
+import com.egakh.familytree.permissions.PetAccess;
+import java.util.concurrent.CompletableFuture;
+import com.egakh.familytree.client.platform.ClientTransport;
 import com.egakh.familytree.util.Genealogy;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -20,17 +24,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public class FamilyTreeViewScreen extends Screen {
+public class FamilyTreeViewScreen extends FamilyTreeScreen {
 
     private final Screen parent;
-    private final FamilyTreeSnapshotPayload snapshot;
+    private FamilyTreeSnapshotPayload snapshot;
     private final UUID focusId;
     private final String aggregateSpeciesId;
 
     private final Map<UUID, AnimalRecord> records = new HashMap<>();
     private final Map<UUID, List<UUID>> childIndex = new HashMap<>();
     private final Map<UUID, Integer> generations = new HashMap<>();
-    private static final int CANVAS_TOP = 58;
+    private static final int CANVAS_TOP = 106;
     private final TreeViewport viewport = new TreeViewport();
     private final Set<UUID> collapsed = new HashSet<>();
     private TreeLayout.Result fullTree;
@@ -40,6 +44,12 @@ public class FamilyTreeViewScreen extends Screen {
     private Button branchButton;
     private Button expandAllButton;
     private Button renameButton;
+    private Button locateButton;
+    private Button exportButton;
+    private Button parentsButton, folderButton;
+    private java.nio.file.Path exportedFile;
+    private Component exportStatus = Component.empty();
+    private boolean exporting;
     private int previousWidth;
     private int previousHeight;
     private boolean dragging = false;
@@ -70,6 +80,16 @@ public class FamilyTreeViewScreen extends Screen {
     public static FamilyTreeViewScreen forSpecies(Screen parent, FamilyTreeSnapshotPayload snapshot,
                                                   String speciesId, Component title) {
         return new FamilyTreeViewScreen(parent, snapshot, speciesId, title);
+    }
+
+    public void applySnapshot(FamilyTreeSnapshotPayload updated) {
+        snapshot = updated;
+        records.clear(); childIndex.clear(); generations.clear();
+        loadRecords();
+        fullTree = null;
+        collapsed.clear();
+        clearWidgets();
+        init();
     }
 
     private void loadRecords() {
@@ -132,6 +152,32 @@ public class FamilyTreeViewScreen extends Screen {
                     fitTree();
                 }).bounds(x + 238, 32, 66, 18).build());
         branchButton.setTooltip(Tooltip.create(Component.translatable("familytree.screen.tree.branch_hint")));
+        locateButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.locate.button"),
+                button -> {
+                    if (selectedId != null) {
+                        ClientTransport.send(new LocatePetRequest(selectedId));
+                        this.minecraft.setScreen(null);
+                    }
+                }).bounds(x, 56, 138, 18).build());
+        exportButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.export.button"),
+                button -> exportTree()).bounds(x + 142, 56, 162, 18).build());
+        exportButton.active = !exporting;
+        parentsButton = addRenderableWidget(Button.builder(Component.translatable("familytree.parents.button"), button -> {
+            AnimalRecord selected = records.get(selectedId);
+            if (selected != null) minecraft.setScreen(new ParentLinksScreen(this, snapshot, selected));
+        }).bounds(x, 80, 112, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("familytree.refresh"), button ->
+                com.egakh.familytree.client.FamilyTreeClient.requestSnapshot(snapshot.viewingAll()))
+                .bounds(x + 116, 80, 68, 18).build());
+        folderButton = addRenderableWidget(Button.builder(Component.translatable("familytree.export.open_folder"), button -> {
+            if (exportedFile == null) return;
+            //? if >=26.3 {
+            /*com.mojang.blaze3d.Blaze3D.openPath(exportedFile.getParent());
+            *///?} else {
+            net.minecraft.util.Util.getPlatform().openFile(exportedFile.getParent().toFile());
+            //?}
+        }).bounds(x + 188, 80, 116, 18).build());
+        folderButton.active = exportedFile != null;
         updateControls();
     }
 
@@ -185,7 +231,11 @@ public class FamilyTreeViewScreen extends Screen {
         branchButton.setMessage(Component.translatable(collapsed.contains(selectedId)
                 ? "familytree.screen.tree.expand" : "familytree.screen.tree.collapse"));
         expandAllButton.active = !collapsed.isEmpty();
-        renameButton.active = centerButton.active && ClientPlayNetworking.canSend(RenamePetRequest.TYPE);
+        boolean canManage = this.minecraft != null && this.minecraft.player != null
+                && PetAccess.canManage(selected, this.minecraft.player.getUUID(), snapshot.mayManageAll());
+        parentsButton.active = centerButton.active && canManage && ClientTransport.canSend(com.egakh.familytree.network.payloads.LinkParentsRequest.TYPE);
+        renameButton.active = centerButton.active && canManage && ClientTransport.canSend(RenamePetRequest.TYPE);
+        locateButton.active = centerButton.active && canManage && ClientTransport.canSend(LocatePetRequest.TYPE);
     }
 
     public void applyRename(AnimalRecord updated) {
@@ -196,6 +246,46 @@ public class FamilyTreeViewScreen extends Screen {
         }
         if (parent instanceof FamilyTreeViewScreen previous) previous.applyRename(updated);
         if (centerButton != null) updateControls();
+    }
+
+    private void exportTree() {
+        if (exporting || this.minecraft == null) return;
+        var client = this.minecraft;
+        TreeImageExporter.Picture picture;
+        try {
+            Map<String, java.awt.image.BufferedImage> portraits = new HashMap<>();
+            AnimalRecord focus = records.get(focusId);
+            Component exportTitle = focus == null ? this.title : Component.translatable("familytree.screen.view.title", focus.name());
+            picture = TreeImageExporter.prepare(tree, exportTitle.getString(),
+                    "Family Tree | modrinth.com/mod/familytree",
+                    pet -> Component.translatable("familytree.node.generation", generations.getOrDefault(pet.id(), 1)).getString(),
+                    pet -> pet.deceased()
+                            ? Component.translatable("familytree.export.remembered", pet.deathWorldDay() == null ? "?" : pet.deathWorldDay()).getString()
+                            : Component.translatable("familytree.screen.status.alive").getString(),
+                    pet -> portraits.computeIfAbsent(pet.speciesId() + "|" + pet.variantId(), key -> PetPortraits.read(pet)));
+        } catch (IllegalArgumentException tooLarge) {
+            exportStatus = Component.translatable("familytree.export.too_large");
+            return;
+        }
+        exporting = true;
+        exportButton.active = false;
+        exportStatus = Component.translatable("familytree.export.saving");
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return TreeImageExporter.save(picture, client.gameDirectory.toPath().resolve("screenshots/familytree"));
+            } catch (java.io.IOException failure) {
+                throw new java.util.concurrent.CompletionException(failure);
+            }
+        }).whenComplete((path, failure) -> client.execute(() -> {
+            exporting = false;
+            exportButton.active = true;
+            if (failure == null) {
+                exportedFile = path;
+                folderButton.active = true;
+                exportStatus = Component.translatable("familytree.export.saved_file", path.getFileName().toString());
+            } else exportStatus = Component.translatable("familytree.export.failed");
+            if (failure != null) com.egakh.familytree.FamilyTreeMod.LOGGER.warn("Could not export family tree", failure);
+        }));
     }
 
     @Override
@@ -223,7 +313,7 @@ public class FamilyTreeViewScreen extends Screen {
         Component currentTitle = focus == null ? this.title : Component.translatable("familytree.screen.view.title", focus.name());
         gfx.text(this.font, this.font.plainSubstrByWidth(currentTitle.getString(), Math.max(1, this.width - 156)),
                 76, 13, 0xFFFFFFFF);
-        Component hint = Component.translatable("familytree.screen.tree.controls");
+        Component hint = exportStatus.getString().isEmpty() ? Component.translatable("familytree.screen.tree.controls") : exportStatus;
         gfx.text(this.font, this.font.plainSubstrByWidth(hint.getString(), Math.max(1, this.width - 64)),
                 8, this.height - 25, 0xFFB0B7C0);
         Component panHint = Component.translatable("familytree.screen.tree.pan_controls");
@@ -232,14 +322,13 @@ public class FamilyTreeViewScreen extends Screen {
         Component zoomLabel = Component.translatable("familytree.screen.tree.zoom", Math.round(viewport.zoom * 100));
         gfx.text(this.font, zoomLabel, this.width - this.font.width(zoomLabel) - 8,
                 this.height - 14, 0xFFB0B7C0);
-        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        renderWidgets(gfx, mouseX, mouseY, delta);
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (super.mouseClicked(event, doubleClick)) return true;
-        if (event.button() != 0 || !inCanvas(event.x(), event.y())) return false;
-        TreeLayout.Node hit = findNodeAt(event.x(), event.y());
+    protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
+        if (button != 0 || !inCanvas(mouseX, mouseY)) return false;
+        TreeLayout.Node hit = findNodeAt(mouseX, mouseY);
         if (hit != null) {
             boolean openTree = doubleClick && hit.id.equals(selectedId);
             selectedId = hit.id;
@@ -250,29 +339,26 @@ public class FamilyTreeViewScreen extends Screen {
             }
         }
         dragging = true;
-        lastMouseX = event.x();
-        lastMouseY = event.y();
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
         return true;
     }
 
     @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0) dragging = false;
-        return super.mouseReleased(event);
+    protected void onMouseRelease(int button) {
+        if (button == 0) dragging = false;
     }
 
     @Override
-    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+    protected boolean onMouseDrag(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (dragging) {
-            double mouseX = event.x();
-            double mouseY = event.y();
             viewport.panX += (mouseX - lastMouseX);
             viewport.panY += (mouseY - lastMouseY);
             lastMouseX = mouseX;
             lastMouseY = mouseY;
             return true;
         }
-        return super.mouseDragged(event, deltaX, deltaY);
+        return false;
     }
 
     @Override

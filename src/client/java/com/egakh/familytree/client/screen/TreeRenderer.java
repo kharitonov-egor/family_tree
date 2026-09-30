@@ -42,7 +42,7 @@ public final class TreeRenderer {
 
         int textColor = r.deceased() ? TEXT_DECEASED : TEXT_PRIMARY;
         boolean hasFace = PetFaceRenderer.hasFace(r);
-        if (zoom < 0.75) {
+        if (zoom < 0.65) {
             drawCompactNode(gfx, font, r, x, y, w, h, hasFace, collapsed, textColor);
             return;
         }

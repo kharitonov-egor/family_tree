@@ -4,7 +4,8 @@ import com.egakh.familytree.client.FamilyTreeClient;
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
-import net.minecraft.client.input.MouseButtonEvent;
+import com.egakh.familytree.network.payloads.DiscoverPetsRequest;
+import com.egakh.familytree.client.platform.ClientTransport;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -21,7 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-public class FamilyTreeBrowserScreen extends Screen {
+public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
     private static WeakReference<FamilyTreeBrowserScreen> ACTIVE = new WeakReference<>(null);
 
     private FamilyTreeSnapshotPayload snapshot;
@@ -33,6 +34,7 @@ public class FamilyTreeBrowserScreen extends Screen {
     private Button filterDeceased;
     private Button settingsButton;
     private Button scopeButton;
+    private Button discoverButton;
     private boolean viewingAll = true;
     private final List<Button> speciesButtons = new ArrayList<>();
 
@@ -52,6 +54,18 @@ public class FamilyTreeBrowserScreen extends Screen {
     private static final int TEXT_SECONDARY = 0xFFAAB1BB;
     private static final int TEXT_MUTED = 0xFF8A909A;
     private int speciesRows = 0;
+    private int speciesTop = 84;
+    private int discoveryTicks;
+    private boolean loadingFailed;
+
+    public static void loadingFailed() {
+        FamilyTreeBrowserScreen screen = ACTIVE.get();
+        if (screen != null) {
+            screen.loadingFailed = true;
+            screen.discoveryTicks = 0;
+            if (screen.discoverButton != null) screen.discoverButton.active = true;
+        }
+    }
 
     public FamilyTreeBrowserScreen() {
         super(Component.translatable("familytree.screen.browser.title"));
@@ -75,11 +89,14 @@ public class FamilyTreeBrowserScreen extends Screen {
     }
 
     private void applySnapshot(FamilyTreeSnapshotPayload payload) {
+        loadingFailed = false;
         this.snapshot = payload;
+        discoveryTicks = 0;
         this.viewingAll = payload.viewingAll();
         recompute();
         refreshSpeciesButtons();
         refreshScopeButton();
+        if (discoverButton != null) discoverButton.active = ClientTransport.canSend(DiscoverPetsRequest.TYPE);
     }
 
     private void refreshScopeButton() {
@@ -100,17 +117,30 @@ public class FamilyTreeBrowserScreen extends Screen {
     protected void init() {
         int top = 36;
         int leftPad = 16;
-        int searchWidth = this.width - leftPad * 2;
+        int searchWidth = this.width - leftPad * 2 - 136;
 
+        String previousSearch = search == null ? "" : search.getValue();
         this.search = new EditBox(this.font, leftPad, top, searchWidth, 18,
                 Component.translatable("familytree.screen.search"));
         this.search.setResponder(s -> recompute());
         this.search.setMaxLength(64);
+        this.search.setValue(previousSearch);
+        this.search.setHint(Component.translatable("familytree.screen.search"));
         this.addRenderableWidget(this.search);
         this.setInitialFocus(this.search);
+        discoverButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.discover.button"),
+                button -> {
+                    button.active = false;
+                    discoveryTicks = 200;
+                    FamilyTreeClient.discover(viewingAll);
+                }).bounds(this.width - leftPad - 132, top, 132, 18).build());
+        discoverButton.active = ClientTransport.canSend(DiscoverPetsRequest.TYPE);
 
         int btnY = top + 24;
         int btnW = 80;
+        boolean wrapControls = this.width < 500;
+        int scopeY = wrapControls ? btnY + 24 : btnY;
+        speciesTop = scopeY + 48;
         this.filterAll = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.filter.all"),
                         b -> { filter = Filter.ALL; recompute(); })
                 .bounds(leftPad, btnY, btnW, 18).build());
@@ -126,12 +156,16 @@ public class FamilyTreeBrowserScreen extends Screen {
                                 this.minecraft.setScreen(new FamilyTreeSettingsScreen(this));
                             }
                         })
-                .bounds(this.width - 100, btnY, 84, 18).build());
+                .bounds(this.width - 100, scopeY, 84, 18).build());
 
         this.scopeButton = this.addRenderableWidget(Button.builder(scopeLabel(),
                         b -> toggleScope())
-                .bounds(this.width - 100 - 88, btnY, 84, 18).build());
+                .bounds(this.width - 100 - 88, scopeY, 84, 18).build());
 
+        addRenderableWidget(Button.builder(Component.translatable("familytree.help.button"), button ->
+                minecraft.setScreen(new FamilyTreeHelpScreen(this))).bounds(16, scopeY + 24, 110, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("familytree.refresh"), button ->
+                FamilyTreeClient.requestSnapshot(viewingAll)).bounds(130, scopeY + 24, 78, 18).build());
         refreshSpeciesButtons();
         refreshScopeButton();
     }
@@ -149,10 +183,13 @@ public class FamilyTreeBrowserScreen extends Screen {
             }
             filtered.add(r);
         }
-        filtered.sort(Comparator.comparing(AnimalRecord::name, String.CASE_INSENSITIVE_ORDER));
-        if (scroll * ROW_HEIGHT > Math.max(0, (filtered.size() - 1) * ROW_HEIGHT)) {
-            scroll = 0;
+        if (filterAll != null) {
+            filterAll.active = filter != Filter.ALL;
+            filterAlive.active = filter != Filter.ALIVE;
+            filterDeceased.active = filter != Filter.DECEASED;
         }
+        filtered.sort(Comparator.comparing(AnimalRecord::name, String.CASE_INSENSITIVE_ORDER));
+        scroll = Math.min(scroll, Math.max(0, filtered.size() * ROW_HEIGHT - (this.height - 16 - getListTop())));
     }
 
     @Override
@@ -170,14 +207,18 @@ public class FamilyTreeBrowserScreen extends Screen {
         drawPanelBorder(gfx, listLeft, listTop, listRight, listBottom, 0x40FFFFFF);
 
         if (snapshot == null) {
-            gfx.centeredText(this.font, Component.translatable("familytree.screen.loading"),
+            gfx.centeredText(this.font, Component.translatable(loadingFailed ? "familytree.screen.load_failed" : "familytree.screen.loading"),
                     this.width / 2, listTop + 24, 0xFFCCCCCC);
             return;
         }
 
         if (filtered.isEmpty()) {
-            gfx.centeredText(this.font, Component.translatable("familytree.screen.empty"),
-                    this.width / 2, listTop + 24, 0xFFCCCCCC);
+            int messageY = listTop + 24;
+            for (var line : this.font.split(Component.translatable(snapshot.records().isEmpty()
+                    ? "familytree.screen.empty" : "familytree.screen.no_matches"), this.width - 64)) {
+                gfx.text(this.font, line, (this.width - this.font.width(line)) / 2, messageY, 0xFFCCCCCC);
+                messageY += this.font.lineHeight + 3;
+            }
             return;
         }
 
@@ -197,12 +238,10 @@ public class FamilyTreeBrowserScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (super.mouseClicked(event, doubleClick)) return true;
+    protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
+        if (button != 0) return false;
         if (snapshot == null) return false;
 
-        double mouseX = event.x();
-        double mouseY = event.y();
 
         int listTop = getListTop();
         int listBottom = this.height - 16;
@@ -242,7 +281,13 @@ public class FamilyTreeBrowserScreen extends Screen {
     }
 
     private int getListTop() {
-        return 84 + speciesRows * 22;
+        return speciesTop + speciesRows * 22;
+    }
+
+    @Override public void tick() {
+        super.tick();
+        if (discoveryTicks > 0 && --discoveryTicks == 0 && discoverButton != null)
+            discoverButton.active = ClientTransport.canSend(DiscoverPetsRequest.TYPE);
     }
 
     private void toggleScope() {
@@ -270,7 +315,7 @@ public class FamilyTreeBrowserScreen extends Screen {
         }
 
         int leftPad = 16;
-        int btnY = 36 + 24 + 24;
+        int btnY = speciesTop;
         int btnW = 96;
         int btnGap = 4;
         int perRow = Math.max(1, (this.width - leftPad * 2 + btnGap) / (btnW + btnGap));

@@ -29,6 +29,8 @@ Desktop.ini
 *.pat
 
 # Logs and temp files
+logs/
+__pycache__/
 *.log
 hs_err_pid*
 replay_pid*

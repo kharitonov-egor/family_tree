@@ -1,9 +1,9 @@
 package com.egakh.familytree.settings;
 
 import com.egakh.familytree.FamilyTreeMod;
-import net.fabricmc.loader.api.FabricLoader;
+import com.egakh.familytree.platform.FamilyTreePaths;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.permissions.Permissions;
+import com.egakh.familytree.permissions.ServerPetAccess;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,8 +31,7 @@ public final class FamilyTreeServerSettings {
     }
 
     private static final String VIEW_POLICY_KEY = "viewPolicy";
-    private static final Path CONFIG_PATH = FabricLoader.getInstance()
-            .getConfigDir()
+    private static final Path CONFIG_PATH = FamilyTreePaths.config()
             .resolve("familytree-server.properties");
 
     private static volatile ViewPolicy viewPolicy = ViewPolicy.OP_ONLY_ALL;
@@ -72,7 +71,7 @@ public final class FamilyTreeServerSettings {
     public static boolean mayViewAll(ServerPlayer player) {
         return switch (viewPolicy) {
             case EVERYONE_ALL -> true;
-            case OP_ONLY_ALL -> player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
+            case OP_ONLY_ALL -> ServerPetAccess.operator(player.createCommandSourceStack());
             case OWN_ONLY -> false;
         };
     }

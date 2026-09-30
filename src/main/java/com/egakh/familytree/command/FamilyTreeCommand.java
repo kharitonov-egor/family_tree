@@ -6,6 +6,10 @@ import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.TimeUtil;
+import com.egakh.familytree.permissions.ServerPetAccess;
+import com.egakh.familytree.network.FamilyTreePackets;
+import com.egakh.familytree.util.PetNames;
+import com.egakh.familytree.util.PetRelations;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -72,7 +76,7 @@ public final class FamilyTreeCommand {
                 .then(Commands.literal("confirmlink").executes(ctx -> LinkingTool.confirm(ctx.getSource())))
                 .then(Commands.literal("cancellink").executes(ctx -> LinkingTool.cancel(ctx.getSource())))
                 .then(Commands.literal("prune")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .requires(ServerPetAccess::operator)
                         .then(Commands.literal("deceased")
                                 .executes(ctx -> runPruneDeceased(ctx.getSource())))
                         .then(Commands.literal("species")
@@ -90,6 +94,7 @@ public final class FamilyTreeCommand {
     private static int runList(CommandSourceStack source) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         List<AnimalRecord> all = state.all().stream()
+                .filter(record -> ServerPetAccess.canView(source, record))
                 .sorted(Comparator.comparing(AnimalRecord::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
 
@@ -109,9 +114,7 @@ public final class FamilyTreeCommand {
 
     private static int runInfo(CommandSourceStack source, String name) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        AnimalRecord match = state.all().stream()
-                .filter(r -> r.matchesName(name))
-                .findFirst().orElse(null);
+        AnimalRecord match = findUnique(state, name, source, false);
         if (match == null) {
             source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
             return 0;
@@ -130,13 +133,13 @@ public final class FamilyTreeCommand {
 
         if (match.parentA() != null) {
             AnimalRecord pa = state.get(match.parentA());
-            if (pa != null) {
+            if (ServerPetAccess.canView(source, pa)) {
                 source.sendSuccess(() -> Component.literal("  parent A: " + pa.name()), false);
             }
         }
         if (match.parentB() != null) {
             AnimalRecord pb = state.get(match.parentB());
-            if (pb != null) {
+            if (ServerPetAccess.canView(source, pb)) {
                 source.sendSuccess(() -> Component.literal("  parent B: " + pb.name()), false);
             }
         }
@@ -145,10 +148,7 @@ public final class FamilyTreeCommand {
 
     private static int runLocate(CommandSourceStack source, String name) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        List<AnimalRecord> matches = state.all().stream()
-                .filter(record -> record.matchesName(name))
-                .sorted(Comparator.comparing(AnimalRecord::birthWorldDay))
-                .toList();
+        List<AnimalRecord> matches = PetNames.matches(state.all(), name, record -> ServerPetAccess.canManage(source, record));
         if (matches.isEmpty()) {
             source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
             return 0;
@@ -207,7 +207,7 @@ public final class FamilyTreeCommand {
         int by = (int) Math.round(y);
         int bz = (int) Math.round(z);
         MutableComponent coords = Component.literal(bx + ", " + by + ", " + bz);
-        if (Commands.LEVEL_GAMEMASTERS.check(source.permissions())) {
+        if (ServerPetAccess.operator(source)) {
             String tp = "/execute in " + dimension + " run tp @s " + bx + " " + by + " " + bz;
             coords = coords.withStyle(s -> s
                     .withColor(ChatFormatting.AQUA)
@@ -232,7 +232,12 @@ public final class FamilyTreeCommand {
     }
 
     private static int runScan(CommandSourceStack source) {
-        PetLifecycleListeners.ScanResult result = PetLifecycleListeners.scanLoadedPets(source.getServer());
+        if (!FamilyTreePackets.allowScan(source.getServer(), source.getPlayer() == null ? null : source.getPlayer().getUUID())) {
+            source.sendFailure(Component.translatable("familytree.command.cooldown"));
+            return 0;
+        }
+        PetLifecycleListeners.ScanResult result = PetLifecycleListeners.scanLoadedPets(source.getServer(),
+                record -> ServerPetAccess.canView(source, record));
         source.sendSuccess(() -> Component.translatable("familytree.command.scan.result",
                 result.imported(), result.refreshed()), false);
         return result.totalTouched();
@@ -240,6 +245,7 @@ public final class FamilyTreeCommand {
 
     private static int runPruneDeceased(CommandSourceStack source) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        if (!backupBeforePrune(source, state)) return 0;
         int removed = state.removeMatching(AnimalRecord::deceased);
         source.sendSuccess(() -> Component.translatable("familytree.command.prune.result", removed), false);
         return removed;
@@ -248,6 +254,7 @@ public final class FamilyTreeCommand {
     private static int runPruneSpecies(CommandSourceStack source, String speciesId) {
         String normalized = speciesId.trim();
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        if (!backupBeforePrune(source, state)) return 0;
         int removed = state.removeMatching(record -> record.speciesId().equalsIgnoreCase(normalized));
         source.sendSuccess(() -> Component.translatable("familytree.command.prune.result", removed), false);
         return removed;
@@ -255,9 +262,8 @@ public final class FamilyTreeCommand {
 
     private static int runUnpair(CommandSourceStack source, String childName) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        AnimalRecord child = findByName(state, childName);
+        AnimalRecord child = findByName(state, childName, source);
         if (child == null) {
-            source.sendFailure(Component.translatable("familytree.command.info.unknown", childName));
             return 0;
         }
 
@@ -280,9 +286,8 @@ public final class FamilyTreeCommand {
 
     private static int runSetAge(CommandSourceStack source, String name, long days) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        AnimalRecord pet = findByName(state, name);
+        AnimalRecord pet = findByName(state, name, source);
         if (pet == null) {
-            source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
             return 0;
         }
 
@@ -303,9 +308,8 @@ public final class FamilyTreeCommand {
 
     private static int runSetBirthDay(CommandSourceStack source, String name, long birthDay) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        AnimalRecord pet = findByName(state, name);
+        AnimalRecord pet = findByName(state, name, source);
         if (pet == null) {
-            source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
             return 0;
         }
 
@@ -326,20 +330,17 @@ public final class FamilyTreeCommand {
 
     private static int runPair(CommandSourceStack source, String parentAName, String parentBName, String childName) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        AnimalRecord parentA = findByName(state, parentAName);
-        AnimalRecord parentB = findByName(state, parentBName);
-        AnimalRecord child = findByName(state, childName);
+        AnimalRecord parentA = findByName(state, parentAName, source);
+        AnimalRecord parentB = findByName(state, parentBName, source);
+        AnimalRecord child = findByName(state, childName, source);
 
         if (parentA == null) {
-            source.sendFailure(Component.translatable("familytree.command.info.unknown", parentAName));
             return 0;
         }
         if (parentB == null) {
-            source.sendFailure(Component.translatable("familytree.command.info.unknown", parentBName));
             return 0;
         }
         if (child == null) {
-            source.sendFailure(Component.translatable("familytree.command.info.unknown", childName));
             return 0;
         }
         if (parentA.id().equals(parentB.id())) {
@@ -350,7 +351,7 @@ public final class FamilyTreeCommand {
             source.sendFailure(Component.translatable("familytree.command.pair.child_matches_parent"));
             return 0;
         }
-        if (!parentA.speciesId().equals(parentB.speciesId()) || !parentA.speciesId().equals(child.speciesId())) {
+        if (!PetRelations.speciesMatch(parentA, parentB, child)) {
             source.sendFailure(Component.translatable("familytree.command.pair.species_mismatch"));
             return 0;
         }
@@ -366,11 +367,50 @@ public final class FamilyTreeCommand {
         return 1;
     }
 
-    private static AnimalRecord findByName(FamilyTreeState state, String name) {
-        return state.all().stream()
-                .filter(record -> record.matchesName(name))
-                .findFirst()
-                .orElse(null);
+    private static AnimalRecord findByName(FamilyTreeState state, String name, CommandSourceStack source) {
+        if (state.readOnly()) {
+            source.sendFailure(Component.translatable("familytree.command.read_only"));
+            return null;
+        }
+        return findUnique(state, name, source, true);
+    }
+
+    private static AnimalRecord findUnique(FamilyTreeState state, String name, CommandSourceStack source, boolean manage) {
+        var matches = PetNames.matches(state.all(), name, pet -> manage
+                ? ServerPetAccess.canManage(source, pet) : ServerPetAccess.canView(source, pet));
+        if (matches.size() == 1) return matches.getFirst();
+        if (matches.size() > 1) {
+            source.sendFailure(Component.translatable("familytree.command.ambiguous", name));
+            for (AnimalRecord pet : matches.stream().limit(10).toList()) source.sendFailure(Component.literal(
+                    pet.name() + " | " + shortSpecies(pet.speciesId()) + " | " + pet.id()));
+        } else source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
+        return null;
+    }
+
+    private static boolean backupBeforePrune(CommandSourceStack source, FamilyTreeState state) {
+        if (state.readOnly()) {
+            source.sendFailure(Component.translatable("familytree.command.read_only"));
+            return false;
+        }
+        try {
+            var path = state.backup(source.getServer());
+            source.sendSuccess(() -> Component.translatable("familytree.command.backup", path.getFileName().toString()), false);
+            return true;
+        } catch (java.io.IOException | RuntimeException failure) {
+            com.egakh.familytree.FamilyTreeMod.LOGGER.error("Prune canceled because the backup failed", failure);
+            source.sendFailure(Component.translatable("familytree.command.backup_failed"));
+            return false;
+        }
+    }
+
+    public static int locatePet(CommandSourceStack source, java.util.UUID id) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        AnimalRecord pet = state.get(id);
+        if (!ServerPetAccess.canManage(source, pet)) {
+            source.sendFailure(Component.translatable("familytree.access.denied"));
+            return 0;
+        }
+        return locateOne(source, state, pet);
     }
 
     private static String formatLine(AnimalRecord r, long currentDay) {

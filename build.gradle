@@ -3,17 +3,51 @@ plugins {
     id 'java'
 }
 
+if (project.hasProperty('smoke')) {
+    sourceSets {
+        smoke {
+            java.setSrcDirs([rootProject.file('src/smoke/java')])
+            resources.setSrcDirs([rootProject.file('src/smoke/resources')])
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+        }
+    }
+    loom {
+        mods { familytree_smoke { sourceSet sourceSets.smoke } }
+        runs {
+            smoke {
+                server()
+                source sourceSets.smoke
+                runDir "../../build/smoke-${stonecutter.current.version}"
+                programArgs 'nogui'
+                vmArg "-Dfamilytree.smoke.minimumHistory=${project.findProperty('smokeHistory') ?: '0'}"
+            }
+        }
+    }
+    tasks.named('runSmoke') {
+        def result = rootProject.file("build/smoke-${stonecutter.current.version}/smoke-result.txt")
+        doFirst { result.delete() }
+        doLast {
+            if (!result.exists() || !result.text.startsWith('PASS:'))
+                throw new GradleException(result.exists() ? result.text : 'Smoke test did not report a result')
+        }
+    }
+}
+
 def mcVersion = stonecutter.current.version
 
 def fabricApiVersions = [
+        '1.21.1': '0.116.17+1.21.1',
         '26.1.1': '0.145.4+26.1.1',
+        '26.1.2': '0.155.3+26.1.2',
         '26.2'  : '0.154.1+26.2',
+        '26.3'  : '0.161.0+26.3',
 ]
 def fabricApiVersion = fabricApiVersions[mcVersion]
 if (fabricApiVersion == null) {
     throw new GradleException("No Fabric API version mapped for Minecraft ${mcVersion} — add it to build.gradle")
 }
-def minecraftDep = mcVersion.startsWith('26.2') ? '~26.2' : '~26.1'
+def minecraftDep = "=${mcVersion}"
 
 version = "${project.mod_version}+${mcVersion}"
 group = project.maven_group
@@ -41,8 +75,13 @@ loom {
 dependencies {
     minecraft "com.mojang:minecraft:${mcVersion}"
     loomx.applyMojangMappings()
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
+    if (mcVersion == '1.21.1') {
+        modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
+    } else {
+        implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+        implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
+    }
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -62,12 +101,15 @@ processResources {
     inputs.property 'minecraft', minecraftDep
 
     filesMatching('fabric.mod.json') {
-        expand 'version': project.version, 'minecraft': minecraftDep
+        expand 'version': project.version, 'minecraft': minecraftDep, 'java': mcVersion == '1.21.1' ? '21' : '25'
+    }
+    filesMatching('familytree.mixins.json') {
+        expand 'java': mcVersion == '1.21.1' ? '21' : '25'
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 25
+    it.options.release = mcVersion == '1.21.1' ? 21 : 25
 }
 
 java {
@@ -77,7 +119,40 @@ java {
 }
 
 jar {
-    from("LICENSE") {
+    from(rootProject.file('LICENSE')) {
         rename { "${it}_${project.archives_base_name}" }
+    }
+}
+
+// The demo is a separate development mod and never enters a release jar.
+if (project.hasProperty('demo')) {
+    sourceSets {
+        demo {
+            java.setSrcDirs([rootProject.file('src/demo/java')])
+            resources.setSrcDirs([rootProject.file('src/demo/resources')])
+            compileClasspath += sourceSets.main.output + sourceSets.client.output + sourceSets.client.compileClasspath
+            runtimeClasspath += output + compileClasspath + sourceSets.client.runtimeClasspath
+        }
+    }
+    loom {
+        mods { familytree_demo { sourceSet sourceSets.demo } }
+        runs {
+            demo {
+                client()
+                source sourceSets.demo
+                vmArg "-Dfamilytree.demo.gameplay=${project.hasProperty('gameplay')}"
+                runDir "../../build/demo-${mcVersion}"
+                programArgs '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
+                if (mcVersion == '26.3' && project.hasProperty('graphicsBackend')) programArgs '--graphicsBackend', project.property('graphicsBackend')
+            }
+        }
+    }
+    tasks.named('runDemo') {
+        def result = rootProject.file("build/demo-${mcVersion}/demo-result.txt")
+        doFirst { result.delete() }
+        doLast {
+            if (!result.exists() || !result.text.startsWith('PASS:'))
+                throw new GradleException(result.exists() ? result.text : 'Client demo did not report a result')
+        }
     }
 }

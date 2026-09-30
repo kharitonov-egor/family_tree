@@ -1,7 +1,7 @@
 {
   "required": true,
   "package": "com.egakh.familytree.mixin",
-  "compatibilityLevel": "JAVA_25",
+  "compatibilityLevel": "JAVA_${java}",
   "mixins": [
     "AbstractHorseTameMixin",
     "AnimalEntityBreedMixin",

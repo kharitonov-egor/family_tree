@@ -6,8 +6,6 @@ import com.egakh.familytree.mixin.WolfVariantInvoker;
 import com.egakh.familytree.naming.NameGenerator;
 import com.egakh.familytree.util.PetFilter;
 import com.egakh.familytree.util.TimeUtil;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -30,15 +28,14 @@ public final class PetLifecycleListeners {
 
     private PetLifecycleListeners() {}
 
-    public static void register() {
-        ServerLivingEntityEvents.AFTER_DEATH.register(PetLifecycleListeners::onDeath);
-        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
-            if (!PetFilter.isTrackable(entity)) return;
-            FamilyTreeState state = FamilyTreeState.get(world);
-            if (state.contains(entity.getUUID())) {
-                stampPosition(world, state, entity);
-            }
-        });
+    public static void onLoad(Entity entity, ServerLevel world) {
+        if (PetFilter.isTrackable(entity)) ensureRecord(world, FamilyTreeState.get(world), entity);
+    }
+
+    public static void onUnload(Entity entity, ServerLevel world) {
+        if (!PetFilter.isTrackable(entity)) return;
+        FamilyTreeState state = FamilyTreeState.get(world);
+        if (state.contains(entity.getUUID())) stampPosition(world, state, entity);
     }
 
     public static void onBred(ServerLevel world, Animal parentA, Animal parentB, Animal child) {
@@ -50,7 +47,6 @@ public final class PetLifecycleListeners {
         ensureRecord(world, state, parentB);
 
         UUID childId = child.getUUID();
-        if (state.contains(childId)) return;
 
         String species = BuiltInRegistries.ENTITY_TYPE.getKey(child.getType()).toString();
         String existingName = nameOrNull(child);
@@ -82,6 +78,17 @@ public final class PetLifecycleListeners {
             }
             owner = parentOwner;
             ownerName = parentOwnerName;
+        }
+
+        // Entity-load discovery can register the baby before the breeding hook runs.
+        if (state.contains(childId)) {
+            UUID inheritedOwner = owner;
+            String inheritedOwnerName = ownerName;
+            state.update(childId, record -> {
+                record.setParents(parentA.getUUID(), parentB.getUUID());
+                if (inheritedOwner != null) record.setOwner(inheritedOwner, inheritedOwnerName);
+            });
+            return;
         }
 
         AnimalRecord rec = new AnimalRecord(
@@ -142,7 +149,7 @@ public final class PetLifecycleListeners {
         }
     }
 
-    private static void onDeath(LivingEntity entity, DamageSource source) {
+    public static void onDeath(LivingEntity entity, DamageSource source) {
         if (entity.level().isClientSide()) return;
         if (!(entity.level() instanceof ServerLevel world)) return;
         if (!PetFilter.isTameableSpecies(entity)) return;
@@ -211,6 +218,11 @@ public final class PetLifecycleListeners {
     }
 
     public static ScanResult scanLoadedPets(net.minecraft.server.MinecraftServer server) {
+        return scanLoadedPets(server, record -> true);
+    }
+
+    public static ScanResult scanLoadedPets(net.minecraft.server.MinecraftServer server,
+                                           java.util.function.Predicate<AnimalRecord> visible) {
         FamilyTreeState state = FamilyTreeState.get(server);
         int imported = 0;
         int refreshed = 0;
@@ -221,7 +233,7 @@ public final class PetLifecycleListeners {
                 UUID id = entity.getUUID();
                 boolean existed = state.contains(id);
                 ensureRecord(level, state, entity);
-                if (state.contains(id)) {
+                if (state.contains(id) && visible.test(state.get(id))) {
                     if (existed) {
                         refreshed++;
                     } else {
@@ -243,9 +255,13 @@ public final class PetLifecycleListeners {
     }
 
     private static UUID ownerOf(Entity entity) {
+        //? if >=26.1 {
         if (entity instanceof OwnableEntity ownable && ownable.getOwnerReference() != null) {
             return ownable.getOwnerReference().getUUID();
         }
+        //?} else {
+        /*if (entity instanceof OwnableEntity ownable) return ownable.getOwnerUUID();
+        *///?}
         return null;
     }
 

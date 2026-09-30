@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "familytree_demo",
+  "version": "1.0.0",
+  "name": "Family Tree development demo",
+  "environment": "client",
+  "entrypoints": { "client": ["com.egakh.familytree.demo.FabricDemoClient"] }
+}

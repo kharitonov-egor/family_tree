@@ -1,0 +1,7 @@
+[
+  {"key":"export", "file":"docs/family-tree-gameplay-export.png", "featured":true, "ordering":0, "title":"Moss, Fern, and Clover in Family Tree 1.1.0", "description":"Export of the family produced by vanilla breeding in an automated demonstration scene. Moss remains after a real death event."},
+  {"key":"gameplay", "file":"docs/family-tree-gameplay.webp", "featured":false, "ordering":1, "title":"Vanilla breeding, recorded family, and PNG export", "description":"20 seconds in Minecraft 26.2 with Family Tree 1.1.0. An automated scene uses vanilla feeding, AI breeding, a real death event, and the actual network snapshot."},
+  {"key":"tree", "file":"docs/family-tree-gameplay-view.webp", "featured":false, "ordering":2, "title":"The actual puppy's parents in 1.1.0", "description":"Clover's tree after vanilla breeding. Refresh, Add parents, and Open folder are available in the tree."},
+  {"key":"parents", "file":"docs/parent-links.webp", "featured":false, "ordering":3, "title":"Add known parents without commands", "description":"Choose two pets in the picker, review the selection, and confirm. This screen uses a staged example family."},
+  {"key":"browser", "file":"docs/tracked-pets-browser.webp", "featured":false, "ordering":4, "title":"Find existing pets and get started in 1.1.0", "description":"A staged example in the browser, with search, status filters, Getting started, and Refresh."}
+]

@@ -3,21 +3,27 @@
   "id": "familytree",
   "version": "${version}",
   "name": "Family Tree",
-  "description": "Tracks the lineage of bred tameable pets (cats, wolves, parrots, horses, donkeys, mules, llamas, camels) and shows them in an in-game family tree viewer.",
+  "description": "Track your pets' family history, find their last known location, and export a family tree to keep or share.",
   "authors": ["egakh"],
+  "icon": "assets/familytree/icon.png",
+  "contact": {
+    "homepage": "https://modrinth.com/mod/familytree",
+    "sources": "https://github.com/kharitonov-egor/family_tree",
+    "issues": "https://github.com/kharitonov-egor/family_tree/issues"
+  },
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
-    "main": ["com.egakh.familytree.FamilyTreeMod"],
-    "client": ["com.egakh.familytree.client.FamilyTreeClient"]
+    "main": ["com.egakh.familytree.fabric.FabricEntrypoint"],
+    "client": ["com.egakh.familytree.client.fabric.FabricClientEntrypoint"]
   },
   "mixins": [
     "familytree.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.16.0",
+    "fabricloader": ">=0.19.3",
     "fabric-api": "*",
     "minecraft": "${minecraft}",
-    "java": ">=25"
+    "java": ">=${java}"
   }
 }

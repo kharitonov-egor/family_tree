@@ -1,0 +1,137 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '2.0.147'
+}
+
+def sharedProperties = new Properties()
+file('../gradle.properties').withInputStream { sharedProperties.load(it) }
+def mcVersion = project.findProperty('minecraft') ?: '26.2'
+def neoVersions = ['1.21.1': '21.1.252', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta']
+if (!neoVersions.containsKey(mcVersion)) throw new GradleException("Unsupported Minecraft version ${mcVersion}")
+version = "${sharedProperties.mod_version}+${mcVersion}-neoforge"
+layout.buildDirectory = file("build/${mcVersion}")
+group = sharedProperties.maven_group
+base.archivesName = 'familytree'
+java.toolchain.languageVersion = JavaLanguageVersion.of(mcVersion == '1.21.1' ? 21 : 25)
+java.withSourcesJar()
+
+neoForge {
+    version = neoVersions[mcVersion]
+    runs {
+        client { client() }
+        server { server(); programArgument '--nogui' }
+    }
+    mods {
+        familytree { sourceSet(sourceSets.main) }
+    }
+}
+
+sourceSets.main {
+    java.setSrcDirs(["../versions/${mcVersion}/build/generated/stonecutter/main/java",
+            "../versions/${mcVersion}/build/generated/stonecutter/client/java",
+            mcVersion == '1.21.1' ? 'src/legacy/java' : 'src/main/java' ])
+    java.exclude '**/fabric/**'
+    resources.setSrcDirs(['../src/main/resources', 'src/main/resources'])
+    resources.exclude 'fabric.mod.json'
+}
+sourceSets.test {
+    java.setSrcDirs(['../src/test/java'])
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.runtimeClasspath
+}
+repositories { mavenCentral() }
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+test { useJUnitPlatform() }
+
+tasks.register('prepareSharedSources', Exec) {
+    onlyIf { !project.hasProperty('sharedSourcesReady') }
+    workingDir '..'
+    def wrapper = file(System.getProperty('os.name').toLowerCase().contains('windows') ? '../gradlew.bat' : '../gradlew')
+    commandLine(System.getProperty('os.name').toLowerCase().contains('windows')
+            ? ['cmd', '/c', wrapper.absolutePath, ":${mcVersion}:stonecutterGenerate", ":${mcVersion}:stonecutterGenerateClient", '--console=plain']
+            : [wrapper.absolutePath, ":${mcVersion}:stonecutterGenerate", ":${mcVersion}:stonecutterGenerateClient", '--console=plain'])
+}
+compileJava.dependsOn 'prepareSharedSources'
+sourcesJar.dependsOn 'prepareSharedSources'
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand version: project.version, minecraft: mcVersion,
+                neoforge: neoVersions[mcVersion],
+                logoProperty: mcVersion == '1.21.1' ? 'logoFile' : 'iconFile',
+                neoUpper: mcVersion == '1.21.1' ? '21.2' : mcVersion == '26.2' ? '26.3' : '26.4'
+    }
+    filesMatching('familytree.mixins.json') { expand 'java': mcVersion == '1.21.1' ? '21' : '25' }
+}
+
+if (project.hasProperty('demo')) {
+    sourceSets {
+        demo {
+            java.setSrcDirs(['../src/demo/java', 'src/demo/java'])
+            java.exclude '**/FabricDemoClient.java'
+            resources.setSrcDirs(['src/demo/resources'])
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+        }
+    }
+    neoForge {
+        mods { familytree_demo { sourceSet(sourceSets.demo) } }
+        runs {
+            demo {
+                client()
+                sourceSet = sourceSets.demo
+                gameDirectory = file("../build/demo-neoforge-${mcVersion}")
+                programArguments.addAll '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
+                if (mcVersion == '26.3' && project.hasProperty('graphicsBackend')) programArguments.addAll '--graphicsBackend', project.property('graphicsBackend')
+            }
+        }
+    }
+    tasks.named('runDemo') {
+        def result = file("../build/demo-neoforge-${mcVersion}/demo-result.txt")
+        doFirst { result.delete() }
+        doLast {
+            if (!result.exists() || !result.text.startsWith('PASS:'))
+                throw new GradleException(result.exists() ? result.text : 'Client demo did not report a result')
+        }
+    }
+}
+
+if (project.hasProperty('smoke')) {
+    sourceSets {
+        smoke {
+            java.setSrcDirs(['../src/smoke/java', 'src/smoke/java'])
+            java.exclude '**/FabricSmoke.java'
+            resources.setSrcDirs(['src/smoke/resources'])
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+        }
+    }
+    neoForge {
+        mods { familytree_smoke { sourceSet(sourceSets.smoke) } }
+        runs {
+            smoke {
+                server()
+                sourceSet = sourceSets.smoke
+                gameDirectory = file("../build/smoke-neoforge-${mcVersion}")
+                programArgument '--nogui'
+                systemProperty 'familytree.smoke.minimumHistory', project.findProperty('smokeHistory') ?: '0'
+            }
+        }
+    }
+    tasks.named('runSmoke') {
+        def result = file("../build/smoke-neoforge-${mcVersion}/smoke-result.txt")
+        doFirst { result.delete() }
+        doLast {
+            if (!result.exists() || !result.text.startsWith('PASS:'))
+                throw new GradleException(result.exists() ? result.text : 'Smoke test did not report a result')
+        }
+    }
+}
+
+jar {
+    from('../LICENSE') { rename { "LICENSE_familytree" } }
+}

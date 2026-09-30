@@ -1,76 +1,53 @@
-# Family Tree
+# Keep your first wolf in the family tree after it's gone
 
-Automatically tracks the lineage of your tamed, bred pets and shows it to you in-game - who their parents are, when they were born, who tamed them, and whether they're still alive. Tame two animals, breed them, and the mod quietly records the whole family line for you. Browse it all from a dedicated screen with live 3D pet portraits, or walk a pet's ancestry as a zoomable tree.
+Family Tree records your Minecraft pets, their parents, and their descendants. Keep deceased pets in the family, find a missing pet's last known location, and export a tree as a PNG.
 
-![Replace this with a description](https://cdn.modrinth.com/data/cached_images/244e3a3656eb3761014288a2355934a49bbada0a_0.webp)
+Install the matching file in singleplayer and press **H**. On a server, install Family Tree on the server for tracking and on your client for the screens. Use the same mod version on both sides. Fabric builds also need Fabric API and Fabric Loader 0.19.3 or newer.
 
-![Replace this with a description](https://cdn.modrinth.com/data/cached_images/6317072ede58bd5bdad5b569a5a409b11b3b2393_0.webp)
+![A pet family exported as a PNG](https://cdn.modrinth.com/data/CVQKDAe7/images/4f59a55c92124812e4c90f47cb8d795a8dd218e4.png)
 
-## What it does
+Moss stays in Clover's tree after his death. This export comes from the automated vanilla-wolf scene below.
 
-Whenever a tracked pet breeds, Family Tree records the baby with **both parents, its birth day (and real-world timestamp), an auto-generated name, its owner, and its species**. Over time this builds a complete, browsable family history of your animals. When a tracked pet dies, it's marked as deceased and kept in the records rather than vanishing.
+![Vanilla wolves breed, then their family tree exports as a PNG](https://cdn.modrinth.com/data/CVQKDAe7/images/1abf61e1f198af7518de096a7d8a5919d5e53391.webp)
 
-The data lives on the server (or your singleplayer world) and is the source of truth. The GUI just displays it.
+A 20-second automated scene in Minecraft 26.2. Vanilla feeding and AI breeding produce the actual puppy; Family Tree records the parents and keeps the deceased parent.
 
-## Tracked species
+## Start with the pets already in your world
 
-Cats, wolves, parrots, horses, donkeys, mules, llamas, and camels.
+Visit your pets or choose **Find existing pets** to check loaded tamed animals. Older parents are unknown because Minecraft does not retain them. Open a pet, select it, and choose **Add parents** to record a family you remember. Breed pets while the mod is installed to record new children's parents automatically.
 
-## Features
+The tracker covers tamed wolves, cats, parrots, horses, donkeys, mules, and llamas. Parrots have individual records and cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule.
 
-- 🐾 **Automatic lineage tracking**: parents, birth day, owner, name, and species recorded on breeding, no setup required.
-- 📍 **Pet locator** *(new!)*: `/familytree locate <name>` shows where a pet is, with coordinates, dimension, and distance. If the pet's chunk is unloaded you get its last known spot. Lost cats are a solved problem.
-- ⚰️ **Death cause** *(new!)*: when a pet dies, the mod records what killed it. The tree shows "Slain by Creeper, day 43" or "Died of fall, day 12" instead of just "deceased".
-- 🪄 **Linking stick**: rename a plain stick to `familytree` in an anvil and right-click pets to record parentage in existing worlds: click parent 1, parent 2, then the child, and confirm with clickable chat buttons. Sneak-click a pet to clear its recorded parents. The clicked pet briefly glows, so you can tell which cat in a pile you actually selected. Each click also shows the pet's known parents and children, and creates a record on the spot for pets tamed before the mod was installed.
-- 🖼️ **Tracked Pets browser**: a searchable, filterable list of every pet with **live 3D model heads** (showing each pet's real coat variant) for cats and dogs, species-colored cards, and an Alive / Deceased status pill.
-- 🔎 **Filter & search**: show All / Alive / Deceased, search by name or species, and open a species' combined tree.
-- 🌳 **Family tree view**: pan and zoom an ancestry graph for any pet. Nodes show the 3D head, name, species, owner, age, and death state. Mates are placed side by side with their children below them.
-- ⚙️ **Display settings**: toggle showing age and/or birth day, right from the screen (both off by default).
-- 🛠️ **Management commands**: manually pair/unpair parents, fix ages, import existing pets, and prune records.
-- 🎮 **Server-friendly**: operators can view every player's pets; vanilla clients can still join a server running the mod.
+## Browse, find, and share
 
-## How to open the screen
+Search by pet name or species, filter living or deceased pets, and open one pet's tree or a whole species. Cat and wolf portraits match their coat variants. Tree names leave the animal's name tag unchanged. Use **Refresh** to load births and edits that happened while the screen was open.
 
-The mod adds an **"Open Family Tree"** keybind. It is bound to **H** by default (rebindable under **Options > Controls > Family Tree**); press it in-game.
+**Locate pet** reports coordinates and dimension in chat. Unloaded pets show their last recorded location and day. The mod does not load chunks or teleport pets.
 
-## Linking pets with the stick
+**Export family tree** saves a PNG under `screenshots/familytree/`. Choose **Open folder** to find it. Export includes the displayed family beyond the screen edges. Hidden branches stay hidden. A focused tree shows up to six generations in either direction; the species view includes its recorded families. Exports omit player names and coordinates, and nothing uploads automatically.
 
-For worlds where your pets already exist and were never bred with the mod installed:
+## Choose the matching file
 
-1. Rename a regular **stick** to `familytree` in an anvil (case doesn't matter).
-2. Right-click the first parent, then the second parent, then the child. Chat confirms each selection and the pet glows for a few seconds.
-3. Click **[Confirm]** in chat to save the link (or **[Cancel]** to discard it).
-4. Sneak + right-click a pet to clear its recorded parents (with the same confirmation).
+| Minecraft | Fabric | NeoForge | Java |
+| --- | --- | --- | --- |
+| 1.21.1 | Fabric API for 1.21.1 | 21.1.252 or newer within 21.1 | 21 or newer |
+| 26.1.1 | Fabric API for 26.1.1 | No build | 25 or newer |
+| 26.1.2 | Fabric API for 26.1.2 | No build | 25 or newer |
+| 26.2 | Fabric API for 26.2 | 26.2.0.88 or newer within 26.2 | 25 or newer |
+| 26.3 | Fabric API for 26.3 | 26.3.0.37-beta or newer within 26.3, beta build | 25 or newer |
 
-Only tamed pets of the same species can be linked, and every pet you click is added to the tracker automatically.
+NeoForge builds do not need Fabric API. Players without Family Tree can join a server running it, but need the matching client mod to open the screens.
 
-## Commands
+![Choose and confirm known parents](https://cdn.modrinth.com/data/CVQKDAe7/images/ffa335f35d20cab921cdea37992bf823d38bd70f.webp)
 
-All commands are under `/familytree`:
+## Permissions and existing history
 
-| Command | What it does |
-| --- | --- |
-| `/familytree list` | List all tracked pets in chat. |
-| `/familytree scan` | Import already-tamed pets currently loaded in the world, and refresh coat variants on existing records. |
-| `/familytree locate <name>` | Show a pet's coordinates, dimension, and distance. Falls back to the last known position if the pet is not loaded. Lists every pet with that name. |
-| `/familytree info [name]` | Show details for a pet, or command help if no name is given. |
-| `/familytree pair <parentA> <parentB> <child>` | Manually link two parents to a child (same species, all distinct). |
-| `/familytree unpair <child>` | Clear a child's parent links. |
-| `/familytree setage <name> <days>` | Set a pet's age to a relative number of world days. |
-| `/familytree setbirth <name> <day>` | Set a pet's birth day directly. |
-| `/familytree prune deceased` | Remove all deceased records. *(operators only)* |
-| `/familytree prune species <id>` | Remove all records of a species, e.g. `minecraft:wolf`. *(operators only)* |
+Owners and operators can edit and locate their pets. The server can allow everyone to browse all families through `viewPolicy=EVERYONE_ALL` in `config/familytree-server.properties`. Public browsing does not reveal other players' pet coordinates or grant editing access.
 
-> 💡 After installing on an existing world, run `/familytree scan` near your pets to back-fill ones you tamed earlier and to populate the coat variants used for the 3D portraits. Then use the linking stick to record who is whose parent.
+The linking stick remains available. Rename a stick to `familytree`, right-click two parents and a child, then confirm in chat. Links require distinct pets and cannot create ancestry loops.
 
-## Requirements
+Commands correct ages and birth days, inspect records, and manage history. Name-based edits reject duplicate names and offer UUID choices. Operator pruning writes a backup first. See the [command guide](https://github.com/kharitonov-egor/family_tree/blob/main/docs/commands.md).
 
-- Minecraft **26.1.1**
-- **Fabric Loader** and **[Fabric API](https://modrinth.com/mod/fabric-api)**
-- Java **25**
+Version 1.1.0 preserves existing history. Update clients and servers together because the snapshot protocol changed. Back up your world before changing Minecraft versions. A 1.21.1 jar does not make a newer world safe to downgrade.
 
-Install on the **server** (or singleplayer world) for tracking; install on the **client** too to use the in-game screen. Works in singleplayer and on dedicated servers.
-
-## License
-
-MIT.
+[Release notes](https://github.com/kharitonov-egor/family_tree/blob/main/docs/releases/1.1.0.md) ? [Report a bug](https://github.com/kharitonov-egor/family_tree/issues) ? [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
