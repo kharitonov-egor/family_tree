@@ -50,4 +50,6 @@ Commands correct ages and birth days, inspect records, and manage history. Name-
 
 Version 1.1.0 preserves existing history. Update clients and servers together because the snapshot protocol changed. Back up your world before changing Minecraft versions. A 1.21.1 jar does not make a newer world safe to downgrade.
 
-[Release notes](https://github.com/kharitonov-egor/family_tree/blob/main/docs/releases/1.1.0.md) ? [Report a bug](https://github.com/kharitonov-egor/family_tree/issues) ? [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
+The 26.3 client checks passed with Vulkan. This test laptop's Intel OpenGL driver crashed before entering a world. See the [validation notes](https://github.com/kharitonov-egor/family_tree/blob/v1.1.0/docs/releases/1.1.0-validation.md) for tested environments.
+
+[Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.1.0/docs/releases/1.1.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
