@@ -1,9 +1,97 @@
 {
-  "sampled_at_utc": "2026-09-30T01:41:23.355822+00:00",
+  "sampled_at_utc": "2026-09-30T02:22:26.016563+00:00",
   "project_id": "CVQKDAe7",
-  "downloads": 480,
+  "downloads": 481,
   "followers": 5,
   "versions": [
+    {
+      "id": "5UzarrUr",
+      "version": "1.1.0+26.3-neoforge",
+      "minecraft": [
+        "26.3"
+      ],
+      "loaders": [
+        "neoforge"
+      ],
+      "downloads": 1
+    },
+    {
+      "id": "RrAPiIsq",
+      "version": "1.1.0+26.2-neoforge",
+      "minecraft": [
+        "26.2"
+      ],
+      "loaders": [
+        "neoforge"
+      ],
+      "downloads": 1
+    },
+    {
+      "id": "IKgBmqcQ",
+      "version": "1.1.0+1.21.1-neoforge",
+      "minecraft": [
+        "1.21.1"
+      ],
+      "loaders": [
+        "neoforge"
+      ],
+      "downloads": 0
+    },
+    {
+      "id": "e3OxEhY2",
+      "version": "1.1.0+26.3",
+      "minecraft": [
+        "26.3"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 1
+    },
+    {
+      "id": "tfjzJUBN",
+      "version": "1.1.0+26.2",
+      "minecraft": [
+        "26.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 1
+    },
+    {
+      "id": "ahE0auNt",
+      "version": "1.1.0+26.1.2",
+      "minecraft": [
+        "26.1.2"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 1
+    },
+    {
+      "id": "QJDV6Zoy",
+      "version": "1.1.0+26.1.1",
+      "minecraft": [
+        "26.1.1"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 0
+    },
+    {
+      "id": "ykGw8OCE",
+      "version": "1.1.0+1.21.1",
+      "minecraft": [
+        "1.21.1"
+      ],
+      "loaders": [
+        "fabric"
+      ],
+      "downloads": 1
+    },
     {
       "id": "ti1SA9Y9",
       "version": "1.0.1+26.2-neoforge",
@@ -118,8 +206,7 @@
       "id": "9j4QmEV4",
       "version": "0.3.2",
       "minecraft": [
-        "26.1.1",
-        "26.2"
+        "26.1.1"
       ],
       "loaders": [
         "fabric"
