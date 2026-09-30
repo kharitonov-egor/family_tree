@@ -1,7 +1,7 @@
 {
-  "sampled_at_utc": "2026-09-30T02:22:26.016563+00:00",
+  "sampled_at_utc": "2026-09-30T18:00:04.556138+00:00",
   "project_id": "CVQKDAe7",
-  "downloads": 481,
+  "downloads": 523,
   "followers": 5,
   "versions": [
     {
@@ -13,7 +13,7 @@
       "loaders": [
         "neoforge"
       ],
-      "downloads": 1
+      "downloads": 5
     },
     {
       "id": "RrAPiIsq",
@@ -24,7 +24,7 @@
       "loaders": [
         "neoforge"
       ],
-      "downloads": 1
+      "downloads": 3
     },
     {
       "id": "IKgBmqcQ",
@@ -35,7 +35,7 @@
       "loaders": [
         "neoforge"
       ],
-      "downloads": 0
+      "downloads": 2
     },
     {
       "id": "e3OxEhY2",
@@ -46,7 +46,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 1
+      "downloads": 12
     },
     {
       "id": "tfjzJUBN",
@@ -57,7 +57,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 1
+      "downloads": 4
     },
     {
       "id": "ahE0auNt",
@@ -68,7 +68,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 1
+      "downloads": 4
     },
     {
       "id": "QJDV6Zoy",
@@ -79,7 +79,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 0
+      "downloads": 2
     },
     {
       "id": "ykGw8OCE",
@@ -90,7 +90,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 1
+      "downloads": 6
     },
     {
       "id": "ti1SA9Y9",
@@ -101,7 +101,7 @@
       "loaders": [
         "neoforge"
       ],
-      "downloads": 1
+      "downloads": 2
     },
     {
       "id": "6wMBl7QV",
@@ -134,7 +134,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 2
+      "downloads": 3
     },
     {
       "id": "BOZjhFKj",
@@ -167,7 +167,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 1
+      "downloads": 2
     },
     {
       "id": "fOgNsZkp",
@@ -200,7 +200,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 0
+      "downloads": 1
     },
     {
       "id": "9j4QmEV4",
@@ -211,7 +211,7 @@
       "loaders": [
         "fabric"
       ],
-      "downloads": 261
+      "downloads": 262
     },
     {
       "id": "tJWEkJby",
