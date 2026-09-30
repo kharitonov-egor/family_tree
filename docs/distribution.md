@@ -18,9 +18,22 @@ Creator and modpack outreach are excluded from this execution. No invitations or
 
 ## CurseForge listing
 
-Create a Minecraft mod project named "Family Tree for Minecraft pets", with the existing repository icon, MIT license, source and issue links, and the revised Modrinth description. Use Utility and Mobs categories where available. Upload one matching jar per Minecraft version and loader. Fabric files require Fabric API. The NeoForge 26.3 file is beta. The tested files and their hashes come from `build/releases/1.1.0/manifest.json`.
+The [Family Tree project](https://www.curseforge.com/minecraft/mc-mods/family-tree) is project `1718788`. The project and all eight 1.1.0 files were submitted on September 30 UTC and are under moderator review. They are not yet publicly listed or synchronized to the CurseForge app.
 
-The author portal requires a signed-in account to create the project. Platform moderation may delay public availability after submission. Record the project URL and ID here once created; do not describe a pending submission as a live listing.
+The listing has the saved logo, MIT license, Utility & QoL and Mobs categories, GitHub source and documentation links, and a bug-report link in the description. Comments and third-party distribution are enabled. Four gallery images have captions that distinguish actual automated vanilla breeding from staged pet records. The animated gameplay scene also renders in the description. The media dialog supports YouTube videos, so the MP4 clips remain on the GitHub release.
+
+| Minecraft | Loader | File ID | Release type |
+| --- | --- | --- | --- |
+| 1.21.1 | Fabric | 9015237 | Release |
+| 26.1.1 | Fabric | 9015261 | Release |
+| 26.1.2 | Fabric | 9015267 | Release |
+| 26.2 | Fabric | 9015268 | Release |
+| 26.3 | Fabric | 9015269 | Release |
+| 1.21.1 | NeoForge | 9015270 | Release |
+| 26.2 | NeoForge | 9015271 | Release |
+| 26.3 | NeoForge | 9015272 | Beta |
+
+Each file has exact Minecraft, loader, and Java tags, both Client and Server tags, and automatic publication after approval. All five Fabric files require Fabric API, project `306612`. NeoForge files have no dependency on Fabric API. The uploaded filenames, sizes, tags, release types, and dependencies were checked through the author API. All eight CDN jars were downloaded and matched the release manifest's SHA-512 hashes.
 
 ## Publication record
 
@@ -28,7 +41,7 @@ On September 30 UTC, the tested source was committed as `425356c6826b851948c3771
 
 The main and tag build workflows passed all eight Linux jobs. The manually dispatched download-count workflow passed and committed its sample. Public-file verification downloaded and hashed 27 files across GitHub and Modrinth. That check downloaded each of the eight new Modrinth jars once. Those downloads are release verification, not evidence of new players. The audit baseline remains 480 downloads.
 
-CurseForge creation is authorized, but the shared browser still requires the owner's GitHub login for CurseForge SSO. No project has been created or submitted. The local `build/releases/1.1.0/curseforge-upload-kit.zip` contains the eight verified jars, manifest, listing copy, icon, media, changelog, and upload instructions. Its files are ready once login succeeds.
+CurseForge submission is complete and awaits moderation. The updated `curseforge-upload-kit.zip` on the GitHub release contains the eight verified jars, manifest, listing copy, a logo below the 100 KiB limit, media, changelog, and the existing project's URL. Do not upload duplicate files from the kit. Distribution uploads fetched seven more jars from Modrinth, and CurseForge CDN verification fetched eight jars. These are verification downloads, not evidence of new players. Keep CurseForge counts separate from the 10,000-download Modrinth target.
 
 ## Measurement decisions
 

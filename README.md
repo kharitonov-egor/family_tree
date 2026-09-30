@@ -6,6 +6,8 @@ Keep the family history of your Minecraft pets. See who their parents were, find
 
 [Download Family Tree](https://modrinth.com/mod/familytree/versions)
 
+[CurseForge project](https://www.curseforge.com/minecraft/mc-mods/family-tree), submitted with all eight 1.1.0 builds and awaiting moderator approval.
+
 ![A wolf family exported from Minecraft](docs/family-tree-gameplay-export.png)
 
 Keep your first wolf in the family tree after it's gone. Family Tree records parents and descendants as you play, then exports the family as a PNG.
