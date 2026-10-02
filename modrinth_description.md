@@ -53,3 +53,9 @@ Version 1.1.0 preserves existing history. Update clients and servers together be
 The 26.3 client checks passed with Vulkan. This test laptop's Intel OpenGL driver crashed before entering a world. See the [validation notes](https://github.com/kharitonov-egor/family_tree/blob/v1.1.0/docs/releases/1.1.0-validation.md) for tested environments.
 
 [Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.1.0/docs/releases/1.1.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
+
+## Making a video or adding it to a pack?
+
+Try a short demo: tame two wolves, breed them, press **H**, open the puppy's tree, and export it. [Download the landscape clip](https://github.com/kharitonov-egor/family_tree/releases/download/v1.1.0/family-tree-gameplay.mp4) or [vertical clip](https://github.com/kharitonov-egor/family_tree/releases/download/v1.1.0/family-tree-gameplay-vertical.mp4). Both show an automated scene with actual vanilla breeding.
+
+Compatibility with modded animal species or changed animal models has not been tested. For a pack trial, check breeding, saved history after a restart, ownership permissions, and client export in a disposable world.

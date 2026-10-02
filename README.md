@@ -6,7 +6,9 @@ Keep the family history of your Minecraft pets. See who their parents were, find
 
 [Download Family Tree](https://modrinth.com/mod/familytree/versions)
 
-[CurseForge project](https://www.curseforge.com/minecraft/mc-mods/family-tree), submitted with all eight 1.1.0 builds and awaiting moderator approval.
+[Creator guide, demo steps, and downloadable clips](docs/creator-guide.md)
+
+[Download on CurseForge](https://www.curseforge.com/minecraft/mc-mods/family-tree/files). Fabric and NeoForge builds are available.
 
 ![A wolf family exported from Minecraft](docs/family-tree-gameplay-export.png)
 

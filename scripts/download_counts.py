@@ -31,7 +31,7 @@ def main():
     history.append({'date_utc': date, 'downloads': project['downloads'],
         'followers': project['followers'], 'change_since_previous_sample': project['downloads'] - previous})
     with history_path.open('w', newline='') as output:
-        writer = csv.DictWriter(output, fieldnames=list(history[-1]))
+        writer = csv.DictWriter(output, fieldnames=list(history[-1]), lineterminator='\n')
         writer.writeheader()
         writer.writerows(history)
     snapshot = {'sampled_at_utc': dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -51,7 +51,7 @@ def main():
         f'Download change over seven days: {weekly}.\n\n'
         'These are platform downloads, including repeat downloads and upgrades. They do not count unique players. '
         'The daily workflow records public totals and per-version counts. No in-game telemetry is used. '
-        'CurseForge needs a separate counter if a listing is added.\n')
+        'CurseForge counts are recorded separately in [distribution notes](../distribution.md#curseforge-listing).\n')
     print(f'Modrinth: {project["downloads"]} downloads; {remaining} to target')
 
 
