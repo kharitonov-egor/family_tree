@@ -1,6 +1,6 @@
 # Download progress
 
-Latest sample, 2026-10-19 UTC. Modrinth has 879 cumulative downloads and 9 followers. The 10,000-download target needs 9,121 more downloads.
+Latest sample, 2026-10-20 UTC. Modrinth has 889 cumulative downloads and 9 followers. The 10,000-download target needs 9,111 more downloads.
 
 Download change over seven days: 150.
 
