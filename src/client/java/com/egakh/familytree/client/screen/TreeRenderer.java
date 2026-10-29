@@ -2,7 +2,9 @@ package com.egakh.familytree.client.screen;
 
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.util.AnimalCategory;
 import com.egakh.familytree.util.DeathMessages;
+import com.egakh.familytree.util.VariantText;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -42,11 +44,9 @@ public final class TreeRenderer {
         int bg = r.deceased() ? BG_DECEASED : BG_ALIVE;
         int border = isFocus ? BORDER_FOCUS : (r.deceased() ? BORDER_DECEASED : BORDER_ALIVE);
 
-        gfx.fill(x, y, x + w, y + h, bg);
-        gfx.fill(x, y, x + w, y + 1, border);
-        gfx.fill(x, y + h - 1, x + w, y + h, border);
-        gfx.fill(x, y, x + 1, y + h, border);
-        gfx.fill(x + w - 1, y, x + w, y + h, border);
+        // The background is opaque, so two fills draw the bordered card that four borders would.
+        gfx.fill(x, y, x + w, y + h, border);
+        if (w > 2 && h > 2) gfx.fill(x + 1, y + 1, x + w - 1, y + h - 1, bg);
 
         int textColor = r.deceased() ? TEXT_DECEASED : TEXT_PRIMARY;
         boolean hasFace = PetFaceRenderer.hasFace(r);
@@ -84,6 +84,13 @@ public final class TreeRenderer {
         if (FamilyTreeClientSettings.showHorseStats() && HorseStatsText.has(r)) {
             cursorY = drawStats(gfx, font, HorseStatsText.card(r, lookup), left, cursorY, textWidth, lineHeight,
                     r.deceased() ? TEXT_DECEASED : TEXT_STATS);
+        }
+
+        Component variant = VariantText.label(r);
+        if (variant != null) {
+            drawVariant(gfx, font, variant, VariantText.rare(r), left, cursorY, textWidth,
+                    r.deceased() ? TEXT_DECEASED : TEXT_STATS);
+            cursorY += lineHeight;
         }
 
         String tamedBy = buildTamedByLine(r);
@@ -128,6 +135,14 @@ public final class TreeRenderer {
                 left, y + (h - font.lineHeight) / 2, textColor);
         if (collapsed) gfx.text(font, "+", x + w - 10, y + (h - font.lineHeight) / 2, TEXT_GENERATION);
         gfx.disableScissor();
+    }
+
+    static void drawVariant(GuiGraphicsExtractor gfx, Font font, Component variant, boolean rare,
+                            int left, int top, int maxWidth, int color) {
+        String marker = rare ? " " + VariantText.RARE_MARKER : "";
+        String text = trimToWidth(font, variant.getString(), Math.max(1, maxWidth - font.width(marker)));
+        gfx.text(font, text, left, top, color);
+        if (rare) gfx.text(font, marker, left + font.width(text), top, VariantText.RARE_COLOR);
     }
 
     static int statsWidth(Font font, List<HorseStatsText.Segment> segments) {
@@ -231,10 +246,11 @@ public final class TreeRenderer {
         return "";
     }
 
-    private static String buildTamedByLine(AnimalRecord record) {
+    static String buildTamedByLine(AnimalRecord record) {
         if (record.ownerName() == null || record.ownerName().isBlank()) {
             return "";
         }
-        return Component.translatable("familytree.owner.tamed_by", record.ownerName()).getString();
+        boolean pet = PetFaceRenderer.category(record.speciesId()) == AnimalCategory.PETS;
+        return Component.translatable(pet ? "familytree.owner.tamed_by" : "familytree.owner.owner", record.ownerName()).getString();
     }
 }

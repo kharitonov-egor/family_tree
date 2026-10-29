@@ -26,6 +26,7 @@ public final class PetAccess {
                 canManage(pet, player, operator) ? pet.lastSeen() : null, pet.deathCause());
         publicPet.setTreeName(pet.treeName());
         publicPet.setHorseStats(pet.horseStats());
+        publicPet.setVariantOrigin(pet.variantOrigin());
         return publicPet;
     }
 }

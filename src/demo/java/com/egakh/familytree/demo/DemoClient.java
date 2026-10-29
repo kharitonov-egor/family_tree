@@ -18,6 +18,8 @@ import java.util.UUID;
 public final class DemoClient {
     private final GameplayCapture gameplay = new GameplayCapture();
     private final HorseCapture horses = new HorseCapture();
+    private final AnimalCapture animals = new AnimalCapture();
+    private final FarmCapture farm = new FarmCapture();
     private int tick;
     private int totalTicks;
     private final List<AnimalRecord> pets = new ArrayList<>();
@@ -29,11 +31,13 @@ public final class DemoClient {
 
     public void tick(Minecraft client) {
         try {
-            if (++totalTicks > 2400) throw new AssertionError("Demo world did not open in two minutes");
+            if (++totalTicks > 2400 && client.level == null) throw new AssertionError("Demo world did not open in two minutes");
             if (totalTicks == 600 && client.level == null) capture(client, "startup-blocked.png");
             if (client.level == null || client.player == null) return;
             if (Boolean.getBoolean("familytree.demo.gameplay")) { gameplay.tick(client, this); return; }
             if (Boolean.getBoolean("familytree.demo.horses")) { horses.tick(client, this); return; }
+            if (Boolean.getBoolean("familytree.demo.animals")) { animals.tick(client, this); return; }
+            if (Boolean.getBoolean("familytree.demo.farm")) { farm.tick(client, this); return; }
             tick++;
             if (tick == 1) {
                 exportsBefore = exportCount(client);

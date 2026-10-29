@@ -30,7 +30,7 @@ class TreeImageExporterTest {
         var tree = TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, children);
         var picture = TreeImageExporter.prepare(tree, "Moss's family", "Family Tree",
                 p -> "Generation " + (p == clover ? 3 : p == willow ? 2 : 1),
-                p -> p.deceased() ? "Remembered | died on day 82" : "Alive", p -> null, p -> List.of(), null);
+                p -> p.deceased() ? "Remembered | died on day 82" : "Alive", p -> null, p -> List.of(), p -> false, null);
         assertEquals(5, picture.cards().size());
         assertEquals(4, picture.lines().size());
         assertTrue(picture.height() > 900);
@@ -60,9 +60,11 @@ class TreeImageExporterTest {
                 new HorseStatsText.Segment("3.12 jump", Trend.TRAILS_BOTH),
                 new HorseStatsText.Segment("11.0 \u2665", Trend.BETWEEN));
         var picture = TreeImageExporter.prepare(tree, "Comet's family", "Family Tree",
-                p -> "Gen 1", p -> "Alive", p -> null, p -> p == ember ? stats : List.of(),
-                new TreeImageExporter.Legend("higher than both parents", "lower than both parents", "hearts"));
+                p -> "Gen 1", p -> "Alive", p -> null, p -> p == ember ? stats : List.of(), p -> false,
+                new TreeImageExporter.Legend("higher than both parents", "lower than both parents", "hearts", "rare variant"));
         assertNotNull(picture.legend());
+        assertTrue(picture.legend().statMarkers());
+        assertFalse(picture.legend().rareMarkers());
         var foal = picture.cards().stream().filter(card -> card.name().equals("Ember")).findFirst().orElseThrow();
         assertEquals(stats, foal.stats());
         assertTrue(picture.cards().stream().filter(card -> card != foal).allMatch(card -> card.stats().isEmpty()));
@@ -86,7 +88,42 @@ class TreeImageExporterTest {
         tree.maxX = 100_000;
         tree.maxY = 100_000;
         assertThrows(IllegalArgumentException.class, () -> TreeImageExporter.prepare(tree, "Tree", "",
-                p -> "", p -> "", p -> null, p -> List.of(), null));
+                p -> "", p -> "", p -> null, p -> List.of(), p -> false, null));
+        assertThrows(IllegalArgumentException.class, () -> TreeImageExporter.requireExportable(tree));
+    }
+
+    @Test void rareVariantsGetAGoldStarAndOnlyTheLegendEntryTheyUse() throws Exception {
+        Map<UUID, AnimalRecord> records = new LinkedHashMap<>();
+        AnimalRecord pink = pet("Pinky", null, null), wild = pet("Mud", null, null), blue = pet("Bluebell", pink, wild);
+        for (AnimalRecord axolotl : List.of(pink, wild, blue)) records.put(axolotl.id(), axolotl);
+        Map<UUID, List<UUID>> children = Map.of(pink.id(), List.of(blue.id()), wild.id(), List.of(blue.id()));
+        var tree = TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, children);
+        var portrait = new java.awt.image.BufferedImage(96, 96, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        var picture = TreeImageExporter.prepare(tree, "Bluebell's family", "Family Tree",
+                p -> p == blue ? "Gen 2 \u00B7 Blue" : "Gen 1", p -> "Alive", p -> portrait, p -> List.of(), p -> p == blue,
+                new TreeImageExporter.Legend("higher than both parents", "lower than both parents", "hearts", "rare variant"));
+        assertNotNull(picture.legend());
+        assertFalse(picture.legend().statMarkers());
+        assertTrue(picture.legend().rareMarkers());
+        var rare = picture.cards().stream().filter(TreeImageExporter.Card::rare).toList();
+        assertEquals(List.of("Bluebell"), rare.stream().map(TreeImageExporter.Card::name).toList());
+        var image = ImageIO.read(TreeImageExporter.save(picture, directory.resolve("axolotls")).toFile());
+        assertTrue(contains(image, rare.get(0), 0xFFC94A), "Missing the rare star");
+        var plain = picture.cards().stream().filter(card -> !card.rare()).findFirst().orElseThrow();
+        assertFalse(contains(image, plain, 0xFFC94A), "A common variant has a star");
+    }
+
+    @Test void wideFarmForestsWrapIntoRowsInsteadOfOneStrip() {
+        Map<UUID, AnimalRecord> records = new LinkedHashMap<>();
+        for (int i = 0; i < 300; i++) {
+            AnimalRecord cow = pet("Cow " + i, null, null);
+            records.put(cow.id(), cow);
+        }
+        var tree = TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, Map.of());
+        assertEquals(300, tree.nodes.size());
+        double width = tree.maxX - tree.minX, height = tree.maxY - tree.minY;
+        assertTrue(width < 20 * height, "Forest is " + width + " wide and " + height + " tall");
+        assertEquals(300, tree.nodes.stream().map(node -> node.x + "," + node.y).distinct().count(), "Cards overlap");
     }
 
     private static AnimalRecord pet(String name, AnimalRecord a, AnimalRecord b) {

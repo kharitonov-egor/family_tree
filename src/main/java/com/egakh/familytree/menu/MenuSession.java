@@ -13,10 +13,12 @@ import com.egakh.familytree.permissions.PetAccess;
 import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import com.egakh.familytree.text.ServerText;
+import com.egakh.familytree.util.AnimalCategory;
 import com.egakh.familytree.util.DeathMessages;
 import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.PetRelations;
 import com.egakh.familytree.util.TimeUtil;
+import com.egakh.familytree.util.VariantText;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -585,7 +587,15 @@ final class MenuSession {
         long end = pet.deceased() && pet.deathWorldDay() != null ? pet.deathWorldDay() : TimeUtil.currentWorldDay(player.level());
         long age = Math.max(0, end - pet.birthWorldDay());
         lore.add(text(pet.deceased() ? "familytree.menu.pet.lifespan" : "familytree.menu.pet.age", pet.birthWorldDay(), age));
-        if (pet.ownerName() != null && !pet.ownerName().isBlank()) lore.add(text("familytree.owner.tamed_by", pet.ownerName()));
+        Component variant = VariantText.label(pet);
+        if (variant != null) {
+            MutableComponent line = text("familytree.variant.line", variant);
+            if (VariantText.rare(pet)) line.append(Component.literal(" " + VariantText.RARE_MARKER).withStyle(ChatFormatting.GOLD));
+            lore.add(line);
+        }
+        if (pet.ownerName() != null && !pet.ownerName().isBlank()) lore.add(text(
+                AnimalCategory.of(pet.speciesId()) == AnimalCategory.PETS ? "familytree.owner.tamed_by" : "familytree.owner.owner",
+                pet.ownerName()));
         Component death = pet.deceased() ? DeathMessages.line(pet) : null;
         if (death != null) lore.add(death.copy().withStyle(ChatFormatting.RED));
         HorseStats stats = pet.horseStats();

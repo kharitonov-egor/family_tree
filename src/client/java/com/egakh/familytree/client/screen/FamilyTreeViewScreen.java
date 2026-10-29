@@ -6,16 +6,21 @@ import com.egakh.familytree.network.payloads.RenamePetRequest;
 import com.egakh.familytree.network.payloads.LocatePetRequest;
 import com.egakh.familytree.client.export.TreeImageExporter;
 import com.egakh.familytree.client.export.PetPortraits;
+import com.egakh.familytree.client.export.PortraitCapture;
 import com.egakh.familytree.permissions.PetAccess;
 import java.util.concurrent.CompletableFuture;
 import com.egakh.familytree.client.platform.ClientTransport;
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.util.Genealogy;
+import com.egakh.familytree.util.HorseStatUnits.Trend;
+import com.egakh.familytree.util.VariantText;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextColor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,6 +56,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     private java.nio.file.Path exportedFile;
     private Component exportStatus = Component.empty();
     private boolean exporting;
+    private PortraitCapture portraitCapture;
     private int previousWidth;
     private int previousHeight;
     private boolean dragging = false;
@@ -257,31 +263,56 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     }
 
     private void exportTree() {
-        if (exporting || this.minecraft == null) return;
-        var client = this.minecraft;
-        TreeImageExporter.Picture picture;
+        if (exporting || this.minecraft == null || tree == null) return;
+        TreeLayout.Result shown = tree;
         try {
-            Map<String, java.awt.image.BufferedImage> portraits = new HashMap<>();
-            AnimalRecord focus = records.get(focusId);
-            Component exportTitle = focus == null ? this.title : Component.translatable("familytree.screen.view.title", focus.name());
-            picture = TreeImageExporter.prepare(tree, exportTitle.getString(),
-                    "Family Tree | modrinth.com/mod/familytree",
-                    pet -> Component.translatable("familytree.node.generation", generations.getOrDefault(pet.id(), 1)).getString(),
-                    pet -> pet.deceased()
-                            ? Component.translatable("familytree.export.remembered", pet.deathWorldDay() == null ? "?" : pet.deathWorldDay()).getString()
-                            : Component.translatable("familytree.screen.status.alive").getString(),
-                    pet -> portraits.computeIfAbsent(pet.speciesId() + "|" + pet.variantId(), key -> PetPortraits.read(pet)),
-                    pet -> FamilyTreeClientSettings.showHorseStats() ? HorseStatsText.card(pet, records::get) : List.of(),
-                    new TreeImageExporter.Legend(Component.translatable("familytree.export.legend.higher").getString(),
-                            Component.translatable("familytree.export.legend.lower").getString(),
-                            Component.translatable("familytree.export.hearts").getString()));
+            TreeImageExporter.requireExportable(shown);
         } catch (IllegalArgumentException tooLarge) {
             exportStatus = Component.translatable("familytree.export.too_large");
             return;
         }
+        // Cats, wolves, and horses keep their texture portraits. Every other species uses its in-game model.
+        Map<String, java.awt.image.BufferedImage> portraits = new HashMap<>();
+        List<AnimalRecord> models = new ArrayList<>();
+        for (TreeLayout.Node node : shown.nodes) {
+            String key = PortraitCapture.key(node.record);
+            if (portraits.containsKey(key) || models.stream().anyMatch(pet -> PortraitCapture.key(pet).equals(key))) continue;
+            var texture = PetPortraits.read(node.record);
+            if (texture != null) portraits.put(key, texture);
+            else if (PetFaceRenderer.hasFace(node.record)) models.add(node.record);
+        }
         exporting = true;
         exportButton.active = false;
         exportStatus = Component.translatable("familytree.export.saving");
+        if (models.isEmpty()) {
+            writeExport(shown, portraits);
+            return;
+        }
+        portraitCapture = new PortraitCapture(models, captured -> {
+            portraitCapture = null;
+            portraits.putAll(captured);
+            writeExport(shown, portraits);
+        });
+    }
+
+    private void writeExport(TreeLayout.Result shown, Map<String, java.awt.image.BufferedImage> portraits) {
+        var client = this.minecraft;
+        if (client == null) return;
+        AnimalRecord focus = records.get(focusId);
+        Component exportTitle = focus == null ? this.title : Component.translatable("familytree.screen.view.title", focus.name());
+        TreeImageExporter.Picture picture = TreeImageExporter.prepare(shown, exportTitle.getString(),
+                "Family Tree | modrinth.com/mod/familytree",
+                pet -> exportDetail(pet),
+                pet -> pet.deceased()
+                        ? Component.translatable("familytree.export.remembered", pet.deathWorldDay() == null ? "?" : pet.deathWorldDay()).getString()
+                        : Component.translatable("familytree.screen.status.alive").getString(),
+                pet -> portraits.get(PortraitCapture.key(pet)),
+                pet -> FamilyTreeClientSettings.showHorseStats() ? HorseStatsText.card(pet, records::get) : List.of(),
+                VariantText::rare,
+                new TreeImageExporter.Legend(Component.translatable("familytree.export.legend.higher").getString(),
+                        Component.translatable("familytree.export.legend.lower").getString(),
+                        Component.translatable("familytree.export.hearts").getString(),
+                        Component.translatable("familytree.export.legend.rare").getString()));
         CompletableFuture.supplyAsync(() -> {
             try {
                 return TreeImageExporter.save(picture, client.gameDirectory.toPath().resolve("screenshots/familytree"));
@@ -300,6 +331,18 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         }));
     }
 
+    private String exportDetail(AnimalRecord pet) {
+        String generation = Component.translatable("familytree.node.generation", generations.getOrDefault(pet.id(), 1)).getString();
+        Component variant = VariantText.label(pet);
+        return variant == null ? generation : generation + " \u00B7 " + variant.getString();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (portraitCapture != null && this.minecraft != null) portraitCapture.tick(this.minecraft, this.width);
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         gfx.fill(0, 0, this.width, this.height, 0xCC0F1115);
@@ -309,9 +352,12 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                     this.width / 2, this.height / 2, 0xFFCCCCCC);
         } else {
             for (TreeLayout.Edge e : tree.edges) {
+                if (!onCanvas(Math.min(e.from.x, e.to.x), Math.min(e.from.y, e.to.y),
+                        Math.abs(e.from.x - e.to.x) + TreeLayout.NODE_WIDTH, Math.abs(e.from.y - e.to.y) + TreeLayout.NODE_HEIGHT)) continue;
                 TreeRenderer.drawEdge(gfx, e.from, e.to, viewport.panX, viewport.panY, viewport.zoom);
             }
             for (TreeLayout.Node n : tree.nodes) {
+                if (!onCanvas(n.x, n.y, TreeLayout.NODE_WIDTH, TreeLayout.NODE_HEIGHT)) continue;
                 TreeRenderer.drawNode(gfx, this.font, n,
                         snapshot.currentWorldDay(), snapshot.currentEpochMillis(),
                         n.id.equals(selectedId), collapsed.contains(n.id), generations.getOrDefault(n.id, 0),
@@ -335,20 +381,60 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         Component zoomLabel = Component.translatable("familytree.screen.tree.zoom", Math.round(viewport.zoom * 100));
         gfx.text(this.font, zoomLabel, this.width - this.font.width(zoomLabel) - 8,
                 this.height - 14, 0xFFB0B7C0);
+        if (portraitCapture != null) portraitCapture.draw(gfx, this.font, this.width, CANVAS_TOP, canvasBottom());
         renderWidgets(gfx, mouseX, mouseY, delta);
+    }
+
+    /** Large farm forests hold thousands of cards, so only cards on the canvas are drawn. */
+    private boolean onCanvas(double x, double y, double width, double height) {
+        double left = x * viewport.zoom + viewport.panX, top = y * viewport.zoom + viewport.panY;
+        return left < this.width && left + width * viewport.zoom >= 0
+                && top < canvasBottom() && top + height * viewport.zoom >= CANVAS_TOP;
     }
 
     private AnimalRecord statsSubject() {
         AnimalRecord selected = records.get(selectedId);
-        boolean shown = FamilyTreeClientSettings.showHorseStats() && tree != null && tree.byId.containsKey(selectedId)
-                && HorseStatsText.has(selected) && !HorseStatsText.details(selected, records::get).isEmpty();
-        return shown ? selected : null;
+        if (tree == null || !tree.byId.containsKey(selectedId)) return null;
+        return showsStats(selected) || VariantText.has(selected) ? selected : null;
+    }
+
+    private boolean showsStats(AnimalRecord pet) {
+        return FamilyTreeClientSettings.showHorseStats() && HorseStatsText.has(pet)
+                && !HorseStatsText.details(pet, records::get).isEmpty();
+    }
+
+    private List<HorseStatsText.DetailLine> statLines(AnimalRecord pet) {
+        return showsStats(pet) ? HorseStatsText.details(pet, records::get) : List.of();
+    }
+
+    private List<Component> variantLines(AnimalRecord pet) {
+        Component label = VariantText.label(pet);
+        if (label == null) return List.of();
+        List<Component> lines = new ArrayList<>();
+        MutableComponent line = Component.translatable("familytree.variant.line", label);
+        if (VariantText.rare(pet)) line.append(Component.literal(" " + VariantText.RARE_MARKER + " ")
+                .append(Component.translatable("familytree.variant.rare"))
+                .withStyle(style -> style.withColor(TextColor.fromRgb(VariantText.RARE_COLOR & 0xFFFFFF))));
+        lines.add(line);
+        Component parents = VariantText.parents(pet, records::get);
+        if (parents != null) lines.add(parents);
+        Component note = VariantText.note(pet, records::get);
+        if (note != null) lines.add(note);
+        return lines;
+    }
+
+    private List<HorseStatsText.Segment> compactSegments(AnimalRecord pet) {
+        List<HorseStatsText.Segment> segments = new ArrayList<>(showsStats(pet) ? HorseStatsText.card(pet, records::get) : List.of());
+        Component label = VariantText.label(pet);
+        if (label != null) segments.add(new HorseStatsText.Segment(label.getString()
+                + (VariantText.rare(pet) ? " " + VariantText.RARE_MARKER : ""), Trend.UNKNOWN));
+        return segments;
     }
 
     private int fullStatsRows(AnimalRecord pet) {
-        List<HorseStatsText.DetailLine> lines = HorseStatsText.details(pet, records::get);
+        List<HorseStatsText.DetailLine> lines = statLines(pet);
         boolean marked = lines.stream().anyMatch(line -> !HorseStatsText.marker(line.trend()).isEmpty());
-        return 1 + lines.size() + (marked ? 1 : 0);
+        return 1 + lines.size() + (marked ? 1 : 0) + variantLines(pet).size();
     }
 
     /** Short canvases, such as GUI scale 4 in a small window, get a one-line summary instead of the full panel. */
@@ -361,7 +447,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         if (pet == null) return 0;
         int lineHeight = this.font.lineHeight + 2;
         if (!compactStats(pet)) return fullStatsRows(pet) * lineHeight + 8;
-        int width = this.font.width(pet.name() + ": ") + TreeRenderer.statsWidth(this.font, HorseStatsText.card(pet, records::get));
+        int width = this.font.width(pet.name() + ": ") + TreeRenderer.statsWidth(this.font, compactSegments(pet));
         return (width <= this.width - 28 ? 1 : 2) * lineHeight + 8;
     }
 
@@ -376,7 +462,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         statsTop = Math.max(CANVAS_TOP + 4, statsBottom - statsPanelHeight());
         if (compactStats(selected)) {
             String name = selected.name() + ": ";
-            var segments = HorseStatsText.card(selected, records::get);
+            var segments = compactSegments(selected);
             int nameWidth = Math.min(this.font.width(name), maxWidth / 3);
             statsRight = Math.min(statsLeft + maxWidth,
                     statsLeft + 12 + nameWidth + TreeRenderer.statsWidth(this.font, segments));
@@ -387,8 +473,10 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                     statsRight - statsLeft - 12 - nameWidth, lineHeight, 0xFFFFFFFF);
             return;
         }
-        List<HorseStatsText.DetailLine> lines = HorseStatsText.details(selected, records::get);
-        String title = Component.translatable("familytree.stats.title", selected.name()).getString();
+        List<HorseStatsText.DetailLine> lines = statLines(selected);
+        List<Component> variants = variantLines(selected);
+        String title = Component.translatable(lines.isEmpty() ? "familytree.variant.title" : "familytree.stats.title",
+                selected.name()).getString();
         boolean marked = lines.stream().anyMatch(line -> !HorseStatsText.marker(line.trend()).isEmpty());
         Component legendText = Component.translatable("familytree.stats.legend",
                 Component.literal(HorseStatsText.BEATS_MARKER).withStyle(style ->
@@ -399,6 +487,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         int contentWidth = Math.min(maxWidth - 12, Math.max(this.font.width(title), marked ? this.font.width(legend) : 0));
         for (HorseStatsText.DetailLine line : lines) contentWidth = Math.min(maxWidth - 12,
                 Math.max(contentWidth, detailWidth(line)));
+        for (Component line : variants) contentWidth = Math.min(maxWidth - 12, Math.max(contentWidth, this.font.width(line)));
         statsRight = statsLeft + contentWidth + 12;
         gfx.fill(statsLeft, statsTop, statsRight, statsBottom, 0xE8151A21);
         gfx.fill(statsLeft, statsTop, statsRight, statsTop + 1, 0xFF6FB3FF);
@@ -419,10 +508,17 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                 gfx.text(this.font, this.font.plainSubstrByWidth(line.parents(), x + contentWidth - cursor - 8),
                         cursor + 8, y, 0xFFB0B7C0);
         }
-        y += lineHeight;
         if (marked) {
+            y += lineHeight;
             if (this.font.width(legendText) <= contentWidth) gfx.text(this.font, legendText, x, y, 0xFFB0B7C0);
             else gfx.text(this.font, this.font.plainSubstrByWidth(legend, contentWidth), x, y, 0xFFB0B7C0);
+        }
+        for (int i = 0; i < variants.size(); i++) {
+            y += lineHeight;
+            Component line = variants.get(i);
+            int color = i == 0 ? 0xFFFFFFFF : 0xFFB0B7C0;
+            if (this.font.width(line) <= contentWidth) gfx.text(this.font, line, x, y, color);
+            else gfx.text(this.font, this.font.plainSubstrByWidth(line.getString(), contentWidth), x, y, color);
         }
     }
 

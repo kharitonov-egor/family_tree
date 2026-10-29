@@ -17,9 +17,8 @@ public abstract class AnimalEntityBreedMixin {
             at = @At("TAIL")
     )
     private void familytree$onBreed(ServerLevel world, Animal other, AgeableMob child, CallbackInfo ci) {
-        if (child instanceof Animal childAnimal) {
-            Animal self = (Animal) (Object) this;
-            PetLifecycleListeners.onBred(world, self, other, childAnimal);
-        }
+        Animal self = (Animal) (Object) this;
+        if (child instanceof Animal childAnimal) PetLifecycleListeners.onBred(world, self, other, childAnimal);
+        else if (child == null) PetLifecycleListeners.onBredWithoutBaby(world, self, other);
     }
 }

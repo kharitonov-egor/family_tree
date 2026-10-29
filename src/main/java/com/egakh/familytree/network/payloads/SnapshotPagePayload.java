@@ -13,7 +13,7 @@ public record SnapshotPagePayload(UUID requestId, int index, int pageCount, int 
                                   boolean mayViewAll, boolean viewingAll, boolean mayManageAll)
         implements CustomPacketPayload {
     public static final Type<SnapshotPagePayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("familytree", "snapshot_pages_v4"));
+            new Type<>(Identifier.fromNamespaceAndPath("familytree", "snapshot_pages_v5"));
     private static final StreamCodec<net.minecraft.network.FriendlyByteBuf, List<AnimalRecord>> RECORDS_CODEC =
             AnimalRecord.STREAM_CODEC.apply(ByteBufCodecs.list(8192));
     public static final StreamCodec<net.minecraft.network.FriendlyByteBuf, SnapshotPagePayload> STREAM_CODEC =

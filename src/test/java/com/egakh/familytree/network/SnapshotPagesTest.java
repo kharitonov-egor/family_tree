@@ -48,6 +48,34 @@ class SnapshotPagesTest {
         }
     }
 
+    @Test void aLargeFarmNextToPetsAndHorsesPagesWithinTheBudget() {
+        String[][] farm = {{"minecraft:cow", "minecraft:warm"}, {"minecraft:sheep", "pink"}, {"minecraft:axolotl", "blue"},
+                {"minecraft:panda", "brown/normal"}, {"naturalist:bear", null}};
+        List<AnimalRecord> records = new ArrayList<>();
+        for (int i = 0; i < 50_000; i++) {
+            String[] species = farm[i % farm.length];
+            var animal = new AnimalRecord(new UUID(4, i), species[0], "Cow " + Integer.toHexString(i), true,
+                    new UUID(5, i), new UUID(6, i), i, 1_700_000_000_000L + i, i % 3 == 0, i % 3 == 0 ? (long) i : null,
+                    i % 3 == 0 ? 1_700_000_100_000L : null, new UUID(3, i % 7), "Owner", species[1],
+                    new AnimalRecord.LastSeen(i, 64, -i, "minecraft:overworld", i), null);
+            records.add(animal);
+        }
+        for (int i = 0; i < 1_000; i++) {
+            var horse = new AnimalRecord(new UUID(7, i), "minecraft:horse", "Comet " + i, false, null, null, 0, 0,
+                    false, null, null, new UUID(3, 1), "Owner", "chestnut/white_dots", null, null);
+            horse.setHorseStats(new HorseStats(0.2, 0.7, 25.0, null));
+            records.add(horse);
+        }
+        UUID request = UUID.randomUUID();
+        var pages = SnapshotPages.split(request, records, 5, 100, true, true, false);
+        var received = sendAndAssemble(request, pages);
+        assertEquals(records.size(), received.size());
+        for (int i = 0; i < received.size(); i += 997) {
+            assertEquals(records.get(i).id(), received.get(i).id());
+            assertEquals(records.get(i).variantId(), received.get(i).variantId());
+        }
+    }
+
     private static List<AnimalRecord> sendAndAssemble(UUID request, List<SnapshotPagePayload> pages) {
         var assembler = new SnapshotAssembler();
         assembler.begin(request);

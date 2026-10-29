@@ -2,6 +2,7 @@ package com.egakh.familytree.command;
 
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
+import com.egakh.familytree.data.FarmRecords;
 import com.egakh.familytree.data.HorseStats;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
@@ -18,6 +19,7 @@ import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.network.FamilyTreePackets;
 import com.egakh.familytree.util.PetNames;
 import com.egakh.familytree.util.PetRelations;
+import com.egakh.familytree.util.VariantText;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -38,6 +40,7 @@ import java.util.List;
 import java.util.Locale;
 
 public final class FamilyTreeCommand {
+    private static final int LIST_LIMIT = 100;
 
     private FamilyTreeCommand() {}
 
@@ -87,6 +90,8 @@ public final class FamilyTreeCommand {
                         .requires(ServerPetAccess::operator)
                         .then(Commands.literal("deceased")
                                 .executes(ctx -> runPruneDeceased(ctx.getSource())))
+                        .then(Commands.literal("farm")
+                                .executes(ctx -> runPruneFarm(ctx.getSource())))
                         .then(Commands.literal("species")
                                 .then(Commands.argument("species_id", StringArgumentType.greedyString())
                                         .executes(ctx -> runPruneSpecies(
@@ -144,10 +149,12 @@ public final class FamilyTreeCommand {
 
         ServerText.success(source, () -> Component.translatable("familytree.command.list.header"), false);
         long currentDay = TimeUtil.currentWorldDay(source.getLevel());
-        for (AnimalRecord r : all) {
+        for (AnimalRecord r : all.subList(0, Math.min(LIST_LIMIT, all.size()))) {
             Component line = formatLine(r, currentDay);
             ServerText.success(source, () -> line, false);
         }
+        if (all.size() > LIST_LIMIT) ServerText.success(source, () -> Component.translatable("familytree.command.list.more",
+                all.size() - LIST_LIMIT).withStyle(ChatFormatting.GRAY), false);
         return all.size();
     }
 
@@ -168,6 +175,16 @@ public final class FamilyTreeCommand {
         }
         int generation = Genealogy.generationOf(match.id(), byId);
         ServerText.success(source, () -> Component.translatable("familytree.command.info.generation", generation), false);
+        Component variant = VariantText.label(match);
+        if (variant != null) {
+            java.util.function.Function<java.util.UUID, AnimalRecord> visible =
+                    id -> ServerPetAccess.canView(source, state.get(id)) ? state.get(id) : null;
+            ServerText.success(source, () -> Component.translatable(VariantText.rare(match)
+                    ? "familytree.command.info.variant_rare" : "familytree.command.info.variant", variant), false);
+            Component parents = VariantText.parents(match, visible), note = VariantText.note(match, visible);
+            if (parents != null) ServerText.success(source, () -> Component.literal("  ").append(parents), false);
+            if (note != null) ServerText.success(source, () -> Component.literal("  ").append(note), false);
+        }
         HorseStats stats = match.horseStats();
         if (stats != null) {
             ServerText.success(source, () -> Component.translatable("familytree.command.info.horse_stats",
@@ -293,6 +310,14 @@ public final class FamilyTreeCommand {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         if (!backupBeforePrune(source, state)) return 0;
         int removed = state.removeMatching(AnimalRecord::deceased);
+        ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
+        return removed;
+    }
+
+    private static int runPruneFarm(CommandSourceStack source) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        if (!backupBeforePrune(source, state)) return 0;
+        int removed = state.removeMatching(record -> record.deceased() && FarmRecords.unnamedFarm(record));
         ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
         return removed;
     }

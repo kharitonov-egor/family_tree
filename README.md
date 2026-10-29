@@ -2,7 +2,7 @@
 
 [![Modrinth downloads](https://img.shields.io/modrinth/dt/familytree?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/familytree)
 
-Keep the family history of your Minecraft pets. See who their parents were, find a missing pet's last known location, and save a family tree as an image.
+Keep the family history of your Minecraft pets and the animals you breed. See who their parents were, find a missing pet's last known location, and save a family tree as an image.
 
 [Download Family Tree](https://modrinth.com/mod/familytree/versions)
 
@@ -47,7 +47,7 @@ Install Family Tree on the server for tracking and on your client for the screen
 2. Visit your pets. Family Tree records existing tamed pets as their chunks load. **Find existing pets** also checks the pets currently loaded on the server.
 3. Open a pet's tree, or choose a species to see its combined family trees. Breed pets while the mod is installed to record their children's parents automatically.
 
-The tracker covers tamed cats, wolves, parrots, horses, donkeys, mules, llamas, trader llamas, camels, skeleton horses, and zombie horses. Parrots have individual records but cannot breed in vanilla Minecraft. Cat, wolf, and horse portraits match their coat variants, and horse portraits include markings. Wolves in 1.20.1 have a single coat. On 1.21.11, tamed nautiluses and zombie nautiluses are recorded too. They have no portraits; the browser shows the first letter of the name.
+Pets join on their own: tamed cats, wolves, parrots, horses, donkeys, mules, llamas, trader llamas, camels, skeleton horses, and zombie horses. On 1.21.11 and newer, tamed nautiluses and zombie nautiluses join too. Parrots have individual records but cannot breed in vanilla Minecraft. Other animals join when you breed, name, or add them, as described [below](#animals-you-breed-name-or-add). Portraits show each animal's in-game model, so they match coats, markings, and wool colors. Wolves in 1.20.1 have a single coat.
 
 Minecraft does not retain older parentage or birth dates. Newly discovered pets start with an unknown family and the discovery day as their recorded birth day. Select a pet and choose **Add parents** to record a family you remember. The picker searches names, species, and UUIDs. Confirm the two parents before saving. The linking stick and age commands also remain available. Horse and donkey parents can link to a mule.
 
@@ -95,17 +95,53 @@ Stats are base values, so potion effects don't change them. Family Tree reads th
 
 Minecraft treats every camel as tamed, and skeleton trap horses are tamed without an owner. Family Tree records these animals once a player rides or breeds them, and that player becomes their owner in Family Tree. Their owner in Minecraft stays unchanged, and wild camels nobody rides stay out of the tree.
 
+## Animals you breed, name, or add
+
+Family Tree also records cows, mooshrooms, sheep, pigs, chickens, rabbits, goats, foxes, axolotls, frogs, bees, turtles, pandas, ocelots, hoglins, striders, sniffers, armadillos, and breedable animals from other mods. Wild animals stay out of the history until a player does one of these things:
+
+- Breeds them. The baby and both parents join, and the player who fed them owns them in Family Tree. Later babies of a recorded family join even when nobody fed the parents.
+- Uses a name tag on one. The player who named it owns it.
+- Clicks one with the linking stick. The player who clicked owns it, and it becomes the next pet in the linking selection.
+
+A baby belongs to its parents' owner when the parents already have one. Frogs, sniffers, and turtles hatch from spawn or eggs, so Minecraft never links their babies to the parents. Breeding frogs or sniffers still adds both parents for the player; turtles need a name tag or the linking stick. Name or add the hatchlings, then use **Add parents**.
+
+Cards, the details panel, and exports show each animal's variant: axolotl, mooshroom, frog, and llama colors, wool color, panda genes, and rabbit and fox types. On Minecraft 1.21.5 and newer, cows, pigs, and chickens show their warm, cold, or temperate variant. A gold ★ marks a rare variant: a blue axolotl, a brown mooshroom, or a brown panda. Select a baby to compare its variant with its parents'. The panel explains surprises, for example that the parents' wool colors mixed, that a panda shows a gene both parents carried hidden, or that a bred axolotl turned blue, which happens about 1 time in 1,200.
+
+Unnamed animals other than pets are named after their species with a short code, such as "Sheep 3F2A1C". The pet names such as Biscuit stay free for pets. When the history holds more than one kind of animal, the browser shows tabs for Pets, Farm, Wildlife, and Modded, and the species buttons follow the selected tab.
+
+![A pink lamb and its red and white parents exported from Minecraft](docs/sheep-family-export.png)
+
+An automated scene in Minecraft 26.3. The player named two sheep with name tags and fed them wheat. Vanilla AI bred a pink lamb from a red and a white parent, and the lamb kept its automatic name.
+
+Modded animals use the same rules. In a test with Naturalist 2.0.7 on NeoForge 1.21.1, deer named with name tags and fed apples bred through vanilla AI, the fawn joined with both parents, and the deer model appeared in the browser, tree, and export. Other animal mods have not been tested. Mods that store variants their own way show no variant text.
+
+### Server settings for animals
+
+`config/familytree-server.properties` decides which new animals join. Settings never remove history; animals already recorded keep their record up to date. Restart the server after editing the file.
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `trackFarmAnimals` | `true` | Cows, mooshrooms, sheep, pigs, chickens, rabbits, and goats |
+| `trackWildlife` | `true` | Foxes, axolotls, frogs, bees, turtles, pandas, ocelots, hoglins, striders, sniffers, armadillos, and other vanilla animals |
+| `trackModdedAnimals` | `true` | Breedable animals from other mods |
+| `trackedSpecies` | empty | Comma-separated species to record even when their category is off, such as `minecraft:fox` |
+| `ignoredSpecies` | empty | Comma-separated species to never record. This also stops new pets of that species. |
+| `farmRecordLimit` | `5000` | How many unnamed animals other than pets the history keeps, from 0 to 50,000. At the limit, breeding stops adding them and tells the breeder once. Pets and named animals are always recorded. |
+| `autoPruneFarmRecords` | `false` | When the limit is reached, save a JSON backup in `familytree-backups/`, then delete the oldest deceased unnamed animals other than pets until three quarters of the limit remain |
+
+Automatic cleanup never deletes pets, named animals, or living animals, and it removes animals without recorded children before parents. Each cleanup writes a full backup of the history, about 2.3 MB at 5,000 records, and the backups stay until you delete them. `/familytree prune farm` runs the same cleanup by hand for all deceased unnamed animals other than pets.
+
 ## Export a family tree
 
 Click **Export family tree**, then **Open folder** to find the saved PNG. Export saves a PNG under `screenshots/familytree/` in your Minecraft folder. The image includes the whole visible tree at a fixed, readable scale, regardless of your current zoom or pan. Hidden branches stay hidden. Very large trees need to be narrowed down before export.
 
-Exports include pet names, generations, horse stats, portraits where available, and living or deceased status. They omit player names and coordinates. Nothing uploads automatically.
+Exports include pet names, generations, variants, horse stats, portraits, and living or deceased status. They omit player names and coordinates. Nothing uploads automatically. Cat, wolf, and horse portraits in exports come from their textures. Other animals' portraits are copied from the in-game model, so the screen briefly shows them while the image is prepared.
 
 ![A PNG exported from the example family](docs/family-tree-export.png)
 
 ## Existing families and server permissions
 
-Rename a stick to `familytree` in an anvil. Right-click the first parent, second parent, and child, then confirm in chat. Sneak and right-click a pet to clear its parents after confirmation. Manual links require distinct pets and reject ancestry loops. Horse and donkey parents can link to a mule.
+Rename a stick to `familytree` in an anvil. Right-click the first parent, second parent, and child, then confirm in chat. Clicking an animal other than a pet that isn't in the history yet adds it for you first. Sneak and right-click a pet to clear its parents after confirmation. Manual links require distinct pets and reject ancestry loops. Horse and donkey parents can link to a mule.
 
 Owners and server operators can locate or edit their pets. Linking two parents requires permission for all three animals. By default, only operators can browse everyone's pets. A server can change `viewPolicy` in `config/familytree-server.properties` to `EVERYONE_ALL` or `OWN_ONLY`, then restart. Public viewing does not grant editing rights or reveal other players' pet locations. The same file holds the chest menu settings described under [Players without the client mod](#players-without-the-client-mod).
 

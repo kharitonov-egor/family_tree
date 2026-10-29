@@ -58,7 +58,7 @@ public final class NeoForgeEntrypoint {
     }
 
     private void registerPackets(RegisterPayloadHandlersEvent event) {
-        var registrar = event.registrar("3").optional();
+        var registrar = event.registrar("4").optional();
         registrar.playToClient(SnapshotPagePayload.TYPE, SnapshotPagePayload.STREAM_CODEC, (packet, context) -> context.enqueueWork(() -> LegacyClientPackets.receive(packet)));
         registrar.playToClient(LinkParentsResult.TYPE, LinkParentsResult.STREAM_CODEC, (packet, context) -> context.enqueueWork(() -> LegacyClientPackets.receive(packet)));
         registrar.playToServer(LinkParentsRequest.TYPE, LinkParentsRequest.STREAM_CODEC, (packet, context) ->

@@ -2,7 +2,7 @@
 
 ## What this is
 
-Family Tree tracks tamed pets and their lineage. Fabric supports Minecraft 1.20.1, 1.21.1, 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge supports 1.21.1, 1.21.11, 26.2, and 26.3. Forge supports 1.20.1. The NeoForge 26.3 loader and mod build are beta. Install JDK 17, 21, and 25 for all builds. The 1.20.1 jars use Java 17 bytecode, the 1.21.x jars Java 21, and 26.x jars Java 25.
+Family Tree tracks tamed pets, the animals players breed, name, or add, and their lineage. Fabric supports Minecraft 1.20.1, 1.21.1, 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge supports 1.21.1, 1.21.11, 26.2, and 26.3. Forge supports 1.20.1. The NeoForge 26.3 loader and mod build are beta. Install JDK 17, 21, and 25 for all builds. The 1.20.1 jars use Java 17 bytecode, the 1.21.x jars Java 21, and 26.x jars Java 25.
 
 Mod ID `familytree`, package `com.egakh.familytree`. `mod_version` lives in `gradle.properties`. Players search pets, pan and zoom through ancestry, locate pets, add known parents, and export a family as a PNG.
 
@@ -30,6 +30,7 @@ When adding a target, update the version list, dependencies, `buildAll`, release
 Players keep pet history for years. Never discard that history for a code cleanup.
 
 - Never rename or remove existing saved AnimalRecord fields, including `birth_world_day`, `death_epoch`, `variant_id`, and `name`.
+- `variant_id` holds every species' variant: an enum's serialized name (`blue`, `pink`), a registry key (`minecraft:warm`), `coat/markings` for horses, or `main/hidden` panda genes. Keep these strings identical across Minecraft versions so an upgraded world keeps its variants. `variant_origin` saves how a bred animal got its variant, judged at birth, because dye and lightning change sheep and mooshroom colors later.
 - `horse_stats` stores base speed, jump strength, max health, and llama strength in Minecraft's attribute units. Every value inside it is optional; null means unknown. Convert to player units only for display, in `util/HorseStatUnits.java`.
 - New saved fields must use `optionalFieldOf`. Old saves must parse without the field. Handle missing values when reading it.
 - RecordCodecBuilder groups cap at 16 fields. `BASE_CODEC` preserves the original 16 flat fields. The outer codec combines it with optional additions such as `tree_name`.
@@ -38,6 +39,7 @@ Players keep pet history for years. Never discard that history for a code cleanu
 - Legacy import supports both raw records and the SavedData `data` wrapper. It runs only for an uninitialized store and copies the legacy file to a migration backup. An empty modern store must not reimport deleted history.
 - 1.21.1 and 1.21.11 share the overworld `data/familytree.dat` file, so 1.21.11 loads 1.21.1 history in place. 26.x reads it through legacy import.
 - Pruning requires a successful JSON backup before deletion. Backups live under the world's `familytree-backups/` directory.
+- Pets and named animals are never removed automatically. The farm limit only stops new unnamed animals other than pets. Automatic cleanup is opt-in (`autoPruneFarmRecords`), backs up first, and removes only deceased unnamed animals other than pets. Unclassified modded species count as pets until an entity shows otherwise.
 - Document downgrade limits. Older mod versions can drop unknown fields on their next save. Never downgrade a Minecraft world for a test.
 
 When touching persistence, load previous-release data on the same game version and check commands and the GUI. See `docs/testing.md` for disposable-world runners. Retained history in an existing smoke world is useful evidence, but is not an immutable migration fixture.
@@ -46,7 +48,7 @@ When touching persistence, load previous-release data on the same game version a
 
 Server code owns the saved history. Both loaders dispatch shared packet handlers on the server thread. PetAccess defines view and manage rules; public snapshots remove foreign pet coordinates. Snapshot copies do not retain mutable server records.
 
-The current protocol uses `open_request_v4`, `snapshot_pages_v4`, `discover_v3`, `rename_request_v2`, and `rename_result_v2`. NeoForge and Forge register protocol `3`. Version 1.1.0 used `open_request_v3`, `snapshot_pages_v3`, `discover_v2`, and protocol `2`. Update client and server together. Incompatible packet changes need new channels or a negotiated version. Keep fields in codec encode and decode order.
+The current protocol uses `open_request_v4`, `snapshot_pages_v5`, `discover_v3`, `rename_request_v2`, and `rename_result_v3`. NeoForge and Forge register protocol `4`. Version 1.2.0 used `snapshot_pages_v4`, `rename_result_v2`, and protocol `3`; version 1.1.0 used `open_request_v3`, `snapshot_pages_v3`, `discover_v2`, and protocol `2`. Update client and server together. Incompatible packet changes need new channels or a negotiated version. Keep fields in codec encode and decode order.
 
 Forge 1.20.1 has one event channel per payload, named like the payload, and accepts a missing remote mod. Snapshots use a request UUID, page number, total count, and byte-bounded records. The client exposes the result only after validating every page. Current page budget is 256 KiB and aggregate limit is 100,000 records. Minecraft 1.20.1 limits clientbound custom payloads to 1 MiB and serverbound ones to 32,767 bytes. Never silently truncate a family.
 
@@ -57,7 +59,9 @@ Commands and discovery share per-player and per-server scan cooldowns. Rate-limi
 - `data/AnimalRecord.java` contains the persisted and network record schema. `name()` uses the custom tree name; `originalName()` retains the entity name. Tree names never change an entity's name tag.
 - `data/FamilyTreeState.java` contains the overworld save, tolerant recovery, legacy import, and prune backup.
 - `event/PetLifecycleListeners.java` records breeding, tame, name, unload, and death events. Existing loaded pets enter through discovery. Each last-seen update also refreshes horse stats.
-- `util/PetFilter.java` decides what is tracked. Horse-type mounts need a Minecraft owner. Camels always report as tamed and trap skeleton horses have no owner, so they join only when a player rides or breeds them. Records that already exist stay current even when the animal is not tamed, such as foals.
+- `util/PetFilter.java` decides what is tracked. Horse-type mounts need a Minecraft owner. Camels always report as tamed and trap skeleton horses have no owner, so they join only when a player rides or breeds them. Records that already exist stay current even when the animal is not tamed, such as foals. Other animals join only through `PetLifecycleListeners.recordBirth` (a player's breeding, or a recorded parent), the name tag mixin, and the linking stick, subject to `settings/TrackingRules`.
+- `util/AnimalCategory.java` sorts species into pets, farm, wildlife, and modded. `util/EntityVariants.java` reads and applies variants through `VariantHolder` before 1.21.5 and entity data components after. `util/VariantRules.java` holds rarity, inheritance outcomes, and label keys without Minecraft classes; `util/VariantText.java` turns them into components.
+- `data/FarmRecords.java` and `data/FarmCleanup.java` count unnamed animals other than pets against `farmRecordLimit` and run the opt-in cleanup.
 - `permissions/` contains ownership and parent-link rules. Horse and donkey parents are allowed for a mule.
 - `network/` contains cooldowns, page splitting, and shared handlers. Loader adapters register channels and events. `network/backport/` exists only in 1.20.1 builds; `PayloadCodecs` there encodes payloads for the 1.20.1 Fabric and Forge adapters.
 - `command/FamilyTreeCommand.java` handles list, scan, locate, info, pairing, age corrections, and pruning. Name edits reject ambiguity and accept exact UUIDs.
@@ -65,7 +69,7 @@ Commands and discovery share per-player and per-server scan cooldowns. Rate-limi
 - `util/Genealogy.java` calculates generations with an explicit stack and checks cycles. Derived generations are never persisted.
 - `client/SnapshotAssembler.java` validates paged replies and ignores old requests.
 - `client/screen/` contains browser, tree, settings, help, rename, parent editor, and pet picker. Screens use FamilyTreeScreen to adapt input and rendering APIs.
-- `client/export/` copies a tree and renders a PNG on a background task. `PetPortraits` cuts horse side profiles from the equine texture layout, which 1.20.1, 1.21.1, 1.21.11, and 26.x share. 1.20.1 wolves have one coat, so their records have no variant. Exports omit explicit player names and coordinates. User-entered pet names may still contain personal information.
+- `client/export/` copies a tree and renders a PNG on a background task. `PortraitCapture` reads model portraits for species without texture portraits from the screen, drawn on black and white to recover transparency. `PetPortraits` cuts horse side profiles from the equine texture layout, which 1.20.1, 1.21.1, 1.21.11, and 26.x share. 1.20.1 wolves have one coat, so their records have no variant. Exports omit explicit player names and coordinates. User-entered pet names may still contain personal information.
 - `platform/` and `client/platform/` hold loader-independent paths and transports. Shared code has no Fabric dependency.
 - `menu/` holds the chest, anvil, and lectern menus that `/familytree` opens for clients without the mod. Their `clicked` overrides refuse every click before Minecraft moves an item, resend the player's inventory, and run the button's action after the click packet finishes. Never call the vanilla click handling there.
 - `text/` reads the mod's language files on the server. `ServerText` gives every `familytree.` key a fallback in the receiving player's language, so vanilla clients read translated text. Send chat and command output through `ServerText.send`, `success`, or `failure`. 1.20.1 records the client's language with `ClientLanguageMixin`, which only the 1.20.1 Fabric and Forge builds list.

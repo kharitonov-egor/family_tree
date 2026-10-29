@@ -9,6 +9,7 @@
     "EntitySetCustomNameMixin",
     "HorseVariantInvoker",
     "LlamaVariantInvoker",
+    "NameTagItemMixin",
     "TamableAnimalTameMixin",
     "WolfVariantInvoker"
   ],

@@ -37,10 +37,28 @@ public final class FamilyTreeServerSettings {
     private static final Path CONFIG_PATH = FamilyTreePaths.config()
             .resolve("familytree-server.properties");
 
+    private static final String HEADER = String.join("\n",
+            "Family Tree server settings.",
+            "viewPolicy = OP_ONLY_ALL | EVERYONE_ALL | OWN_ONLY",
+            "vanillaMenu = true | false: open chest menus for players without the client mod.",
+            "commandAliases = comma-separated extra names for /familytree, such as pets,ft",
+            "Animals other than pets enter the history when a player breeds them, names them with a name tag,",
+            "or adds them with the linking stick. Wild animals never enter on their own.",
+            "trackFarmAnimals: cows, mooshrooms, sheep, pigs, chickens, rabbits, and goats.",
+            "trackWildlife: foxes, axolotls, frogs, bees, turtles, pandas, ocelots, hoglins, striders, sniffers,",
+            "  armadillos, and other vanilla animals.",
+            "trackModdedAnimals: breedable animals added by other mods.",
+            "trackedSpecies / ignoredSpecies: comma-separated ids such as minecraft:fox. Ignored species also stop new pets.",
+            "farmRecordLimit: unnamed animals other than pets the history keeps (0 to " + TrackingRules.MAX_FARM_LIMIT + ").",
+            "  At the limit, breeding stops adding them. Pets and named animals are always recorded.",
+            "autoPruneFarmRecords: true to back up the history, then delete the oldest deceased unnamed",
+            "  animals other than pets whenever the limit is reached. Pets and named animals are never deleted.");
+
     private static volatile ViewPolicy viewPolicy = ViewPolicy.OP_ONLY_ALL;
     private static volatile boolean vanillaMenu = true;
     private static volatile java.util.List<String> commandAliases = java.util.List.of();
     private static volatile boolean loaded;
+    private static volatile TrackingRules tracking = TrackingRules.DEFAULT;
 
     private FamilyTreeServerSettings() {}
 
@@ -57,6 +75,7 @@ public final class FamilyTreeServerSettings {
         vanillaMenu = !"false".equalsIgnoreCase(properties.getProperty(VANILLA_MENU_KEY, "true").trim());
         commandAliases = parseAliases(properties.getProperty(COMMAND_ALIASES_KEY, ""));
         loaded = true;
+        tracking = TrackingRules.parse(properties);
         save();
     }
 
@@ -80,12 +99,11 @@ public final class FamilyTreeServerSettings {
         properties.setProperty(VIEW_POLICY_KEY, viewPolicy.name());
         properties.setProperty(VANILLA_MENU_KEY, Boolean.toString(vanillaMenu));
         properties.setProperty(COMMAND_ALIASES_KEY, String.join(",", commandAliases));
+        tracking.store(properties);
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             try (OutputStream out = Files.newOutputStream(CONFIG_PATH)) {
-                properties.store(out, "Family Tree server settings. viewPolicy = OP_ONLY_ALL | EVERYONE_ALL | OWN_ONLY."
-                        + " vanillaMenu = true | false: open chest menus for players without the client mod."
-                        + " commandAliases = comma-separated extra names for /familytree, such as pets,ft");
+                properties.store(out, HEADER);
             }
         } catch (IOException e) {
             FamilyTreeMod.LOGGER.warn("Failed to write server settings", e);
@@ -104,6 +122,10 @@ public final class FamilyTreeServerSettings {
     public static java.util.List<String> commandAliases() {
         if (!loaded) load();
         return commandAliases;
+    }
+
+    public static TrackingRules tracking() {
+        return tracking;
     }
 
     public static boolean mayViewAll(ServerPlayer player) {

@@ -50,6 +50,7 @@ stonecutter.parameters {
             replace 'world.entity.animal.equine.', 'world.entity.animal.horse.'
             replace 'world.entity.animal.feline.Cat', 'world.entity.animal.Cat'
             replace 'world.entity.animal.wolf.Wolf', 'world.entity.animal.Wolf'
+            replace 'world.entity.animal.panda.Panda', 'world.entity.animal.Panda'
             replace '.identifier()', '.location()'
             replace '.isClientSide()', '.isClientSide'
             replace 'InteractionResult.SUCCESS_SERVER', 'InteractionResult.CONSUME'

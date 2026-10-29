@@ -19,6 +19,8 @@ public final class TreeLayout {
     public static final int H_SPACING = 32;
     public static final int V_SPACING = 72;
     private static final int FOREST_EXTRA_SPACING = 56;
+    private static final double FOREST_GAP = 96.0;
+    private static final double MAX_SINGLE_ROW_WIDTH = 24 * (NODE_WIDTH + H_SPACING);
 
     public static final int MAX_ANCESTOR_GENERATIONS = 6;
     public static final int MAX_DESCENDANT_GENERATIONS = 6;
@@ -128,11 +130,32 @@ public final class TreeLayout {
         double globalMinY = Double.POSITIVE_INFINITY;
         double globalMaxY = Double.NEGATIVE_INFINITY;
 
+        List<Result> layouts = new ArrayList<>();
+        double rowWidth = -FOREST_GAP, widest = 0, area = 0;
         for (List<UUID> component : components) {
             Result componentLayout = layoutForestComponent(component, records, childIndex);
-            double componentWidth = componentLayout.nodes.isEmpty() ? 0.0 : componentLayout.maxX - componentLayout.minX;
+            if (componentLayout.nodes.isEmpty()) continue;
+            layouts.add(componentLayout);
+            double width = componentLayout.maxX - componentLayout.minX, height = componentLayout.maxY - componentLayout.minY;
+            rowWidth += width + FOREST_GAP;
+            widest = Math.max(widest, width);
+            area += (width + FOREST_GAP) * (height + FOREST_GAP);
+        }
+        // A farm can hold hundreds of separate families. Past a few dozen cards, wrap them into rows instead of one strip.
+        double maxRowWidth = rowWidth <= MAX_SINGLE_ROW_WIDTH ? rowWidth : Math.max(widest, Math.sqrt(area) * 2);
+        double yOffset = 0.0, rowHeight = 0.0;
+
+        for (Result componentLayout : layouts) {
+            double componentWidth = componentLayout.maxX - componentLayout.minX;
+            if (xOffset > 0 && xOffset + componentWidth > maxRowWidth) {
+                xOffset = 0.0;
+                yOffset += rowHeight + FOREST_GAP;
+                rowHeight = 0.0;
+            }
+            rowHeight = Math.max(rowHeight, componentLayout.maxY - componentLayout.minY);
             for (Node node : componentLayout.nodes) {
                 node.x += xOffset - componentLayout.minX;
+                node.y += yOffset - componentLayout.minY;
                 result.nodes.add(node);
                 result.byId.put(node.id, node);
                 globalMinX = Math.min(globalMinX, node.x);
@@ -141,7 +164,7 @@ public final class TreeLayout {
                 globalMaxY = Math.max(globalMaxY, node.y + NODE_HEIGHT);
             }
             result.edges.addAll(componentLayout.edges);
-            xOffset += componentWidth + 96.0;
+            xOffset += componentWidth + FOREST_GAP;
         }
 
         if (result.nodes.isEmpty()) {
@@ -322,15 +345,13 @@ public final class TreeLayout {
                 List<Node> row = byGen.get(generation);
                 if (row == null) continue;
                 Map<UUID, Integer> parentOrder = indexById(byGen.get(generation - 1));
-                row.sort(Comparator.comparingDouble(node ->
-                        barycenterForParents(node.id, parentIds, parentOrder, row)));
+                sortByKey(row, node -> barycenterForParents(node.id, parentIds, parentOrder, row));
             }
             for (int generation = maxGeneration - 1; generation >= 0; generation--) {
                 List<Node> row = byGen.get(generation);
                 if (row == null) continue;
                 Map<UUID, Integer> childOrder = indexById(byGen.get(generation + 1));
-                row.sort(Comparator.comparingDouble(node ->
-                        barycenterForChildren(node.id, childIndex, included, generationById, childOrder, row)));
+                sortByKey(row, node -> barycenterForChildren(node.id, childIndex, included, generationById, childOrder, row));
             }
         }
 
@@ -417,6 +438,13 @@ public final class TreeLayout {
             order.put(row.get(i).id, i);
         }
         return order;
+    }
+
+    /** Keys that fall back to a node's position must be read before the sort moves anything. */
+    private static void sortByKey(List<Node> row, java.util.function.ToDoubleFunction<Node> key) {
+        Map<UUID, Double> keys = new HashMap<>();
+        for (Node node : row) keys.put(node.id, key.applyAsDouble(node));
+        row.sort(Comparator.comparingDouble(node -> keys.get(node.id)));
     }
 
     private static double barycenterForParents(UUID nodeId,

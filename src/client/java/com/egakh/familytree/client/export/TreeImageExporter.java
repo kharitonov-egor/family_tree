@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import javax.imageio.ImageIO;
 
 /** Draws a fixed-scale image, independent of the screen's zoom and dimensions. */
@@ -20,30 +21,44 @@ public final class TreeImageExporter {
     private static final int HEADER = 80;
     private static final long MAX_PIXELS = 24_000_000;
     public record Card(double x, double y, String name, String detail, String status,
-                       boolean deceased, BufferedImage portrait, List<HorseStatsText.Segment> stats) {}
+                       boolean deceased, BufferedImage portrait, List<HorseStatsText.Segment> stats, boolean rare) {}
     public record Line(double x1, double y1, double x2, double y2) {}
     public record Picture(String title, String footer, int width, int height, List<Card> cards, List<Line> lines,
                           Legend legend) {}
-    /** Explains the stat markers in shared images. Drawn only when a card has a marker. */
-    /** Legend text, plus the word that replaces ♥ when the export font has no heart. */
-    public record Legend(String higher, String lower, String hearts) {}
+    /** Legend text and the word that replaces ♥ when the export font has no heart. Markers are drawn only when cards use them. */
+    public record Legend(String higher, String lower, String hearts, String rare, boolean statMarkers, boolean rareMarkers) {
+        public Legend(String higher, String lower, String hearts, String rare) { this(higher, lower, hearts, rare, true, true); }
+    }
 
     private TreeImageExporter() {}
+
+    /** Throws before any portraits are captured or pixels allocated. */
+    public static void requireExportable(TreeLayout.Result tree) {
+        imageSize(tree);
+    }
+
+    private static int[] imageSize(TreeLayout.Result tree) {
+        int width = (int) Math.ceil(Math.max(440, tree.maxX - tree.minX + MARGIN * 2)) * SCALE;
+        int height = (int) Math.ceil(tree.maxY - tree.minY + HEADER + MARGIN * 2) * SCALE;
+        if (tree.nodes.isEmpty() || width <= 0 || height <= 0 || width > 16384 || height > 16384
+                || (long) width * height > MAX_PIXELS) throw new IllegalArgumentException("Tree is too large to export");
+        return new int[]{width, height};
+    }
 
     public static Picture prepare(TreeLayout.Result tree, String title, String footer,
                                    Function<AnimalRecord, String> details,
                                    Function<AnimalRecord, String> status,
                                    Function<AnimalRecord, BufferedImage> portraits,
                                    Function<AnimalRecord, List<HorseStatsText.Segment>> stats,
+                                   Predicate<AnimalRecord> rare,
                                    Legend legend) {
-        int width = (int) Math.ceil(Math.max(440, tree.maxX - tree.minX + MARGIN * 2)) * SCALE;
-        int height = (int) Math.ceil(tree.maxY - tree.minY + HEADER + MARGIN * 2) * SCALE;
-        if (tree.nodes.isEmpty() || width <= 0 || height <= 0 || width > 16384 || height > 16384
-                || (long) width * height > MAX_PIXELS) throw new IllegalArgumentException("Tree is too large to export");
+        int[] size = imageSize(tree);
+        int width = size[0], height = size[1];
         List<Card> cards = tree.nodes.stream().map(node -> new Card(
                 node.x - tree.minX + MARGIN, node.y - tree.minY + HEADER,
                 node.record.name(), details.apply(node.record), status.apply(node.record),
-                node.record.deceased(), portraits.apply(node.record), List.copyOf(stats.apply(node.record)))).toList();
+                node.record.deceased(), portraits.apply(node.record), List.copyOf(stats.apply(node.record)),
+                rare.test(node.record))).toList();
         List<Line> lines = tree.edges.stream().map(edge -> new Line(
                 edge.from.x - tree.minX + MARGIN + TreeLayout.NODE_WIDTH / 2.0,
                 edge.from.y - tree.minY + HEADER + TreeLayout.NODE_HEIGHT,
@@ -51,7 +66,10 @@ public final class TreeImageExporter {
                 edge.to.y - tree.minY + HEADER)).toList();
         boolean marked = cards.stream().flatMap(card -> card.stats().stream())
                 .anyMatch(stat -> stat.trend() == Trend.BEATS_BOTH || stat.trend() == Trend.TRAILS_BOTH);
-        return new Picture(title, footer, width, height, cards, lines, marked ? legend : null);
+        boolean rareCards = cards.stream().anyMatch(Card::rare);
+        Legend shown = legend == null ? null
+                : new Legend(legend.higher(), legend.lower(), legend.hearts(), legend.rare(), marked, rareCards);
+        return new Picture(title, footer, width, height, cards, lines, shown);
     }
 
     public static BufferedImage render(Picture picture) {
@@ -66,7 +84,8 @@ public final class TreeImageExporter {
             g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 24));
             g.setColor(new Color(0xF3E9D8));
             g.drawString(fit(g, picture.title(), picture.width() / SCALE - MARGIN * 2), MARGIN, 42);
-            if (picture.legend() != null) drawLegend(g, picture.legend(), picture.width() / SCALE - MARGIN * 2);
+            if (picture.legend() != null && (picture.legend().statMarkers() || picture.legend().rareMarkers()))
+                drawLegend(g, picture.legend(), picture.width() / SCALE - MARGIN * 2);
             g.setStroke(new BasicStroke(2));
             g.setColor(new Color(0x758D96));
             for (Line line : picture.lines()) {
@@ -115,7 +134,10 @@ public final class TreeImageExporter {
         boolean stats = !card.stats().isEmpty();
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
         g.setColor(new Color(0xF3E9D8));
-        g.drawString(fit(g, card.name(), available), textX, y + (stats ? 28 : 30));
+        String name = fit(g, card.name(), card.rare() ? available - 16 : available);
+        int nameBaseline = y + (stats ? 28 : 30);
+        g.drawString(name, textX, nameBaseline);
+        if (card.rare()) drawStar(g, textX + g.getFontMetrics().stringWidth(name) + 9, nameBaseline - 6, 6);
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         g.setColor(new Color(0xCBD6D9));
         g.drawString(fit(g, card.detail(), available), textX, y + (stats ? 47 : 53));
@@ -158,7 +180,7 @@ public final class TreeImageExporter {
     private static void drawLegend(Graphics2D g, Legend legend, int available) {
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         int x = MARGIN, y = 64;
-        for (boolean up : new boolean[]{true, false}) {
+        if (legend.statMarkers()) for (boolean up : new boolean[]{true, false}) {
             String text = up ? legend.higher() : legend.lower();
             g.setColor(new Color(up ? 0x6FD26F : 0xE86B6B));
             g.fillPolygon(up ? new int[]{x, x + 4, x + 8} : new int[]{x, x + 8, x + 4},
@@ -167,6 +189,24 @@ public final class TreeImageExporter {
             g.drawString(fit(g, text, Math.max(1, MARGIN + available - x - 12)), x + 12, y);
             x += 12 + g.getFontMetrics().stringWidth(text) + 18;
         }
+        if (legend.rareMarkers() && legend.rare() != null) {
+            drawStar(g, x + 4, y - 5, 5);
+            g.setColor(new Color(0xA9BAC0));
+            g.drawString(fit(g, legend.rare(), Math.max(1, MARGIN + available - x - 12)), x + 12, y);
+        }
+    }
+
+    /** Fonts may lack a star glyph, so the rare marker is drawn as a shape. */
+    private static void drawStar(Graphics2D g, int centerX, int centerY, int radius) {
+        int[] xs = new int[10], ys = new int[10];
+        for (int i = 0; i < 10; i++) {
+            double angle = -Math.PI / 2 + i * Math.PI / 5;
+            double r = i % 2 == 0 ? radius : radius * 0.45;
+            xs[i] = (int) Math.round(centerX + Math.cos(angle) * r);
+            ys[i] = (int) Math.round(centerY + Math.sin(angle) * r);
+        }
+        g.setColor(new Color(0xFFC94A));
+        g.fillPolygon(xs, ys, 10);
     }
 
     private static String displayable(Font font, String text, String hearts) {

@@ -7,6 +7,7 @@ import com.egakh.familytree.util.PetFilter;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.PetRelations;
 import com.egakh.familytree.permissions.ServerPetAccess;
+import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
@@ -21,6 +22,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -46,7 +48,7 @@ public final class LinkingTool {
                                                  Entity entity, EntityHitResult hit) {
         if (player.isSpectator()) return InteractionResult.PASS;
         if (!isLinkingTool(player.getItemInHand(hand))) return InteractionResult.PASS;
-        if (!PetFilter.isTameableSpecies(entity)) return InteractionResult.PASS;
+        if (!(entity instanceof Animal)) return InteractionResult.PASS;
         if (world.isClientSide()) return InteractionResult.SUCCESS;
         if (!(player instanceof ServerPlayer sp) || !(world instanceof ServerLevel level)) {
             return InteractionResult.PASS;
@@ -55,9 +57,19 @@ public final class LinkingTool {
         FamilyTreeState state = FamilyTreeState.get(level);
         if (state.readOnly()) return InteractionResult.SUCCESS_SERVER;
         if (!PetFilter.isTrackable(entity) && !state.contains(entity.getUUID())) {
-            ServerText.send(sp, Component.translatable(PetFilter.isUnclaimedMount(entity)
-                    ? "familytree.tool.ride_first" : "familytree.tool.not_tamed"));
-            return InteractionResult.SUCCESS_SERVER;
+            if (PetFilter.isTameableSpecies(entity)) {
+                ServerText.send(sp, Component.translatable(PetFilter.isUnclaimedMount(entity)
+                        ? "familytree.tool.ride_first" : "familytree.tool.not_tamed"));
+                return InteractionResult.SUCCESS_SERVER;
+            }
+            var added = PetLifecycleListeners.addAnimal(level, state, entity, sp.getUUID(), sp.getName().getString());
+            if (added != PetLifecycleListeners.AddResult.ADDED) {
+                ServerText.send(sp, added == PetLifecycleListeners.AddResult.FULL
+                        ? Component.translatable("familytree.tool.farm_full", FamilyTreeServerSettings.tracking().farmRecordLimit())
+                        : Component.translatable("familytree.tool.not_recorded", entity.getType().getDescription()));
+                return InteractionResult.SUCCESS_SERVER;
+            }
+            ServerText.send(sp, Component.translatable("familytree.tool.added", state.get(entity.getUUID()).name()));
         }
         PetLifecycleListeners.ensureRecord(level, state, entity);
         AnimalRecord record = state.get(entity.getUUID());

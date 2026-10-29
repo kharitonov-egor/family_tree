@@ -1,6 +1,6 @@
 # Runtime validation
 
-`./gradlew buildAll --no-parallel` builds seven Fabric, four NeoForge, and one Forge target and runs the shared JUnit suite for each. Install JDK 17, JDK 21, and JDK 25. The 1.20.1 tests and development runs use JDK 17. Tests cover saved records, names, ancestry, ownership, PNG exports, byte-bounded snapshot pages, parent validation, and horse stat units checked against the Minecraft Wiki's values. `WireFormatTest` expects the same payload bytes on every target, which checks the 1.20.1 codec backport against Minecraft's codecs.
+`./gradlew buildAll --no-parallel` builds seven Fabric, four NeoForge, and one Forge target and runs the shared JUnit suite for each. Install JDK 17, JDK 21, and JDK 25. The 1.20.1 tests and development runs use JDK 17. Tests cover saved records, names, ancestry, ownership, PNG exports, byte-bounded snapshot pages, parent validation, horse stat units checked against the Minecraft Wiki's values, variant inheritance and rarity, animal categories, tracking settings, the farm limit and cleanup order, large farm layouts, and portrait transparency. `WireFormatTest` expects the same payload bytes on every target, which checks the 1.20.1 codec backport against Minecraft's codecs.
 
 The development mods under `src/smoke` and `src/demo` never enter release jars. Their runners fail the Gradle task when the expected PASS file is missing. Use disposable worlds under `build/`. Never use a normal game directory, and never copy a newer Minecraft world into an older target.
 
@@ -27,7 +27,7 @@ spawn-protection=0
 ./gradlew -p forge runSmoke -Psmoke -Pminecraft=1.20.1
 ```
 
-The runner adds tame wolves, invokes Minecraft's breeding method, and checks entity-load discovery, the breeding mixin, inherited ownership, edit permissions, renaming, and death records. It then adds owned horses and a llama, breeds a foal, and checks the recorded stats at discovery, birth, and unload. A camel and an ownerless skeleton horse must stay unrecorded. It writes `smoke-result.txt` and stops the server. The death check calls the shared handler, so it does not prove every loader death event. The separate gameplay run checks a real Fabric death event.
+The runner adds tame wolves, invokes Minecraft's breeding method, and checks entity-load discovery, the breeding mixin, inherited ownership, edit permissions, renaming, and death records. It then adds owned horses and a llama, breeds a foal, and checks the recorded stats at discovery, birth, and unload. A camel and an ownerless skeleton horse must stay unrecorded. Then it checks animals other than pets: a wild cow and a cow bred without a player stay out, a player's sheep breeding records the lamb and both parents for the breeder with mixed wool colors, a recorded family keeps growing without a player, an added axolotl keeps its color, and every vanilla variant reads and applies on the running Minecraft version. It rewrites `config/familytree-server.properties` to check a disabled category, the farm limit, and opt-in cleanup with its backup, then restores the file. It writes `smoke-result.txt` and stops the server. The death check calls the shared handler, so it does not prove every loader death event. The separate gameplay run checks a real Fabric death event.
 
 For an upgrade test, copy a previous release's Family Tree data into a disposable world for the same Minecraft version and preserve its save path. To create horse history with an older release, run its jar on a Fabric dedicated server, `forceload` a few chunks, and summon owned horses, for example `summon minecraft:horse 0 -60 0 {Tame:1b,Owner:[I;1,2,3,4],InLove:600}` twice. AI breeding records a foal. Swap in the new jar, let the chunks load, and check `/familytree info` for the retained parents and filled-in stats. Use `-PsmokeHistory=<expected-count>` to require retained records before creating new pets. The 1.20.1, 1.21.1, and 1.21.11 path is `smoke/data/familytree.dat`; 26.x worlds use `smoke/dimensions/minecraft/overworld/data/familytree/familytree.dat`.
 
@@ -49,6 +49,29 @@ Enable the runner with `-Pdemo`. Put a matching disposable world at `build/demo-
 The runner tests a real snapshot and discovery round trip, then displays a staged example for browser, tree, portrait, and export checks. It opens Getting started, chooses a different parent in the picker, confirms through the real network, and verifies the server's saved parent ID. Screenshots and `demo-result.txt` go into the test directory. Test GUI scale 2 and a compact scale such as 4.
 
 On this laptop, Minecraft 26.3 crashed in the Intel OpenGL driver before opening the world. Its Vulkan client passed. Use `-PgraphicsBackend=vulkan` with the 26.3 demo to select that backend explicitly. A crash can cause Minecraft to reset its saved graphics preference. This override affects only the development run.
+
+## Animals other than pets
+
+```sh
+./gradlew :26.3:runDemo -Pdemo -Panimals
+./gradlew -p neoforge runDemo -Pdemo -Panimals -Pminecraft=1.21.1
+```
+
+The animal runner names four sheep and a blue axolotl with real name tags, which records them for the player through the name tag hook. It feeds the sheep wheat in two pens, and vanilla AI breeds a pink lamb from red and white parents and a purple lamb from blue and red parents. It also feeds two frogs slime balls, which records both frogs for the player because frog spawn hatches later without parents. The client must receive both lambs with their wool colors, the pink lamb's `mixed` origin saved at birth, the frogs, and the axolotl through the network. It opens the browser and the pink lamb's tree, exports it, and opens the axolotl's tree. `python scripts/build_media.py --animals build/demo-26.3` copies the export and screens into `docs/`. Each run clears the demo world's Family Tree records first.
+
+To check a modded animal, put the mod's jar in the run directory's `mods/` folder and name the species and its breeding food:
+
+```sh
+./gradlew -p neoforge runDemo -Pdemo -Panimals -PmoddedAnimal=naturalist:deer -PmoddedFood=minecraft:apple -Pminecraft=1.21.1
+```
+
+The same steps then run with four deer: name tags, feeding, AI breeding, both babies with their parents over the network, the tree, and the export. Naturalist 2.0.7 for NeoForge 1.21.1 passed this check.
+
+```sh
+./gradlew :26.3:runDemo -Pdemo -Pfarm
+```
+
+The farm runner fences 400 cows, sheep, pigs, and chickens, feeds every one, and waits for vanilla AI breeding to finish. It writes `perf-result.txt` with the save encoding time and compressed size, the snapshot build time, page count, and bytes, a cleanup backup's time and size, the snapshot round trip, and frame rates for the world, a text-only screen, the browser, and the sheep forest. It then adds synthetic records, labeled as such, until the history holds 5,000 unnamed farm animals and measures again. Frame rates under Xvfb come from software rendering and depend on the machine's load, so compare each screen with the text-only screen from the same run.
 
 ## Real gameplay capture
 

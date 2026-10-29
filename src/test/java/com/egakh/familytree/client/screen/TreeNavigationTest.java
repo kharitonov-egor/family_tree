@@ -115,6 +115,23 @@ class TreeNavigationTest {
         }
     }
 
+    @Test
+    void largeBredFarmsLayOutWithoutBreakingTheSort() {
+        for (int seed = 0; seed < 5; seed++) {
+            records.clear();
+            children.clear();
+            java.util.Random random = new java.util.Random(seed);
+            List<UUID> herd = new ArrayList<>();
+            for (int i = 0; i < 1500; i++) {
+                UUID a = herd.size() < 2 || random.nextInt(4) == 0 ? null : herd.get(random.nextInt(herd.size()));
+                UUID b = a == null ? null : herd.get(random.nextInt(herd.size()));
+                herd.add(pet(a, b == a ? null : b));
+            }
+            TreeLayout.Result tree = forest();
+            assertEquals(1500, tree.nodes.size());
+        }
+    }
+
     private TreeLayout.Result forest() {
         return TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, children);
     }

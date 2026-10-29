@@ -162,6 +162,10 @@ if (project.hasProperty('demo')) {
                 source sourceSets.demo
                 vmArg "-Dfamilytree.demo.gameplay=${project.hasProperty('gameplay')}"
                 vmArg "-Dfamilytree.demo.horses=${project.hasProperty('horses')}"
+                vmArg "-Dfamilytree.demo.animals=${project.hasProperty('animals')}"
+                vmArg "-Dfamilytree.demo.farm=${project.hasProperty('farm')}"
+                if (project.hasProperty('moddedAnimal')) vmArg "-Dfamilytree.demo.moddedAnimal=${project.property('moddedAnimal')}"
+                if (project.hasProperty('moddedFood')) vmArg "-Dfamilytree.demo.moddedFood=${project.property('moddedFood')}"
                 runDir "../../build/demo-${mcVersion}"
                 programArgs '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
                 if (mcVersion == '26.3' && project.hasProperty('graphicsBackend')) programArgs '--graphicsBackend', project.property('graphicsBackend')

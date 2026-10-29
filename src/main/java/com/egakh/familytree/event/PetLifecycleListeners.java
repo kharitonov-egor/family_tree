@@ -1,13 +1,21 @@
 package com.egakh.familytree.event;
 
+import com.egakh.familytree.FamilyTreeMod;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
+import com.egakh.familytree.data.FarmCleanup;
 import com.egakh.familytree.data.HorseStats;
 //? if >=1.21 {
 import com.egakh.familytree.mixin.WolfVariantInvoker;
 //?}
 import com.egakh.familytree.naming.NameGenerator;
+import com.egakh.familytree.settings.FamilyTreeServerSettings;
+import com.egakh.familytree.settings.TrackingRules;
+import com.egakh.familytree.text.ServerText;
+import com.egakh.familytree.util.AnimalCategory;
+import com.egakh.familytree.util.EntityVariants;
 import com.egakh.familytree.util.PetFilter;
+import com.egakh.familytree.util.VariantRules;
 import com.egakh.familytree.util.TimeUtil;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -35,21 +43,26 @@ public final class PetLifecycleListeners {
     private PetLifecycleListeners() {}
 
     public static void onLoad(Entity entity, ServerLevel world) {
-        if (!PetFilter.isTameableSpecies(entity)) return;
+        if (!(entity instanceof Animal)) return;
         ensureRecord(world, FamilyTreeState.get(world), entity);
     }
 
     public static void onUnload(Entity entity, ServerLevel world) {
-        if (!PetFilter.isTameableSpecies(entity)) return;
+        if (!(entity instanceof Animal)) return;
         FamilyTreeState state = FamilyTreeState.get(world);
         if (state.contains(entity.getUUID())) stampLastSeen(world, state, entity);
     }
 
     public static void onBred(ServerLevel world, Animal parentA, Animal parentB, Animal child) {
-        if (!PetFilter.isTameableSpecies(child)) return;
+        ServerPlayer breeder = parentA.getLoveCause() != null ? parentA.getLoveCause() : parentB.getLoveCause();
+        if (!PetFilter.isTameableSpecies(child)) {
+            recordBirth(world, parentA, parentB, child,
+                    breeder == null ? null : breeder.getUUID(), breeder == null ? null : breeder.getName().getString());
+            return;
+        }
 
         FamilyTreeState state = FamilyTreeState.get(world);
-        ServerPlayer breeder = parentA.getLoveCause() != null ? parentA.getLoveCause() : parentB.getLoveCause();
+        if (!FamilyTreeServerSettings.tracking().records(PetFilter.species(child), AnimalCategory.PETS)) return;
 
         rememberParent(world, state, parentA, breeder);
         rememberParent(world, state, parentB, breeder);
@@ -92,12 +105,14 @@ public final class PetLifecycleListeners {
             ownerName = parentOwnerName;
         }
 
+        String origin = variantOrigin(child, parentA, parentB);
         // Entity-load discovery can register the baby before the breeding hook runs.
         if (state.contains(childId)) {
             UUID inheritedOwner = owner;
             String inheritedOwnerName = ownerName;
             state.update(childId, record -> {
                 record.setParents(parentA.getUUID(), parentB.getUUID());
+                record.setVariantOrigin(origin);
                 if (inheritedOwner != null) record.setOwner(inheritedOwner, inheritedOwnerName);
             });
             stampLastSeen(world, state, child);
@@ -117,8 +132,15 @@ public final class PetLifecycleListeners {
                 owner, ownerName, variantOf(child),
                 null, null
         );
+        rec.setVariantOrigin(origin);
         state.put(rec);
         stampLastSeen(world, state, child);
+    }
+
+    /** Judged from the live parents at birth, because dye and lightning can change their variants later. */
+    private static String variantOrigin(Animal child, Animal parentA, Animal parentB) {
+        VariantRules.Outcome outcome = VariantRules.outcome(PetFilter.species(child), variantOf(child), variantOf(parentA), variantOf(parentB));
+        return outcome == VariantRules.Outcome.UNKNOWN ? null : outcome.key();
     }
 
     private static void rememberParent(ServerLevel world, FamilyTreeState state, Animal parent, ServerPlayer breeder) {
@@ -126,8 +148,115 @@ public final class PetLifecycleListeners {
         else ensureRecord(world, state, parent);
     }
 
+    /**
+     * Records a birth of animals other than pets. A player's breeding brings the baby and both parents into the
+     * history, owned by the breeder. Without a player, only families already in the history continue, so wild
+     * animals stay out. The baby belongs to its parents' owner when they have one.
+     */
+    public static void recordBirth(ServerLevel world, Animal parentA, Animal parentB, Animal child,
+                                   UUID breeder, String breederName) {
+        FamilyTreeState state = FamilyTreeState.get(world);
+        if (state.readOnly() || !PetFilter.recordsNewAnimal(child)) return;
+        UUID childId = child.getUUID();
+        String origin = variantOrigin(child, parentA, parentB);
+        if (state.contains(childId)) {
+            state.update(childId, record -> {
+                record.setParents(parentA.getUUID(), parentB.getUUID());
+                record.setVariantOrigin(origin);
+            });
+            return;
+        }
+        boolean knownA = state.contains(parentA.getUUID()), knownB = state.contains(parentB.getUUID());
+        if (breeder == null && !knownA && !knownB) return;
+        if (!roomForFarmRecords(world, state, 1 + (knownA ? 0 : 1) + (knownB ? 0 : 1))) {
+            noticeFarmLimit(world, state, breeder, "familytree.farm.limit");
+            return;
+        }
+
+        AnimalRecord a = recordParent(world, state, parentA, parentB, breeder, breederName);
+        AnimalRecord b = recordParent(world, state, parentB, parentA, breeder, breederName);
+        AnimalRecord owner = a.ownerId() != null ? a : b.ownerId() != null ? b : null;
+        AnimalRecord record = newRecord(world, state, child);
+        record.setParents(parentA.getUUID(), parentB.getUUID());
+        record.setVariantOrigin(origin);
+        if (owner != null) record.setOwner(owner.ownerId(), owner.ownerName());
+        else record.setOwner(breeder, breederName);
+        state.put(record);
+        stampLastSeen(world, state, child);
+    }
+
+    /** Frogs and sniffers lay spawn or an egg instead of a baby, so a player's breeding records only the parents. */
+    public static void onBredWithoutBaby(ServerLevel world, Animal parentA, Animal parentB) {
+        ServerPlayer breeder = parentA.getLoveCause() != null ? parentA.getLoveCause() : parentB.getLoveCause();
+        if (breeder == null || PetFilter.isTameableSpecies(parentA) || !PetFilter.recordsNewAnimal(parentA)) return;
+        FamilyTreeState state = FamilyTreeState.get(world);
+        if (state.readOnly()) return;
+        int needed = (state.contains(parentA.getUUID()) ? 0 : 1) + (state.contains(parentB.getUUID()) ? 0 : 1);
+        if (needed > 0 && !roomForFarmRecords(world, state, needed)) {
+            noticeFarmLimit(world, state, breeder.getUUID(), "familytree.farm.limit_parents");
+            return;
+        }
+        recordParent(world, state, parentA, parentB, breeder.getUUID(), breeder.getName().getString());
+        recordParent(world, state, parentB, parentA, breeder.getUUID(), breeder.getName().getString());
+    }
+
+    private static AnimalRecord recordParent(ServerLevel world, FamilyTreeState state, Animal parent, Animal mate,
+                                             UUID breeder, String breederName) {
+        UUID id = parent.getUUID();
+        if (!state.contains(id)) {
+            AnimalRecord record = newRecord(world, state, parent);
+            AnimalRecord mateRecord = state.get(mate.getUUID());
+            if (breeder != null) record.setOwner(breeder, breederName);
+            else if (mateRecord != null) record.setOwner(mateRecord.ownerId(), mateRecord.ownerName());
+            state.put(record);
+        } else if (breeder != null && state.get(id).ownerId() == null) {
+            state.update(id, record -> record.setOwner(breeder, breederName));
+        }
+        ensureRecord(world, state, parent);
+        return state.get(id);
+    }
+
+    private static boolean roomForFarmRecords(ServerLevel world, FamilyTreeState state, int needed) {
+        TrackingRules rules = FamilyTreeServerSettings.tracking();
+        int limit = rules.farmRecordLimit();
+        if (state.unnamedFarmRecords() + needed <= limit) return true;
+        return rules.autoPruneFarm() && FarmCleanup.autoPrune(world.getServer(), state, limit) > 0
+                && state.unnamedFarmRecords() + needed <= limit;
+    }
+
+    private static void noticeFarmLimit(ServerLevel world, FamilyTreeState state, UUID player, String message) {
+        int limit = FamilyTreeServerSettings.tracking().farmRecordLimit();
+        if (state.firstFarmLimitNotice(new UUID(0, 0)))
+            FamilyTreeMod.LOGGER.warn("Family Tree reached farmRecordLimit={} and stopped recording new unnamed animals other than pets.", limit);
+        ServerPlayer online = player == null ? null : world.getServer().getPlayerList().getPlayer(player);
+        if (online != null && state.firstFarmLimitNotice(player)) ServerText.send(online, Component.translatable(message, limit));
+    }
+
+    public static void onNameTagged(Entity target, ServerPlayer player) {
+        if (!(target.level() instanceof ServerLevel world) || !target.hasCustomName() || PetFilter.isTameableSpecies(target)) return;
+        addAnimal(world, FamilyTreeState.get(world), target, player.getUUID(), player.getName().getString());
+    }
+
+    public enum AddResult { ADDED, NOT_RECORDED, FULL }
+
+    /** Unnamed additions count toward the farm limit; named ones never do. */
+    public static AddResult addAnimal(ServerLevel world, FamilyTreeState state, Entity entity, UUID owner, String ownerName) {
+        UUID id = entity.getUUID();
+        if (state.readOnly()) return AddResult.NOT_RECORDED;
+        if (!state.contains(id)) {
+            if (!PetFilter.recordsNewAnimal(entity)) return AddResult.NOT_RECORDED;
+            if (!entity.hasCustomName() && !roomForFarmRecords(world, state, 1)) return AddResult.FULL;
+            state.put(newRecord(world, state, entity));
+        }
+        state.update(id, record -> {
+            if (record.ownerId() == null) record.setOwner(owner, ownerName);
+        });
+        ensureRecord(world, state, entity);
+        return AddResult.ADDED;
+    }
+
     public static void onCustomNameChanged(Entity entity, Component newName) {
-        if (!PetFilter.isTameableSpecies(entity)) return;
+        if (!(entity instanceof Animal)) return;
         if (entity.level().isClientSide()) return;
         if (!(entity.level() instanceof ServerLevel serverLevel)) return;
 
@@ -185,7 +314,7 @@ public final class PetLifecycleListeners {
     public static void onDeath(LivingEntity entity, DamageSource source) {
         if (entity.level().isClientSide()) return;
         if (!(entity.level() instanceof ServerLevel world)) return;
-        if (!PetFilter.isTameableSpecies(entity)) return;
+        if (!(entity instanceof Animal)) return;
 
         FamilyTreeState state = FamilyTreeState.get(world);
         UUID id = entity.getUUID();
@@ -197,14 +326,15 @@ public final class PetLifecycleListeners {
         stampLastSeen(world, state, entity);
     }
 
-    /** Pets already in the history stay current even when Minecraft no longer reports them as tamed, such as foals. */
+    /** Animals already in the history stay current even when Minecraft no longer reports them as tamed, such as foals. */
     private static boolean tracked(FamilyTreeState state, Entity entity) {
-        return PetFilter.isTrackable(entity) || PetFilter.isTameableSpecies(entity) && state.contains(entity.getUUID());
+        return PetFilter.isTrackable(entity) || entity instanceof Animal && state.contains(entity.getUUID());
     }
 
     public static void ensureRecord(ServerLevel world, FamilyTreeState state, Entity entity) {
         if (!tracked(state, entity)) return;
         UUID id = entity.getUUID();
+        PetFilter.category(entity);
         if (state.contains(id)) {
             UUID owner = ownerOf(entity);
             if (owner != null) {
@@ -239,7 +369,9 @@ public final class PetLifecycleListeners {
         String species = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
         String existingName = nameOrNull(entity);
         boolean autoNamed = existingName == null;
-        String name = autoNamed ? NameGenerator.generate(id, state.all()) : existingName;
+        String name = !autoNamed ? existingName : PetFilter.isTameableSpecies(entity)
+                ? NameGenerator.generate(id, state.all())
+                : NameGenerator.farmName(species, id);
         return new AnimalRecord(
                 id, species, name, autoNamed,
                 null, null,
@@ -347,7 +479,7 @@ public final class PetLifecycleListeners {
         if (entity instanceof Llama llama) {
             return llama.getVariant().getSerializedName();
         }
-        return null;
+        return EntityVariants.read(entity);
     }
 
     private static String variantKey(Holder<?> holder) {

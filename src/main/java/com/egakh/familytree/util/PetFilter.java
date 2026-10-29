@@ -1,8 +1,11 @@
 package com.egakh.familytree.util;
 
+import com.egakh.familytree.settings.FamilyTreeServerSettings;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
 
 import java.util.UUID;
@@ -10,18 +13,30 @@ import java.util.UUID;
 public final class PetFilter {
     private PetFilter() {}
 
+    /** Pets enter the history on their own once tamed. Other animals need a player to breed, name, or add them. */
     public static boolean isTrackable(Entity entity) {
-        if (entity instanceof TamableAnimal tameable) {
-            return tameable.isTame();
-        }
-        if (entity instanceof AbstractHorse horse) {
-            return horse.isTamed() && ownerOf(horse) != null;
-        }
-        return false;
+        boolean tamed = entity instanceof TamableAnimal tameable ? tameable.isTame()
+                : entity instanceof AbstractHorse horse && horse.isTamed() && ownerOf(horse) != null;
+        return tamed && FamilyTreeServerSettings.tracking().records(species(entity), AnimalCategory.PETS);
     }
 
     public static boolean isTameableSpecies(Entity entity) {
         return entity instanceof TamableAnimal || entity instanceof AbstractHorse;
+    }
+
+    public static boolean recordsNewAnimal(Entity entity) {
+        return entity instanceof Animal && !isTameableSpecies(entity)
+                && FamilyTreeServerSettings.tracking().records(species(entity), category(entity));
+    }
+
+    public static AnimalCategory category(Entity entity) {
+        String species = species(entity);
+        AnimalCategory.learn(species, isTameableSpecies(entity));
+        return AnimalCategory.of(species);
+    }
+
+    public static String species(Entity entity) {
+        return BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
     }
 
     /**
