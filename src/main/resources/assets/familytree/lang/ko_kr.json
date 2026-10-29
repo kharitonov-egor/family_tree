@@ -190,6 +190,7 @@
   "familytree.menu.filter": "표시: %s",
   "familytree.menu.species": "종: %s",
   "familytree.menu.count": "펫: %s",
+  "familytree.menu.search.title": "검색",
   "familytree.menu.search.current": "검색: %s",
   "familytree.menu.search.hint": "클릭하여 이름이나 종 입력",
   "familytree.menu.search.all": "모든 펫 보기",

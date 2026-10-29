@@ -99,7 +99,7 @@ public final class HorseCapture {
                     throw new AssertionError("A parent's stats did not arrive over the network");
             if (find(snapshot, sandy.getUUID()) == null) throw new AssertionError("The ridden camel is missing");
             runner.capture(client, "horses-browser.png");
-            runner.press("Sort: Name");
+            runner.press(DemoClient.tr("familytree.screen.sort", DemoClient.tr("familytree.screen.sort.name")));
         }
         if (step == 100) {
             var field = FamilyTreeBrowserScreen.class.getDeclaredField("filtered");
@@ -116,7 +116,7 @@ public final class HorseCapture {
         if (step == 110) runner.show(client, new FamilyTreeViewScreen(browser, snapshot(), foal));
         if (step == 140) {
             runner.capture(client, "horses-tree.png");
-            runner.press("Export family tree");
+            runner.press(DemoClient.tr("familytree.export.button"));
         }
         if (step == 200) {
             runner.capture(client, "horses-export-status.png");

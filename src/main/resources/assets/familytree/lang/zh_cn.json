@@ -190,6 +190,7 @@
   "familytree.menu.filter": "显示：%s",
   "familytree.menu.species": "物种：%s",
   "familytree.menu.count": "宠物：%s",
+  "familytree.menu.search.title": "搜索",
   "familytree.menu.search.current": "搜索：%s",
   "familytree.menu.search.hint": "点击输入名称或物种",
   "familytree.menu.search.all": "显示所有宠物",

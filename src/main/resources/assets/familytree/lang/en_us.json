@@ -190,6 +190,7 @@
   "familytree.menu.filter": "Show: %s",
   "familytree.menu.species": "Species: %s",
   "familytree.menu.count": "Pets: %s",
+  "familytree.menu.search.title": "Search",
   "familytree.menu.search.current": "Search: %s",
   "familytree.menu.search.hint": "Click to type a name or species",
   "familytree.menu.search.all": "Show every pet",

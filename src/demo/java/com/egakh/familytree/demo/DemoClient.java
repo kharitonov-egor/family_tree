@@ -50,7 +50,7 @@ public final class DemoClient {
                 beforeDiscovery = receivedSnapshot();
                 if (beforeDiscovery == null || beforeDiscovery.records().stream().noneMatch(pet -> pet.name().equals("Network check")))
                     throw new AssertionError("Server snapshot did not reach the browser");
-                press("Find existing pets");
+                press(tr("familytree.discover.button"));
             }
             if (tick == 38 && receivedSnapshot() == beforeDiscovery)
                 throw new AssertionError("Discovery did not return a new snapshot");
@@ -76,7 +76,7 @@ public final class DemoClient {
             if (tick >= 130 && tick <= 280 && tick % 4 == 2) capture(client, String.format("demo-%04d.png", tick));
             if (tick == 220) {
                 capture(client, "tree.png");
-                press("Export family tree");
+                press(tr("familytree.export.button"));
             }
             if (tick == 320) {
                 show(client, new com.egakh.familytree.client.screen.FamilyTreeHelpScreen(browser));
@@ -86,12 +86,12 @@ public final class DemoClient {
                 client.getSingleplayerServer().execute(() -> pets.forEach(pet -> FamilyTreeState.get(client.getSingleplayerServer()).put(pet)));
                 var focused = new FamilyTreeViewScreen(browser, snapshot(), willow.id());
                 show(client, focused);
-                press("Add parents");
+                press(tr("familytree.parents.button"));
                 currentScreen = activeScreen(client);
             }
             if (tick == 360) {
                 capture(client, "parent-links.png");
-                press("Parent 1: Moss");
+                press(tr("familytree.parents.choose", 1, "Moss"));
                 currentScreen = activeScreen(client);
             }
             if (tick == 380) {
@@ -100,7 +100,7 @@ public final class DemoClient {
                 press(((Button) choice).getMessage().getString());
                 currentScreen = activeScreen(client);
             }
-            if (tick == 400) press("Confirm parents");
+            if (tick == 400) press(tr("familytree.parents.confirm"));
             if (tick == 420) {
                 if (activeScreen(client) instanceof com.egakh.familytree.client.screen.ParentLinksScreen)
                     throw new AssertionError("Parent edit did not return to the tree");
@@ -124,7 +124,7 @@ public final class DemoClient {
     }
 
     private void openTree(Minecraft client) throws Exception {
-        show(client, FamilyTreeViewScreen.forSpecies(browser, snapshot(), "minecraft:wolf", Component.literal("Moss's family")));
+        show(client, FamilyTreeViewScreen.forSpecies(browser, snapshot(), "minecraft:wolf", Component.translatable("familytree.screen.view.title", "Moss")));
     }
 
     private FamilyTreeSnapshotPayload snapshot() { return new FamilyTreeSnapshotPayload(List.copyOf(pets), 108, 6000, true, true, true); }
@@ -155,6 +155,11 @@ public final class DemoClient {
         currentScreen = screen;
         try { Minecraft.class.getMethod("setScreen", Screen.class).invoke(client, screen); }
         catch (NoSuchMethodException newerVersion) { Minecraft.class.getMethod("setScreenAndShow", Screen.class).invoke(client, screen); }
+    }
+
+    /** Buttons are found by their text, so look it up in the game's current language. */
+    static String tr(String key, Object... args) {
+        return net.minecraft.network.chat.Component.translatable(key, args).getString();
     }
 
     void press(String label) throws Exception {

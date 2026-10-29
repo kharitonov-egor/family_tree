@@ -190,6 +190,7 @@
   "familytree.menu.filter": "顯示：%s",
   "familytree.menu.species": "物種：%s",
   "familytree.menu.count": "寵物：%s",
+  "familytree.menu.search.title": "搜尋",
   "familytree.menu.search.current": "搜尋：%s",
   "familytree.menu.search.hint": "點擊以輸入名稱或物種",
   "familytree.menu.search.all": "顯示所有寵物",

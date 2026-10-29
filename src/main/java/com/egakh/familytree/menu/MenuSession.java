@@ -551,12 +551,10 @@ final class MenuSession {
 
     private void link(UUID childId, UUID parentA, UUID parentB, boolean clear) {
         ParentLinks.Result result = FamilyTreePackets.applyLink(player, childId, parentA, parentB, clear);
-        AnimalRecord child = state().get(childId), a = state().get(parentA), b = state().get(parentB);
         switch (result) {
             case SUCCESS -> {
-                if (clear) notice("familytree.command.unpair.result", child == null ? "" : child.name());
-                else notice("familytree.command.pair.result", a == null ? "" : a.name(), b == null ? "" : b.name(),
-                        child == null ? "" : child.name());
+                if (clear) notice("familytree.command.unpair.result", nameOf(childId));
+                else notice("familytree.command.pair.result", nameOf(parentA), nameOf(parentB), nameOf(childId));
                 reload();
             }
             case NOT_ALLOWED -> notice("familytree.access.denied");
@@ -569,6 +567,11 @@ final class MenuSession {
         }
         if (result == ParentLinks.Result.BUSY && !clear) showConfirm(childId, parentA, parentB);
         else showFamily(childId);
+    }
+
+    private String nameOf(UUID id) {
+        AnimalRecord pet = id == null ? null : state().get(id);
+        return pet == null ? "" : pet.name();
     }
 
     // Item building

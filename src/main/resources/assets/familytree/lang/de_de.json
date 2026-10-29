@@ -190,6 +190,7 @@
   "familytree.menu.filter": "Anzeige: %s",
   "familytree.menu.species": "Art: %s",
   "familytree.menu.count": "Haustiere: %s",
+  "familytree.menu.search.title": "Suchen",
   "familytree.menu.search.current": "Suche: %s",
   "familytree.menu.search.hint": "Klicke, um einen Namen oder eine Art einzugeben",
   "familytree.menu.search.all": "Alle Haustiere zeigen",

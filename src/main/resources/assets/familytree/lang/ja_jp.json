@@ -190,6 +190,7 @@
   "familytree.menu.filter": "表示：%s",
   "familytree.menu.species": "種類：%s",
   "familytree.menu.count": "ペット：%s",
+  "familytree.menu.search.title": "検索",
   "familytree.menu.search.current": "検索：%s",
   "familytree.menu.search.hint": "クリックで名前か種類を入力",
   "familytree.menu.search.all": "すべてのペットを表示",
