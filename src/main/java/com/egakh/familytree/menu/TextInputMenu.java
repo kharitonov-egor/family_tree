@@ -1,6 +1,7 @@
 package com.egakh.familytree.menu;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -31,11 +32,16 @@ final class TextInputMenu extends AnvilMenu {
         this.confirm = confirm;
         this.text = initial;
         inputSlots.setItem(0, input);
-        createResult();
+        showPreview();
     }
 
+    /** Never let the anvil compute its own result or cost. NeoForge makes createResult final, so skip the call instead. */
     @Override
-    public void createResult() {
+    public void slotsChanged(Container container) {
+        showPreview();
+    }
+
+    private void showPreview() {
         if (preview != null) resultSlots.setItem(0, preview.apply(text));
     }
 
@@ -43,7 +49,7 @@ final class TextInputMenu extends AnvilMenu {
     @Override
     public boolean setItemName(String name) {
         text = name == null ? "" : name;
-        createResult();
+        showPreview();
         sendAllDataToRemote();
         return true;
     }
