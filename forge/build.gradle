@@ -7,6 +7,8 @@ def sharedProperties = new Properties()
 file('../gradle.properties').withInputStream { sharedProperties.load(it) }
 def mcVersion = project.findProperty('minecraft') ?: '1.20.1'
 def forgeVersions = ['1.20.1': '47.4.28']
+// Packs often stay on older 47.x builds. Raise this only after testing the release jar on the new minimum.
+def forgeMinimums = ['1.20.1': '47.1.0']
 if (!forgeVersions.containsKey(mcVersion)) throw new GradleException("Unsupported Minecraft version ${mcVersion}")
 version = "${sharedProperties.mod_version}+${mcVersion}-forge"
 layout.buildDirectory = file("build/${mcVersion}")
@@ -69,7 +71,7 @@ sourcesJar.dependsOn 'prepareSharedSources'
 processResources {
     inputs.property 'version', project.version
     filesMatching('META-INF/mods.toml') {
-        expand version: project.version, minecraft: mcVersion, forge: forgeVersions[mcVersion]
+        expand version: project.version, minecraft: mcVersion, forge: forgeMinimums[mcVersion]
     }
     filesMatching('familytree.mixins.json') { expand 'java': '17' }
     // Forge 1.20.1 runs on SRG names, so mixins need the refmap. Its wolves also have no variants to invoke.
