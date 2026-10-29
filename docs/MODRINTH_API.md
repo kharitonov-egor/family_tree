@@ -133,3 +133,5 @@ Use `python scripts/release_manifest.py` after committing the tested source, the
 Use `--media docs/media.json` to upload the reviewed gallery assets, `--fix-archive` to correct Fabric API requirements on old versions, and `--update-page` to apply `modrinth_description.md`. Gallery PATCH calls require the image URL in the query string, not the JSON body. The publisher keeps the token out of its output.
 
 Fabric targets are 1.21.1, 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge targets are 1.21.1, 1.21.11, 26.2, and 26.3. NeoForge 26.3 is beta because its tested loader is beta. Use the actual jar copies under the manifest directory for both Modrinth and GitHub.
+
+Version 1.2.0 adds Fabric 1.20.1 and Forge 1.20.1. The manifest lists the Forge jar with loader `forge` and minimum loader 47.1.0, so the publisher creates a Forge version without the Fabric API dependency.
