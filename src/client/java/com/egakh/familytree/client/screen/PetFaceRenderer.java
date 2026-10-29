@@ -22,7 +22,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-//? if >=1.21.11 {
+//? if >=1.21.2 {
 import net.minecraft.world.entity.EntitySpawnReason;
 //?}
 import net.minecraft.world.entity.EntityType;

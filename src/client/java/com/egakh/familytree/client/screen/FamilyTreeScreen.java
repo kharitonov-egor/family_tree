@@ -3,7 +3,7 @@ package com.egakh.familytree.client.screen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
-//? if >=1.21.11 {
+//? if >=1.21.9 {
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
 //?}
@@ -17,10 +17,10 @@ public abstract class FamilyTreeScreen extends Screen {
     protected boolean onKeyPress(int key) { return false; }
 
     protected void renderWidgets(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
-        //? if >=1.21.11 {
+        //? if >=1.21.6 {
         super.extractRenderState(gfx, mouseX, mouseY, delta);
         //?} else {
-        /*// Screen.render also blurs everything already drawn in 1.21.1.
+        /*// Before 1.21.6, Screen.render also blurs everything already drawn.
         for (var widget : this.children()) {
             if (widget instanceof net.minecraft.client.gui.components.Renderable renderable)
                 renderable.render(gfx, mouseX, mouseY, delta);
@@ -28,7 +28,7 @@ public abstract class FamilyTreeScreen extends Screen {
         *///?}
     }
 
-    //? if >=1.21.11 {
+    //? if >=1.21.9 {
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         return super.mouseClicked(event, doubleClick) || onMouseClick(event.x(), event.y(), event.button(), doubleClick);
     }

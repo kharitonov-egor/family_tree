@@ -6,7 +6,8 @@ plugins {
 def sharedProperties = new Properties()
 file('../gradle.properties').withInputStream { sharedProperties.load(it) }
 def mcVersion = project.findProperty('minecraft') ?: '26.2'
-def neoVersions = ['1.21.1': '21.1.252', '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta']
+def neoVersions = ['1.21.1': '21.1.252', '1.21.4': '21.4.161', '1.21.5': '21.5.101', '1.21.8': '21.8.57', '1.21.10': '21.10.64',
+        '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta']
 if (!neoVersions.containsKey(mcVersion)) throw new GradleException("Unsupported Minecraft version ${mcVersion}")
 def javaVersion = mcVersion.startsWith('1.') ? 21 : 25
 version = "${sharedProperties.mod_version}+${mcVersion}-neoforge"
@@ -30,7 +31,7 @@ neoForge {
 sourceSets.main {
     java.setSrcDirs(["../versions/${mcVersion}/build/generated/stonecutter/main/java",
             "../versions/${mcVersion}/build/generated/stonecutter/client/java",
-            mcVersion == '1.21.1' ? 'src/legacy/java' : 'src/main/java' ])
+            mcVersion in ['1.21.1', '1.21.4', '1.21.5'] ? 'src/legacy/java' : 'src/main/java' ])
     java.exclude '**/fabric/**'
     resources.setSrcDirs(['../src/main/resources', 'src/main/resources'])
     resources.exclude 'fabric.mod.json'
@@ -64,7 +65,8 @@ processResources {
         expand version: project.version, minecraft: mcVersion,
                 neoforge: neoVersions[mcVersion],
                 logoProperty: mcVersion.startsWith('1.') ? 'logoFile' : 'iconFile',
-                neoUpper: ['1.21.1': '21.2', '1.21.11': '21.12', '26.2': '26.3', '26.3': '26.4'][mcVersion]
+                neoUpper: ['1.21.1': '21.2', '1.21.4': '21.5', '1.21.5': '21.6', '1.21.8': '21.9', '1.21.10': '21.11',
+                        '1.21.11': '21.12', '26.2': '26.3', '26.3': '26.4'][mcVersion]
     }
     filesMatching('familytree.mixins.json') { expand 'java': "${javaVersion}" }
 }
