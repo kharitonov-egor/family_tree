@@ -66,12 +66,13 @@ def main():
             if matches:
                 version = matches[0]
                 assert any(file['hashes']['sha512'] == item['sha512'] for file in version['files'])
-                assert version['game_versions'] == [item['minecraft']] and sorted(version['loaders']) == sorted(loaders)
+                assert sorted(version['game_versions']) == sorted(item.get('game_versions', [item['minecraft']]))
+                assert sorted(version['loaders']) == sorted(loaders)
             else:
                 metadata = {'project_id': PROJECT, 'version_number': item['version'],
                     'name': f'Family Tree {manifest["mod_version"]} for {item["minecraft"]} {item["loader"].capitalize()}',
                     'changelog': (ROOT / 'docs/releases' / (manifest['mod_version'] + '.md')).read_text(),
-                    'dependencies': item['dependencies'], 'game_versions': [item['minecraft']],
+                    'dependencies': item['dependencies'], 'game_versions': item.get('game_versions', [item['minecraft']]),
                     'version_type': item['release_type'], 'loaders': loaders,
                     'featured': True, 'file_parts': ['file'], 'primary_file': 'file'}
                 version = api.version(metadata, item['filename'], content)

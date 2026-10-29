@@ -82,8 +82,9 @@ def main():
         content = path.read_bytes()
         assert hashlib.sha512(content).hexdigest() == item['sha512'], 'Release file changed after verification'
         loaders = [LOADERS[item['loader']]] + (['Quilt'] if args.quilt and item['loader'] == 'fabric' else [])
-        versions = [game_version(ids, item['minecraft']), ids[('java', java_for(item['minecraft']))],
-                    ids[('environment', 'Client')], ids[('environment', 'Server')]]
+        versions = [game_version(ids, name) for name in item.get('game_versions', [item['minecraft']])]
+        versions += [ids[('java', java_for(item['minecraft']))], ids[('environment', 'Client')],
+                     ids[('environment', 'Server')]]
         versions += [ids[('modloader', loader)] for loader in loaders]
         metadata = {'changelog': changelog, 'changelogType': 'markdown',
                     'displayName': f'Family Tree {manifest["mod_version"]} for {item["minecraft"]} '
