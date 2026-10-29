@@ -28,6 +28,14 @@ Choose the file that matches both your Minecraft version and mod loader.
 | 1.20.1 | Forge 47.1.0 or newer | 17 or newer | None |
 | 1.21.1 | Fabric | 21 or newer | [Fabric API](https://modrinth.com/mod/fabric-api) for 1.21.1 |
 | 1.21.1 | NeoForge 21.1.252 or newer within 21.1 | 21 or newer | None |
+| 1.21.4 | Fabric | 21 or newer | Fabric API for 1.21.4 |
+| 1.21.4 | NeoForge 21.4.161 or newer within 21.4 | 21 or newer | None |
+| 1.21.5 | Fabric | 21 or newer | Fabric API for 1.21.5 |
+| 1.21.5 | NeoForge 21.5.101 or newer within 21.5 | 21 or newer | None |
+| 1.21.8 | Fabric | 21 or newer | Fabric API for 1.21.8 |
+| 1.21.8 | NeoForge 21.8.57 or newer within 21.8 | 21 or newer | None |
+| 1.21.10 | Fabric | 21 or newer | Fabric API for 1.21.10 |
+| 1.21.10 | NeoForge 21.10.64 or newer within 21.10 | 21 or newer | None |
 | 1.21.11 | Fabric | 21 or newer | Fabric API for 1.21.11 |
 | 1.21.11 | NeoForge 21.11.48 or newer within 21.11 | 21 or newer | None |
 | 26.1.1 | Fabric | 25 or newer | Fabric API for 26.1.1 |
@@ -159,7 +167,7 @@ Existing Family Tree history and custom names remain. Saved records gain one opt
 
 ## Build and test
 
-Install JDK 25, JDK 21, and JDK 17, then use the included Gradle wrapper. The 1.20.1 jars target Java 17 bytecode, and the 1.21.1 and 1.21.11 jars Java 21.
+Install JDK 25, JDK 21, and JDK 17, then use the included Gradle wrapper. The 1.20.1 jars target Java 17 bytecode, and the 1.21.x jars Java 21.
 
 ```sh
 ./gradlew buildAll
@@ -169,7 +177,7 @@ Install JDK 25, JDK 21, and JDK 17, then use the included Gradle wrapper. The 1.
 ./gradlew -p forge build -Pminecraft=1.20.1
 ```
 
-Fabric jars are in `versions/<minecraft>/build/libs/`, NeoForge jars in `neoforge/build/<minecraft>/libs/`, and Forge jars in `forge/build/<minecraft>/libs/`. `buildAll` runs the shared tests for all twelve targets. Stonecutter generates Fabric sources for each version. NeoForge and Forge compile the generated sources for their selected target with their own event and networking entrypoints. Do not edit generated files under `versions/`.
+Fabric jars are in `versions/<minecraft>/build/libs/`, NeoForge jars in `neoforge/build/<minecraft>/libs/`, and Forge jars in `forge/build/<minecraft>/libs/`. `buildAll` runs the shared tests for all twenty targets. Stonecutter generates Fabric sources for each version. NeoForge and Forge compile the generated sources for their selected target with their own event and networking entrypoints. Do not edit generated files under `versions/`.
 
 See [runtime validation](docs/testing.md) for the separate server smoke tests and client demo. [CLAUDE.md](CLAUDE.md) covers the source layout and save compatibility rules.
 
