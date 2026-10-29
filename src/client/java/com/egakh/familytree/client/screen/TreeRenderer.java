@@ -7,6 +7,10 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Function;
+
 public final class TreeRenderer {
     private static final int BG_ALIVE = 0xFF202830;
     private static final int BG_DECEASED = 0xFF1A1A1A;
@@ -18,13 +22,16 @@ public final class TreeRenderer {
     private static final int TEXT_DECEASED = 0xFF888888;
     private static final int TEXT_GENERATION = 0xFFD9B25A;
     private static final int TEXT_GENERATION_DECEASED = 0xFF8A7A4A;
+    private static final int TEXT_STATS = 0xFFDCE6F0;
+    private static final String STATS_SEPARATOR = " \u00B7 ";
     private static final int EDGE_COLOR = 0xFF7C8DA8;
 
     private TreeRenderer() {}
 
     public static void drawNode(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node node,
                                 long currentWorldDay, long currentEpochMillis, boolean isFocus, boolean collapsed,
-                                int generation, double panX, double panY, double zoom) {
+                                int generation, Function<UUID, AnimalRecord> lookup,
+                                double panX, double panY, double zoom) {
         int x = (int) Math.round(node.x * zoom + panX);
         int y = (int) Math.round(node.y * zoom + panY);
         int w = TreeViewport.nodeWidth(zoom);
@@ -73,6 +80,11 @@ public final class TreeRenderer {
             cursorY += lineHeight;
         }
 
+        if (FamilyTreeClientSettings.showHorseStats() && HorseStatsText.has(r)) {
+            cursorY = drawStats(gfx, font, HorseStatsText.card(r, lookup), left, cursorY, textWidth, lineHeight,
+                    r.deceased() ? TEXT_DECEASED : TEXT_STATS);
+        }
+
         String tamedBy = buildTamedByLine(r);
         if (!tamedBy.isEmpty()) {
             cursorY = drawWrapped(gfx, font, tamedBy, left, cursorY, textWidth, lineHeight, TEXT_SECONDARY);
@@ -115,6 +127,47 @@ public final class TreeRenderer {
                 left, y + (h - font.lineHeight) / 2, textColor);
         if (collapsed) gfx.text(font, "+", x + w - 10, y + (h - font.lineHeight) / 2, TEXT_GENERATION);
         gfx.disableScissor();
+    }
+
+    static int statsWidth(Font font, List<HorseStatsText.Segment> segments) {
+        int width = 0;
+        for (HorseStatsText.Segment segment : segments) {
+            String marker = HorseStatsText.marker(segment.trend());
+            width += (width == 0 ? 0 : font.width(STATS_SEPARATOR)) + font.width(segment.text())
+                    + (marker.isEmpty() ? 0 : font.width(" " + marker));
+        }
+        return width;
+    }
+
+    /** Lays out stat segments left to right and wraps whole segments to the next line. */
+    static int drawStats(GuiGraphicsExtractor gfx, Font font, List<HorseStatsText.Segment> segments,
+                         int left, int top, int maxWidth, int lineHeight, int color) {
+        String separator = STATS_SEPARATOR;
+        int x = left;
+        int y = top;
+        boolean lineStarted = false;
+        for (HorseStatsText.Segment segment : segments) {
+            String marker = HorseStatsText.marker(segment.trend());
+            int width = font.width(segment.text()) + (marker.isEmpty() ? 0 : font.width(" " + marker));
+            if (lineStarted && x + font.width(separator) + width > left + maxWidth) {
+                x = left;
+                y += lineHeight;
+                lineStarted = false;
+            }
+            if (lineStarted) {
+                gfx.text(font, separator, x, y, color);
+                x += font.width(separator);
+            }
+            gfx.text(font, trimToWidth(font, segment.text(), Math.max(1, left + maxWidth - x)), x, y, color);
+            x += font.width(segment.text());
+            if (!marker.isEmpty()) {
+                x += font.width(" ");
+                gfx.text(font, marker, x, y, HorseStatsText.markerColor(segment.trend()));
+                x += font.width(marker);
+            }
+            lineStarted = true;
+        }
+        return lineStarted ? y + lineHeight : y;
     }
 
     private static String buildDeathLine(AnimalRecord r) {

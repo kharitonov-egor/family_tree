@@ -39,6 +39,8 @@ class PetAccessTest {
         assertEquals(pet.lastSeen(), owned.lastSeen());
         pet.setTreeName("Changed after snapshot");
         assertEquals("Moss the elder", owned.name());
+        pet.setHorseStats(new com.egakh.familytree.data.HorseStats(0.3, 0.9, 28.0, null));
+        assertEquals(pet.horseStats(), PetAccess.forViewer(pet, UUID.randomUUID(), false).horseStats());
         assertEquals(pet.lastSeen(), PetAccess.forViewer(pet, UUID.randomUUID(), true).lastSeen());
     }
 

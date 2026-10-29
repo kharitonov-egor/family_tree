@@ -43,7 +43,7 @@ Install Family Tree on the server for tracking and on your client for the screen
 2. Visit your pets. Family Tree records existing tamed pets as their chunks load. **Find existing pets** also checks the pets currently loaded on the server.
 3. Open a pet's tree, or choose a species to see its combined family trees. Breed pets while the mod is installed to record their children's parents automatically.
 
-The tracker covers tamed cats, wolves, parrots, horses, donkeys, mules, and llamas. Parrots have individual records but cannot breed in vanilla Minecraft. Cat and wolf cards have portraits that match their coat variants.
+The tracker covers tamed cats, wolves, parrots, horses, donkeys, mules, llamas, trader llamas, camels, skeleton horses, and zombie horses. Parrots have individual records but cannot breed in vanilla Minecraft. Cat, wolf, and horse portraits match their coat variants, and horse portraits include markings.
 
 Minecraft does not retain older parentage or birth dates. Newly discovered pets start with an unknown family and the discovery day as their recorded birth day. Select a pet and choose **Add parents** to record a family you remember. The picker searches names, species, and UUIDs. Confirm the two parents before saving. The linking stick and age commands also remain available. Horse and donkey parents can link to a mule.
 
@@ -53,15 +53,29 @@ Search by pet name or species, filter living or deceased pets, and follow genera
 
 **Locate pet** reports coordinates, dimension, and distance in chat. If the pet is unloaded, it reports the last recorded location and day. It does not load chunks or teleport pets.
 
-Death records retain the pet's name, family, death day, and cause when known. Settings let you show or hide generation, age, and birth day. Hide a branch to focus on one part of a large family, then use **Show all** to restore it.
+Death records retain the pet's name, family, death day, and cause when known. Settings let you show or hide generation, age, birth day, and horse stats. Hide a branch to focus on one part of a large family, then use **Show all** to restore it.
 
 ![The pet browser with search, status filters, and Find existing pets](docs/tracked-pets-browser.webp)
+
+## Horse breeding stats
+
+Family Tree records speed, jump height, and health for horses, donkeys, mules, llamas, trader llamas, camels, skeleton horses, and zombie horses. Speed is in blocks per second, jump in blocks, and health in hearts, using the Minecraft Wiki's conversions. Llamas also show their chest slots.
+
+Each card in a tree shows the stats. A green ▲ marks a stat higher than both parents, and a red ▼ marks one lower than both. Select a foal to compare each value with its parents'. In the browser, **Sort** orders pets by speed, jump, or health.
+
+![A horse family exported with speed, jump, and health](docs/horse-breeding-export.png)
+
+An automated scene in Minecraft 26.3. Two tamed horses ate golden carrots, and vanilla AI bred them. Ember's jump is lower than both parents'.
+
+Stats are base values, so potion effects don't change them. Family Tree reads them when it records an animal and again whenever the server loads, unloads, or scans it. Horses recorded by an older version get stats the next time they load.
+
+Minecraft treats every camel as tamed, and skeleton trap horses are tamed without an owner. Family Tree records these animals once a player rides or breeds them, and that player becomes their owner in Family Tree. Their owner in Minecraft stays unchanged, and wild camels nobody rides stay out of the tree.
 
 ## Export a family tree
 
 Click **Export family tree**, then **Open folder** to find the saved PNG. Export saves a PNG under `screenshots/familytree/` in your Minecraft folder. The image includes the whole visible tree at a fixed, readable scale, regardless of your current zoom or pan. Hidden branches stay hidden. Very large trees need to be narrowed down before export.
 
-Exports include pet names, generations, portraits where available, and living or deceased status. They omit player names and coordinates. Nothing uploads automatically.
+Exports include pet names, generations, horse stats, portraits where available, and living or deceased status. They omit player names and coordinates. Nothing uploads automatically.
 
 ![A PNG exported from the example family](docs/family-tree-export.png)
 
@@ -77,7 +91,7 @@ Owners and server operators can locate or edit their pets. Linking two parents r
 
 Existing Family Tree history and custom names remain. This release does not change saved field names or add required save fields. Update the server and clients together because the screen protocol changed. Minecraft world version restrictions still apply, so the 1.21.1 build is for 1.21.1 worlds, not for downgrading a newer world.
 
-[Latest release notes](docs/releases/1.1.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
+[Latest release notes](docs/releases/1.1.0.md) | [Upcoming 1.2.0 notes](docs/releases/1.2.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
 
 ## Build and test
 

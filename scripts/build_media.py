@@ -26,10 +26,30 @@ def encode(pattern, destination, webp=False):
     subprocess.run(command + [str(destination)], check=True)
 
 
+def newest_export(game_directory):
+    exports = list((game_directory / 'screenshots/familytree').glob('*.png'))
+    return max(exports, key=lambda path: path.stat().st_mtime_ns)
+
+
+def horses(game_directory):
+    """Copy the horse breeding scene from `runDemo -Pdemo -Phorses` into docs/."""
+    assert 'golden carrots; AI breeding' in (game_directory / 'demo-result.txt').read_text()
+    shutil.copyfile(newest_export(game_directory), ROOT / 'docs/horse-breeding-export.png')
+    screenshot = Image.open(game_directory / 'screenshots/horses-tree.png')
+    screenshot.save(ROOT / 'docs/horse-breeding-tree.webp', quality=82)
+    for name in ['horse-breeding-export.png', 'horse-breeding-tree.webp']:
+        path = ROOT / 'docs' / name
+        print(path.name, path.stat().st_size, 'bytes')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--game-directory', type=Path, default=ROOT / 'build/demo-26.2')
+    parser.add_argument('--horses', type=Path, help='Package only the horse scene from this game directory')
     args = parser.parse_args()
+    if args.horses:
+        horses(args.horses)
+        return
     assert 'vanilla feeding; AI breeding' in (args.game_directory / 'demo-result.txt').read_text()
     frames = sorted((args.game_directory / 'screenshots').glob('gameplay-[0-9]*.png'))
     assert len(frames) >= 95, 'Gameplay capture is incomplete'
@@ -59,9 +79,7 @@ def main():
     encode(landscape / '%04d.png', ROOT / 'docs/family-tree-gameplay.mp4')
     encode(landscape / '%04d.png', ROOT / 'docs/family-tree-gameplay.webp', webp=True)
     encode(vertical / '%04d.png', ROOT / 'docs/family-tree-gameplay-vertical.mp4')
-    exports = list((args.game_directory / 'screenshots/familytree').glob('*.png'))
-    newest = max(exports, key=lambda path: path.stat().st_mtime_ns)
-    shutil.copyfile(newest, ROOT / 'docs/family-tree-gameplay-export.png')
+    shutil.copyfile(newest_export(args.game_directory), ROOT / 'docs/family-tree-gameplay-export.png')
     screenshot = Image.open(args.game_directory / 'screenshots/gameplay-tree.png')
     screenshot.save(ROOT / 'docs/family-tree-gameplay-view.webp', quality=82)
     screenshot = Image.open(ROOT / 'build/demo-26.2/screenshots/parent-links.png')

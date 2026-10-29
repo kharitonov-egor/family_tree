@@ -2,6 +2,7 @@ package com.egakh.familytree.network;
 
 import com.egakh.familytree.client.SnapshotAssembler;
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.data.HorseStats;
 import io.netty.buffer.Unpooled;
 import com.egakh.familytree.network.payloads.SnapshotPagePayload;
 import net.minecraft.network.FriendlyByteBuf;
@@ -21,8 +22,36 @@ class SnapshotPagesTest {
         UUID request = UUID.randomUUID();
         var pages = SnapshotPages.split(request, records, 5, 100, true, true, false);
         assertTrue(pages.size() > 1);
+        assertEquals(10_000, sendAndAssemble(request, pages).size());
+    }
+
+    @Test void horseStatsArriveWithEveryRecordAndPagesStayWithinTheByteBudget() {
+        List<AnimalRecord> records = new ArrayList<>();
+        for (int i = 0; i < 10_000; i++) {
+            var horse = new AnimalRecord(new UUID(0, i), i % 2 == 0 ? "minecraft:horse" : "minecraft:llama",
+                    "Comet " + i + " \u99AC".repeat(20), false, new UUID(1, i), new UUID(2, i), 0, 0,
+                    false, null, null, new UUID(3, i), "Owner", "dark_brown/white_dots",
+                    new AnimalRecord.LastSeen(1, 64, 2, "minecraft:overworld", 5),
+                    new AnimalRecord.DeathCause("Zombie", "mob"));
+            horse.setTreeName("Comet the " + i + " \u99AC".repeat(20));
+            horse.setHorseStats(new HorseStats(0.1125 + i * 1e-6, 0.4 + i * 1e-6, 15.0 + i * 1e-3, i % 2 == 0 ? null : 1 + i % 5));
+            records.add(horse);
+        }
+        UUID request = UUID.randomUUID();
+        var pages = SnapshotPages.split(request, records, 5, 100, true, true, true);
+        assertTrue(pages.size() > 1);
+        var received = sendAndAssemble(request, pages);
+        assertEquals(10_000, received.size());
+        for (int i = 0; i < received.size(); i++) {
+            assertEquals(records.get(i).id(), received.get(i).id());
+            assertEquals(records.get(i).horseStats(), received.get(i).horseStats());
+        }
+    }
+
+    private static List<AnimalRecord> sendAndAssemble(UUID request, List<SnapshotPagePayload> pages) {
         var assembler = new SnapshotAssembler();
         assembler.begin(request);
+        List<AnimalRecord> received = null;
         for (int i = 0; i < pages.size(); i++) {
             var page = pages.get(i);
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
@@ -33,9 +62,10 @@ class SnapshotPagesTest {
                 assertEquals(0, buf.readableBytes());
             } finally { buf.release(); }
             var result = assembler.accept(page);
-            if (i == pages.size() - 1) assertEquals(10_000, result.orElseThrow().records().size());
+            if (i == pages.size() - 1) received = result.orElseThrow().records();
             else assertTrue(result.isEmpty());
         }
+        return received;
     }
 
     @Test void ignoresOldRequestsAndRejectsOutOfOrderPages() {

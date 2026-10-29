@@ -2,6 +2,7 @@ package com.egakh.familytree.client.screen;
 
 import com.egakh.familytree.client.export.TreeImageExporter;
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.util.HorseStatUnits.Trend;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import javax.imageio.ImageIO;
@@ -29,11 +30,12 @@ class TreeImageExporterTest {
         var tree = TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, children);
         var picture = TreeImageExporter.prepare(tree, "Moss's family", "Family Tree",
                 p -> "Generation " + (p == clover ? 3 : p == willow ? 2 : 1),
-                p -> p.deceased() ? "Remembered | died on day 82" : "Alive", p -> null);
+                p -> p.deceased() ? "Remembered | died on day 82" : "Alive", p -> null, p -> List.of(), null);
         assertEquals(5, picture.cards().size());
         assertEquals(4, picture.lines().size());
         assertTrue(picture.height() > 900);
         assertTrue(picture.cards().stream().noneMatch(c -> c.detail().contains("PRIVATE OWNER")));
+        assertNull(picture.legend());
         willow.setTreeName("Changed after export started");
         assertTrue(picture.cards().stream().anyMatch(c -> c.name().equals("Willow")));
         Path file = TreeImageExporter.save(picture, directory.resolve("images"));
@@ -48,6 +50,35 @@ class TreeImageExporterTest {
         assertNotEquals(file, second);
     }
 
+    @Test void horseCardsCarryStatsAndDrawMarkersForFoalsThatBeatOrTrailBothParents() throws Exception {
+        Map<UUID, AnimalRecord> records = new LinkedHashMap<>();
+        AnimalRecord comet = pet("Comet", null, null), dusk = pet("Dusk", null, null), ember = pet("Ember", comet, dusk);
+        for (AnimalRecord horse : List.of(comet, dusk, ember)) records.put(horse.id(), horse);
+        Map<UUID, List<UUID>> children = Map.of(comet.id(), List.of(ember.id()), dusk.id(), List.of(ember.id()));
+        var tree = TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, children);
+        var stats = List.of(new HorseStatsText.Segment("14.6 b/s", Trend.BEATS_BOTH),
+                new HorseStatsText.Segment("3.12 jump", Trend.TRAILS_BOTH),
+                new HorseStatsText.Segment("11.0 \u2665", Trend.BETWEEN));
+        var picture = TreeImageExporter.prepare(tree, "Comet's family", "Family Tree",
+                p -> "Gen 1", p -> "Alive", p -> null, p -> p == ember ? stats : List.of(),
+                new TreeImageExporter.Legend("higher than both parents", "lower than both parents"));
+        assertNotNull(picture.legend());
+        var foal = picture.cards().stream().filter(card -> card.name().equals("Ember")).findFirst().orElseThrow();
+        assertEquals(stats, foal.stats());
+        assertTrue(picture.cards().stream().filter(card -> card != foal).allMatch(card -> card.stats().isEmpty()));
+        var image = ImageIO.read(TreeImageExporter.save(picture, directory.resolve("horses")).toFile());
+        assertTrue(contains(image, foal, 0x6FD26F), "Missing the higher-than-both-parents marker");
+        assertTrue(contains(image, foal, 0xE86B6B), "Missing the lower-than-both-parents marker");
+    }
+
+    private static boolean contains(java.awt.image.BufferedImage image, TreeImageExporter.Card card, int rgb) {
+        int scale = TreeImageExporter.SCALE;
+        for (int x = (int) card.x() * scale; x < (card.x() + TreeLayout.NODE_WIDTH) * scale; x++)
+            for (int y = (int) card.y() * scale; y < (card.y() + TreeLayout.NODE_HEIGHT) * scale; y++)
+                if ((image.getRGB(x, y) & 0xFFFFFF) == rgb) return true;
+        return false;
+    }
+
     @Test void refusesOversizedTreesBeforeAllocatingTheImage() {
         var tree = new TreeLayout.Result();
         AnimalRecord pet = pet("Very large tree", null, null);
@@ -55,7 +86,7 @@ class TreeImageExporterTest {
         tree.maxX = 100_000;
         tree.maxY = 100_000;
         assertThrows(IllegalArgumentException.class, () -> TreeImageExporter.prepare(tree, "Tree", "",
-                p -> "", p -> "", p -> null));
+                p -> "", p -> "", p -> null, p -> List.of(), null));
     }
 
     private static AnimalRecord pet(String name, AnimalRecord a, AnimalRecord b) {

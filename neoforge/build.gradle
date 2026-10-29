@@ -85,6 +85,8 @@ if (project.hasProperty('demo')) {
                 client()
                 sourceSet = sourceSets.demo
                 gameDirectory = file("../build/demo-neoforge-${mcVersion}")
+                systemProperty 'familytree.demo.gameplay', project.hasProperty('gameplay').toString()
+                systemProperty 'familytree.demo.horses', project.hasProperty('horses').toString()
                 programArguments.addAll '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
                 if (mcVersion == '26.3' && project.hasProperty('graphicsBackend')) programArguments.addAll '--graphicsBackend', project.property('graphicsBackend')
             }

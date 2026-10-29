@@ -7,7 +7,7 @@ Names match either the original pet name or its custom tree name, without regard
 | `/familytree list` | List pets you may view. |
 | `/familytree scan` | Discover loaded tamed pets and refresh existing records. Report counts for pets you may view. |
 | `/familytree locate <name>` | Locate your pet, or show its last known position. List every pet with that name you may manage. |
-| `/familytree info <name>` | Show a visible pet's history and known parents. |
+| `/familytree info <name>` | Show a visible pet's history, known parents, and horse stats. |
 | `/familytree pair <parentA> <parentB> <child>` | Link distinct pets of the same species, or horse and donkey parents for a mule. Requires permission for all three animals. |
 | `/familytree unpair <child>` | Clear the child's parents. |
 | `/familytree setage <name> <days>` | Set age in world days. |

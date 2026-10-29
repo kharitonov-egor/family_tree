@@ -9,6 +9,7 @@ import com.egakh.familytree.client.export.PetPortraits;
 import com.egakh.familytree.permissions.PetAccess;
 import java.util.concurrent.CompletableFuture;
 import com.egakh.familytree.client.platform.ClientTransport;
+import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.util.Genealogy;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -55,6 +56,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     private boolean dragging = false;
     private double lastMouseX;
     private double lastMouseY;
+    private int statsLeft, statsTop, statsRight, statsBottom;
 
     public FamilyTreeViewScreen(Screen parent, FamilyTreeSnapshotPayload snapshot, UUID focusId) {
         super(Component.translatable("familytree.screen.view.title",
@@ -189,8 +191,14 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         return x >= 0 && x < this.width && y >= CANVAS_TOP && y < canvasBottom();
     }
 
+    /** Fitting and centering keep cards above the stats panel. */
+    private int treeBottom() {
+        int panel = statsPanelHeight();
+        return panel == 0 ? canvasBottom() : canvasBottom() - panel - 6;
+    }
+
     private void fitTree() {
-        if (tree != null) viewport.fit(tree, this.width, CANVAS_TOP, canvasBottom());
+        if (tree != null) viewport.fit(tree, this.width, CANVAS_TOP, treeBottom());
     }
 
     private void centerSelected() {
@@ -198,7 +206,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         if (selected == null) return;
         viewport.zoom = Math.max(1.0, viewport.zoom);
         viewport.center(selected.x + TreeLayout.NODE_WIDTH / 2.0,
-                selected.y + TreeLayout.NODE_HEIGHT / 2.0, this.width, CANVAS_TOP, canvasBottom());
+                selected.y + TreeLayout.NODE_HEIGHT / 2.0, this.width, CANVAS_TOP, treeBottom());
     }
 
     private void toggleBranch() {
@@ -262,7 +270,10 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                     pet -> pet.deceased()
                             ? Component.translatable("familytree.export.remembered", pet.deathWorldDay() == null ? "?" : pet.deathWorldDay()).getString()
                             : Component.translatable("familytree.screen.status.alive").getString(),
-                    pet -> portraits.computeIfAbsent(pet.speciesId() + "|" + pet.variantId(), key -> PetPortraits.read(pet)));
+                    pet -> portraits.computeIfAbsent(pet.speciesId() + "|" + pet.variantId(), key -> PetPortraits.read(pet)),
+                    pet -> FamilyTreeClientSettings.showHorseStats() ? HorseStatsText.card(pet, records::get) : List.of(),
+                    new TreeImageExporter.Legend(Component.translatable("familytree.export.legend.higher").getString(),
+                            Component.translatable("familytree.export.legend.lower").getString()));
         } catch (IllegalArgumentException tooLarge) {
             exportStatus = Component.translatable("familytree.export.too_large");
             return;
@@ -303,9 +314,10 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                 TreeRenderer.drawNode(gfx, this.font, n,
                         snapshot.currentWorldDay(), snapshot.currentEpochMillis(),
                         n.id.equals(selectedId), collapsed.contains(n.id), generations.getOrDefault(n.id, 0),
-                        viewport.panX, viewport.panY, viewport.zoom);
+                        records::get, viewport.panX, viewport.panY, viewport.zoom);
             }
         }
+        drawStatsPanel(gfx);
         gfx.disableScissor();
         gfx.fill(0, 0, this.width, CANVAS_TOP, 0xFF151A21);
         gfx.fill(0, canvasBottom(), this.width, this.height, 0xFF151A21);
@@ -325,10 +337,108 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         renderWidgets(gfx, mouseX, mouseY, delta);
     }
 
+    private AnimalRecord statsSubject() {
+        AnimalRecord selected = records.get(selectedId);
+        boolean shown = FamilyTreeClientSettings.showHorseStats() && tree != null && tree.byId.containsKey(selectedId)
+                && HorseStatsText.has(selected) && !HorseStatsText.details(selected, records::get).isEmpty();
+        return shown ? selected : null;
+    }
+
+    private int fullStatsRows(AnimalRecord pet) {
+        List<HorseStatsText.DetailLine> lines = HorseStatsText.details(pet, records::get);
+        boolean marked = lines.stream().anyMatch(line -> !HorseStatsText.marker(line.trend()).isEmpty());
+        return 1 + lines.size() + (marked ? 1 : 0);
+    }
+
+    /** Short canvases, such as GUI scale 4 in a small window, get a one-line summary instead of the full panel. */
+    private boolean compactStats(AnimalRecord pet) {
+        return fullStatsRows(pet) * (this.font.lineHeight + 2) * 3 > canvasBottom() - CANVAS_TOP;
+    }
+
+    private int statsPanelHeight() {
+        AnimalRecord pet = statsSubject();
+        if (pet == null) return 0;
+        int lineHeight = this.font.lineHeight + 2;
+        if (!compactStats(pet)) return fullStatsRows(pet) * lineHeight + 8;
+        int width = this.font.width(pet.name() + ": ") + TreeRenderer.statsWidth(this.font, HorseStatsText.card(pet, records::get));
+        return (width <= this.width - 28 ? 1 : 2) * lineHeight + 8;
+    }
+
+    private void drawStatsPanel(GuiGraphicsExtractor gfx) {
+        statsRight = statsLeft;
+        AnimalRecord selected = statsSubject();
+        if (selected == null) return;
+        int lineHeight = this.font.lineHeight + 2;
+        int maxWidth = Math.max(80, this.width - 16);
+        statsLeft = 8;
+        statsBottom = canvasBottom() - 6;
+        statsTop = Math.max(CANVAS_TOP + 4, statsBottom - statsPanelHeight());
+        if (compactStats(selected)) {
+            String name = selected.name() + ": ";
+            var segments = HorseStatsText.card(selected, records::get);
+            int nameWidth = Math.min(this.font.width(name), maxWidth / 3);
+            statsRight = Math.min(statsLeft + maxWidth,
+                    statsLeft + 12 + nameWidth + TreeRenderer.statsWidth(this.font, segments));
+            gfx.fill(statsLeft, statsTop, statsRight, statsBottom, 0xE8151A21);
+            gfx.fill(statsLeft, statsTop, statsRight, statsTop + 1, 0xFF6FB3FF);
+            gfx.text(this.font, this.font.plainSubstrByWidth(name, nameWidth), statsLeft + 6, statsTop + 5, 0xFFFFD24A);
+            TreeRenderer.drawStats(gfx, this.font, segments, statsLeft + 6 + nameWidth, statsTop + 5,
+                    statsRight - statsLeft - 12 - nameWidth, lineHeight, 0xFFFFFFFF);
+            return;
+        }
+        List<HorseStatsText.DetailLine> lines = HorseStatsText.details(selected, records::get);
+        String title = Component.translatable("familytree.stats.title", selected.name()).getString();
+        boolean marked = lines.stream().anyMatch(line -> !HorseStatsText.marker(line.trend()).isEmpty());
+        Component legendText = Component.translatable("familytree.stats.legend",
+                Component.literal(HorseStatsText.BEATS_MARKER).withStyle(style ->
+                        style.withColor(net.minecraft.network.chat.TextColor.fromRgb(HorseStatsText.BEATS_COLOR & 0xFFFFFF))),
+                Component.literal(HorseStatsText.TRAILS_MARKER).withStyle(style ->
+                        style.withColor(net.minecraft.network.chat.TextColor.fromRgb(HorseStatsText.TRAILS_COLOR & 0xFFFFFF))));
+        String legend = legendText.getString();
+        int contentWidth = Math.min(maxWidth - 12, Math.max(this.font.width(title), marked ? this.font.width(legend) : 0));
+        for (HorseStatsText.DetailLine line : lines) contentWidth = Math.min(maxWidth - 12,
+                Math.max(contentWidth, detailWidth(line)));
+        statsRight = statsLeft + contentWidth + 12;
+        gfx.fill(statsLeft, statsTop, statsRight, statsBottom, 0xE8151A21);
+        gfx.fill(statsLeft, statsTop, statsRight, statsTop + 1, 0xFF6FB3FF);
+        int x = statsLeft + 6;
+        int y = statsTop + 5;
+        gfx.text(this.font, this.font.plainSubstrByWidth(title, contentWidth), x, y, 0xFFFFD24A);
+        for (HorseStatsText.DetailLine line : lines) {
+            y += lineHeight;
+            int cursor = x;
+            gfx.text(this.font, this.font.plainSubstrByWidth(line.text(), contentWidth), cursor, y, 0xFFFFFFFF);
+            cursor += this.font.width(line.text());
+            String marker = HorseStatsText.marker(line.trend());
+            if (!marker.isEmpty()) {
+                gfx.text(this.font, marker, cursor + 4, y, HorseStatsText.markerColor(line.trend()));
+                cursor += 4 + this.font.width(marker);
+            }
+            if (!line.parents().isEmpty() && cursor + 8 < x + contentWidth)
+                gfx.text(this.font, this.font.plainSubstrByWidth(line.parents(), x + contentWidth - cursor - 8),
+                        cursor + 8, y, 0xFFB0B7C0);
+        }
+        y += lineHeight;
+        if (marked) {
+            if (this.font.width(legendText) <= contentWidth) gfx.text(this.font, legendText, x, y, 0xFFB0B7C0);
+            else gfx.text(this.font, this.font.plainSubstrByWidth(legend, contentWidth), x, y, 0xFFB0B7C0);
+        }
+    }
+
+    private int detailWidth(HorseStatsText.DetailLine line) {
+        String marker = HorseStatsText.marker(line.trend());
+        return this.font.width(line.text()) + (marker.isEmpty() ? 0 : 4 + this.font.width(marker))
+                + (line.parents().isEmpty() ? 0 : 8 + this.font.width(line.parents()));
+    }
+
+    private boolean inStatsPanel(double x, double y) {
+        return statsRight > statsLeft && x >= statsLeft && x < statsRight && y >= statsTop && y < statsBottom;
+    }
+
     @Override
     protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
         if (button != 0 || !inCanvas(mouseX, mouseY)) return false;
-        TreeLayout.Node hit = findNodeAt(mouseX, mouseY);
+        TreeLayout.Node hit = inStatsPanel(mouseX, mouseY) ? null : findNodeAt(mouseX, mouseY);
         if (hit != null) {
             boolean openTree = doubleClick && hit.id.equals(selectedId);
             selectedId = hit.id;

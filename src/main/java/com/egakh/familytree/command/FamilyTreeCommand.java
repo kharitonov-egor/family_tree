@@ -2,9 +2,11 @@ package com.egakh.familytree.command;
 
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
+import com.egakh.familytree.data.HorseStats;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.util.Genealogy;
+import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.TimeUtil;
 import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.network.FamilyTreePackets;
@@ -130,6 +132,14 @@ public final class FamilyTreeCommand {
         }
         int generation = Genealogy.generationOf(match.id(), byId);
         source.sendSuccess(() -> Component.translatable("familytree.command.info.generation", generation), false);
+        HorseStats stats = match.horseStats();
+        if (stats != null) {
+            source.sendSuccess(() -> Component.translatable("familytree.command.info.horse_stats",
+                    HorseStatUnits.Stat.SPEED.display(stats), HorseStatUnits.Stat.JUMP.display(stats),
+                    HorseStatUnits.Stat.HEALTH.display(stats)), false);
+            if (stats.strength() != null) source.sendSuccess(() -> Component.translatable(
+                    "familytree.command.info.llama_strength", stats.strength(), HorseStatUnits.chestSlots(stats.strength())), false);
+        }
 
         if (match.parentA() != null) {
             AnimalRecord pa = state.get(match.parentA());
@@ -175,7 +185,7 @@ public final class FamilyTreeCommand {
         for (ServerLevel level : source.getServer().getAllLevels()) {
             live = level.getEntity(pet.id());
             if (live != null) {
-                PetLifecycleListeners.stampPosition(level, state, live);
+                PetLifecycleListeners.stampLastSeen(level, state, live);
                 break;
             }
         }

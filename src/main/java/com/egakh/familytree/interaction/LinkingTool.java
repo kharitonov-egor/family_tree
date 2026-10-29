@@ -51,13 +51,13 @@ public final class LinkingTool {
             return InteractionResult.PASS;
         }
 
-        if (!PetFilter.isTrackable(entity)) {
-            sp.sendSystemMessage(Component.translatable("familytree.tool.not_tamed"));
-            return InteractionResult.SUCCESS_SERVER;
-        }
-
         FamilyTreeState state = FamilyTreeState.get(level);
         if (state.readOnly()) return InteractionResult.SUCCESS_SERVER;
+        if (!PetFilter.isTrackable(entity) && !state.contains(entity.getUUID())) {
+            sp.sendSystemMessage(Component.translatable(PetFilter.isUnclaimedMount(entity)
+                    ? "familytree.tool.ride_first" : "familytree.tool.not_tamed"));
+            return InteractionResult.SUCCESS_SERVER;
+        }
         PetLifecycleListeners.ensureRecord(level, state, entity);
         AnimalRecord record = state.get(entity.getUUID());
         if (record == null) {

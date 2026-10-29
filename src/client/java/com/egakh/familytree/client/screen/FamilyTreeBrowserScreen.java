@@ -6,6 +6,7 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import com.egakh.familytree.network.payloads.DiscoverPetsRequest;
 import com.egakh.familytree.client.platform.ClientTransport;
+import com.egakh.familytree.util.HorseStatUnits.Stat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -40,6 +41,10 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
 
     private enum Filter { ALL, ALIVE, DECEASED }
     private Filter filter = Filter.ALL;
+
+    private static final Stat[] SORTS = {null, Stat.SPEED, Stat.JUMP, Stat.HEALTH};
+    private int sort = 0;
+    private Button sortButton;
 
     private int scroll = 0;
     private static final int ROW_HEIGHT = 42;
@@ -93,6 +98,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         this.snapshot = payload;
         discoveryTicks = 0;
         this.viewingAll = payload.viewingAll();
+        refreshSortButton();
         recompute();
         refreshSpeciesButtons();
         refreshScopeButton();
@@ -166,8 +172,33 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
                 minecraft.setScreen(new FamilyTreeHelpScreen(this))).bounds(16, scopeY + 24, 110, 18).build());
         addRenderableWidget(Button.builder(Component.translatable("familytree.refresh"), button ->
                 FamilyTreeClient.requestSnapshot(viewingAll)).bounds(130, scopeY + 24, 78, 18).build());
+        sortButton = addRenderableWidget(Button.builder(sortLabel(), button -> {
+            sort = (sort + 1) % SORTS.length;
+            button.setMessage(sortLabel());
+            scroll = 0;
+            recompute();
+        }).bounds(212, scopeY + 24, 104, 18).build());
+        refreshSortButton();
         refreshSpeciesButtons();
         refreshScopeButton();
+    }
+
+    private Component sortLabel() {
+        Stat stat = SORTS[sort];
+        return Component.translatable("familytree.screen.sort",
+                stat == null ? Component.translatable("familytree.screen.sort.name").getString() : HorseStatsText.sortValueLabel(stat));
+    }
+
+    private void refreshSortButton() {
+        if (sortButton == null) return;
+        boolean available = snapshot != null && FamilyTreeClientSettings.showHorseStats()
+                && snapshot.records().stream().anyMatch(HorseStatsText::has);
+        sortButton.visible = available;
+        sortButton.active = available;
+        if (!available && sort != 0) {
+            sort = 0;
+            sortButton.setMessage(sortLabel());
+        }
     }
 
     private void recompute() {
@@ -188,7 +219,10 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
             filterAlive.active = filter != Filter.ALIVE;
             filterDeceased.active = filter != Filter.DECEASED;
         }
-        filtered.sort(Comparator.comparing(AnimalRecord::name, String.CASE_INSENSITIVE_ORDER));
+        Comparator<AnimalRecord> byName = Comparator.comparing(AnimalRecord::name, String.CASE_INSENSITIVE_ORDER);
+        Stat stat = SORTS[sort];
+        filtered.sort(stat == null ? byName : Comparator.comparing((AnimalRecord pet) -> stat.value(pet.horseStats()),
+                Comparator.nullsLast(Comparator.reverseOrder())).thenComparing(byName));
         scroll = Math.min(scroll, Math.max(0, filtered.size() * ROW_HEIGHT - (this.height - 16 - getListTop())));
     }
 
@@ -476,9 +510,12 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
     }
 
     private String buildSubtitle(AnimalRecord r) {
-        String species = capitalize(shortSpecies(r.speciesId()));
+        String subtitle = capitalize(shortSpecies(r.speciesId()));
+        if (FamilyTreeClientSettings.showHorseStats() && HorseStatsText.has(r)) {
+            for (HorseStatsText.Segment segment : HorseStatsText.card(r, id -> null)) subtitle += "  ·  " + segment.text();
+        }
         String tamedBy = buildTamedByLine(r);
-        return tamedBy.isEmpty() ? species : species + "  ·  " + tamedBy;
+        return tamedBy.isEmpty() ? subtitle : subtitle + "  ·  " + tamedBy;
     }
 
     private static String capitalize(String value) {

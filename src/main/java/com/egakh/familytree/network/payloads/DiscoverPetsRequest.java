@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public record DiscoverPetsRequest(UUID requestId, boolean requestAll) implements CustomPacketPayload {
     public DiscoverPetsRequest(boolean requestAll) { this(UUID.randomUUID(), requestAll); }
-    public static final Type<DiscoverPetsRequest> TYPE = new Type<>(Identifier.fromNamespaceAndPath("familytree", "discover_v2"));
+    public static final Type<DiscoverPetsRequest> TYPE = new Type<>(Identifier.fromNamespaceAndPath("familytree", "discover_v3"));
     public static final StreamCodec<RegistryFriendlyByteBuf, DiscoverPetsRequest> STREAM_CODEC =
             StreamCodec.composite(UUIDUtil.STREAM_CODEC, DiscoverPetsRequest::requestId,
                     ByteBufCodecs.BOOL, DiscoverPetsRequest::requestAll, DiscoverPetsRequest::new);

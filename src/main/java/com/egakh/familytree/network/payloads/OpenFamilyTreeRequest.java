@@ -11,7 +11,7 @@ import java.util.UUID;
 public record OpenFamilyTreeRequest(UUID requestId, boolean requestAll) implements CustomPacketPayload {
     public OpenFamilyTreeRequest(boolean requestAll) { this(UUID.randomUUID(), requestAll); }
     public static final Type<OpenFamilyTreeRequest> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("familytree", "open_request_v3"));
+            new Type<>(Identifier.fromNamespaceAndPath("familytree", "open_request_v4"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, OpenFamilyTreeRequest> STREAM_CODEC =
             StreamCodec.composite(
