@@ -21,7 +21,7 @@ import java.util.function.Consumer;
 
 /** One Forge channel per payload, so 1.20.1 uses the same channel names as the other loaders. */
 final class ForgeNetwork {
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
     private static final Map<ResourceLocation, EventNetworkChannel> CHANNELS = new HashMap<>();
 
     private ForgeNetwork() {}

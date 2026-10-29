@@ -1,6 +1,6 @@
 # Keep your first wolf in the family tree after it's gone
 
-Family Tree records your Minecraft pets, their parents, and their descendants. Keep deceased pets in the family, find a missing pet's last known location, and export a tree as a PNG.
+Family Tree records your Minecraft pets and the animals you breed, with their parents and descendants. Keep deceased pets in the family, find a missing pet's last known location, and export a tree as a PNG.
 
 Install the matching file in singleplayer and press **H**. On a server, install Family Tree on the server for tracking and on your client for the screens. Use the same mod version on both sides. Players without the client mod can still use `/familytree`; see below. Fabric builds also need Fabric API and Fabric Loader 0.19.3 or newer. They run on Quilt Loader 0.30.1 or newer too, with Fabric API.
 
@@ -28,15 +28,27 @@ An automated scene in Minecraft 26.3. Two tamed horses ate golden carrots, and v
 
 Stats cover horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Speed is in blocks per second, jump in blocks, and health in hearts. Llamas also show chest slots.
 
+## Every animal you breed
+
+Breed cows, sheep, pigs, chickens, rabbits, goats, foxes, axolotls, frogs, bees, turtles, pandas, ocelots, hoglins, striders, sniffers, armadillos, or breedable animals from other mods, and the baby joins the tree with both parents. A name tag or the linking stick adds any other animal. Wild animals stay out until a player breeds, names, or adds them.
+
+Cards and exports show each animal's variant: wool color, axolotl, mooshroom, frog, and llama colors, panda genes, rabbit and fox types, and cow, pig, and chicken variants on 1.21.5 and newer. A gold ★ marks a blue axolotl, a brown mooshroom, or a brown panda. Select a baby to see how it got its variant, such as two wool colors mixing or a panda showing a gene its parents carried hidden.
+
+![A pink lamb and its red and white parents exported as a PNG](https://raw.githubusercontent.com/kharitonov-egor/family_tree/main/docs/sheep-family-export.png)
+
+An automated scene in Minecraft 26.3. Two sheep named with name tags ate wheat, and vanilla AI bred a pink lamb.
+
+Servers choose which animals join in `config/familytree-server.properties` and can cap unnamed farm animals at a limit, 5,000 by default. Pets and named animals are always recorded. Cleanup of old unnamed farm animals is off unless the server turns it on, and it saves a backup first.
+
 ## Start with the pets already in your world
 
 Visit your pets or choose **Find existing pets** to check loaded tamed animals. Older parents are unknown because Minecraft does not retain them. Open a pet, select it, and choose **Add parents** to record a family you remember. Breed pets while the mod is installed to record new children's parents automatically.
 
-The tracker covers tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Camels and skeleton trap horses join once a player rides or breeds them. Parrots have individual records and cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule. On 1.21.11, tamed nautiluses and zombie nautiluses are recorded too.
+Pets join on their own: tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses, plus tamed nautiluses and zombie nautiluses on 1.21.11 and newer. Camels and skeleton trap horses join once a player rides or breeds them. Parrots have individual records and cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule.
 
 ## Browse, find, and share
 
-Search by pet name or species, filter living or deceased pets, and open one pet's tree or a whole species. Cat, wolf, and horse portraits match their coats. Wolves in 1.20.1 have one coat. Tree names leave the animal's name tag unchanged. Use **Refresh** to load births and edits that happened while the screen was open.
+Search by name, species, or variant, filter living or deceased animals, and open one animal's tree or a whole species. Tabs separate pets, farm animals, wildlife, and modded animals once you have more than one kind. Portraits show each animal's in-game model, so they match coats and wool colors. Wolves in 1.20.1 have one coat. Tree names leave the animal's name tag unchanged. Use **Refresh** to load births and edits that happened while the screen was open.
 
 **Locate pet** reports coordinates and dimension in chat. Unloaded pets show their last recorded location and day. The mod does not load chunks or teleport pets.
 
@@ -78,4 +90,4 @@ Each new 1.2.0 build ran in a real game instance before release: Fabric and Forg
 
 Try a short demo: tame two wolves, breed them, press **H**, open the puppy's tree, and export it. [Download the landscape clip](https://github.com/kharitonov-egor/family_tree/releases/download/v1.1.0/family-tree-gameplay.mp4) or [vertical clip](https://github.com/kharitonov-egor/family_tree/releases/download/v1.1.0/family-tree-gameplay-vertical.mp4). Both show an automated scene with actual vanilla breeding.
 
-Compatibility with modded animal species or changed animal models has not been tested. For a pack trial, check breeding, saved history after a restart, ownership permissions, and client export in a disposable world.
+Naturalist 2.0.7 on NeoForge 1.21.1 was tested: bred deer joined the tree with both parents, and their portraits rendered. Other animal mods have not been tested. For a pack trial, check breeding, saved history after a restart, ownership permissions, and client export in a disposable world.

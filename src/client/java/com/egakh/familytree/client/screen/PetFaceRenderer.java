@@ -1,6 +1,9 @@
 package com.egakh.familytree.client.screen;
 
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.util.AnimalCategory;
+import com.egakh.familytree.util.EntityVariants;
+import com.egakh.familytree.util.PetFilter;
 import com.egakh.familytree.mixin.CatVariantInvoker;
 import com.egakh.familytree.mixin.HorseVariantInvoker;
 import com.egakh.familytree.mixin.LlamaVariantInvoker;
@@ -39,17 +42,13 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 public final class PetFaceRenderer {
     // Tunable framing for the in-GUI 3D model. SCALE_FACTOR sizes the model to the
     // avatar box; raising it zooms in toward the head.
     private static final float SCALE_FACTOR = 1.3f;
-    // Mounts are much larger than cats and wolves, so they are fitted by their largest dimension.
-    private static final float MOUNT_FILL = 0.7f;
-    private static final Set<String> MOUNTS = Set.of("minecraft:horse", "minecraft:donkey", "minecraft:mule",
-            "minecraft:llama", "minecraft:trader_llama", "minecraft:camel", "minecraft:camel_husk",
-            "minecraft:skeleton_horse", "minecraft:zombie_horse");
+    // Other species range from bees to sniffers, so they are fitted by their largest dimension.
+    private static final float BODY_FILL = 0.7f;
 
     private static final Map<String, LivingEntity> CACHE = new HashMap<>();
     private static ClientLevel cachedLevel;
@@ -59,7 +58,13 @@ public final class PetFaceRenderer {
     public static void clearCache() { CACHE.clear(); cachedLevel = null; }
 
     public static boolean hasFace(AnimalRecord record) {
-        return isCat(record) || isWolf(record) || MOUNTS.contains(record.speciesId());
+        return entityFor(record) != null;
+    }
+
+    /** Classifies modded species by creating one preview entity, so the browser can tell modded pets apart. */
+    public static AnimalCategory category(String speciesId) {
+        if (!speciesId.startsWith("minecraft:")) entityFor(speciesId, null);
+        return AnimalCategory.of(speciesId);
     }
 
     public static void drawFace(GuiGraphicsExtractor gfx, Font font, AnimalRecord record, int x, int y, int size) {
@@ -76,14 +81,14 @@ public final class PetFaceRenderer {
         int y1 = y + size;
         float centerX = x + size / 2f;
         float centerY = y + size / 2f;
-        boolean mount = MOUNTS.contains(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
-        int scale = mount
-                ? Math.max(8, Math.round(size * MOUNT_FILL / Math.max(entity.getBbHeight(), entity.getBbWidth())))
+        boolean wholeBody = !(entity instanceof Cat) && !(entity instanceof Wolf);
+        int scale = wholeBody
+                ? Math.max(8, Math.round(size * BODY_FILL / Math.max(entity.getBbHeight(), entity.getBbWidth())))
                 : Math.max(16, Math.round(size * SCALE_FACTOR));
         gfx.enableScissor(x, y, x1, y1);
         try {
-            // Looking toward the left edge turns a mount's head into a three-quarter view.
-            float lookX = mount ? x - size : centerX;
+            // Looking toward the left edge turns the head into a three-quarter view.
+            float lookX = wholeBody ? x - size : centerX;
             //? if >=1.21 {
             InventoryScreen.extractEntityInInventoryFollowsMouse(
                     gfx, x, y, x1, y1, scale, 0.0625f, lookX, centerY, entity);
@@ -107,6 +112,10 @@ public final class PetFaceRenderer {
     }
 
     private static LivingEntity entityFor(AnimalRecord record) {
+        return entityFor(record.speciesId(), record.variantId());
+    }
+
+    private static LivingEntity entityFor(String speciesId, String variantId) {
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) {
             return null;
@@ -115,56 +124,63 @@ public final class PetFaceRenderer {
             CACHE.clear();
             cachedLevel = level;
         }
-        String key = record.speciesId() + "|" + record.variantId();
+        String key = speciesId + "|" + variantId;
         if (CACHE.containsKey(key)) {
             return CACHE.get(key);
         }
-        LivingEntity entity = createEntity(level, record);
+        LivingEntity entity = createEntity(level, speciesId, variantId);
+        if (entity != null) PetFilter.category(entity);
         // Preview entities never enter the level, so assign a local ID for the renderer.
         if (entity != null) entity.setId(-CACHE.size() - 1);
         CACHE.put(key, entity);
         return entity;
     }
 
-    private static LivingEntity createEntity(ClientLevel level, AnimalRecord record) {
+    private static LivingEntity createEntity(ClientLevel level, String speciesId, String variantId) {
         try {
-            if (isCat(record)) {
+            if (speciesId.equals("minecraft:cat")) {
                 Cat cat = EntityType.CAT.create(level, EntitySpawnReason.LOAD);
                 if (cat == null) {
                     return null;
                 }
                 //? if >=1.21 {
-                catVariant(level, record.variantId())
+                catVariant(level, variantId)
                         .ifPresent(holder -> ((CatVariantInvoker) (Object) cat).familytree$setVariant(holder));
                 //?} else {
-                /*catVariant(level, record.variantId())
+                /*catVariant(level, variantId)
                         .ifPresent(holder -> ((CatVariantInvoker) (Object) cat).familytree$setVariant(holder.value()));
                 *///?}
                 return cat;
             }
-            if (isWolf(record)) {
+            if (speciesId.equals("minecraft:wolf")) {
                 Wolf wolf = EntityType.WOLF.create(level, EntitySpawnReason.LOAD);
                 if (wolf == null) {
                     return null;
                 }
                 //? if >=1.21 {
-                wolfVariant(level, record.variantId())
+                wolfVariant(level, variantId)
                         .ifPresent(holder -> ((WolfVariantInvoker) (Object) wolf).familytree$setVariant(holder));
                 //?}
                 return wolf;
             }
-            if (MOUNTS.contains(record.speciesId())) return createMount(level, record);
+            return createAnimal(level, speciesId, variantId);
         } catch (Throwable ignored) {
+            // Modded entities can fail outside a real level. Their cards show the name's first letter instead.
         }
         return null;
     }
 
-    private static LivingEntity createMount(ClientLevel level, AnimalRecord record) {
-        Identifier id = Identifier.tryParse(record.speciesId());
+    /** Horses and llamas keep the coat formats that earlier versions saved. */
+    private static LivingEntity createAnimal(ClientLevel level, String speciesId, String variantId) {
+        Identifier id = Identifier.tryParse(speciesId);
         var type = id == null ? Optional.<EntityType<?>>empty() : BuiltInRegistries.ENTITY_TYPE.getOptional(id);
-        if (type.isEmpty() || !(type.get().create(level, EntitySpawnReason.LOAD) instanceof LivingEntity mount)) return null;
-        String[] variant = record.variantId() == null ? new String[0] : record.variantId().split("/", 2);
-        if (mount instanceof Horse horse && variant.length == 2) {
+        if (type.isEmpty() || !(type.get().create(level, EntitySpawnReason.LOAD) instanceof LivingEntity animal)) return null;
+        if (!(animal instanceof Horse) && !(animal instanceof Llama)) {
+            EntityVariants.apply(animal, variantId, level.registryAccess());
+            return animal;
+        }
+        String[] variant = variantId == null ? new String[0] : variantId.split("/", 2);
+        if (animal instanceof Horse horse && variant.length == 2) {
             for (Variant coat : Variant.values()) {
                 if (!coat.getSerializedName().equals(variant[0])) continue;
                 for (Markings markings : Markings.values()) {
@@ -173,13 +189,13 @@ public final class PetFaceRenderer {
                 }
             }
         }
-        if (mount instanceof Llama llama && variant.length == 1) {
+        if (animal instanceof Llama llama && variant.length == 1) {
             for (Llama.Variant coat : Llama.Variant.values()) {
                 if (coat.getSerializedName().equals(variant[0]))
                     ((LlamaVariantInvoker) (Object) llama).familytree$setVariant(coat);
             }
         }
-        return mount;
+        return animal;
     }
 
     private static Optional<Holder.Reference<CatVariant>> catVariant(ClientLevel level, String variantId) {
@@ -202,11 +218,4 @@ public final class PetFaceRenderer {
     }
     //?}
 
-    private static boolean isCat(AnimalRecord record) {
-        return "minecraft:cat".equals(record.speciesId());
-    }
-
-    private static boolean isWolf(AnimalRecord record) {
-        return "minecraft:wolf".equals(record.speciesId());
-    }
 }

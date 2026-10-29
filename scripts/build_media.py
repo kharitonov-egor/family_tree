@@ -42,13 +42,28 @@ def horses(game_directory):
         print(path.name, path.stat().st_size, 'bytes')
 
 
+def animals(game_directory):
+    """Copy the sheep and axolotl scene from `runDemo -Pdemo -Panimals` into docs/."""
+    assert 'mixed wool colors' in (game_directory / 'demo-result.txt').read_text()
+    shutil.copyfile(newest_export(game_directory), ROOT / 'docs/sheep-family-export.png')
+    Image.open(game_directory / 'screenshots/animals-tree.png').save(ROOT / 'docs/sheep-family-tree.webp', quality=82)
+    Image.open(game_directory / 'screenshots/animals-axolotl.png').save(ROOT / 'docs/blue-axolotl-tree.webp', quality=82)
+    for name in ['sheep-family-export.png', 'sheep-family-tree.webp', 'blue-axolotl-tree.webp']:
+        path = ROOT / 'docs' / name
+        print(path.name, path.stat().st_size, 'bytes')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--game-directory', type=Path, default=ROOT / 'build/demo-26.2')
     parser.add_argument('--horses', type=Path, help='Package only the horse scene from this game directory')
+    parser.add_argument('--animals', type=Path, help='Package only the sheep and axolotl scene from this game directory')
     args = parser.parse_args()
     if args.horses:
         horses(args.horses)
+        return
+    if args.animals:
+        animals(args.animals)
         return
     assert 'vanilla feeding; AI breeding' in (args.game_directory / 'demo-result.txt').read_text()
     frames = sorted((args.game_directory / 'screenshots').glob('gameplay-[0-9]*.png'))

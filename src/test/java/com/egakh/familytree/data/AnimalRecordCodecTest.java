@@ -109,6 +109,36 @@ class AnimalRecordCodecTest {
         }
     }
 
+    @Test void farmAnimalsAndTheirVariantsUseOnlyTheExistingFields() {
+        var known = java.util.Set.of("id", "species", "name", "name_auto", "parent_a", "parent_b", "birth_world_day",
+                "birth_epoch", "deceased", "death_world_day", "death_epoch", "owner", "owner_name", "variant_id",
+                "last_seen", "death_cause", "tree_name", "horse_stats", "variant_origin");
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            for (String[] animal : new String[][]{{"minecraft:sheep", "pink"}, {"minecraft:panda", "brown/normal"},
+                    {"minecraft:cow", "minecraft:warm"}, {"naturalist:bear", "grizzly"}}) {
+                AnimalRecord record = new AnimalRecord(UUID.randomUUID(), animal[0], "Sheep 1A2B", true,
+                        UUID.randomUUID(), UUID.randomUUID(), 3, 99, false, null, null, UUID.randomUUID(), "Alex", animal[1],
+                        new AnimalRecord.LastSeen(1, 64, 2, "minecraft:overworld", 4), null);
+                record.setVariantOrigin("mixed");
+                var json = AnimalRecord.CODEC.encodeStart(JsonOps.INSTANCE, record).getOrThrow().getAsJsonObject();
+                assertTrue(known.containsAll(json.keySet()), json.keySet().toString());
+                assertEquals(animal[1], json.get("variant_id").getAsString());
+                assertEquals("mixed", json.get("variant_origin").getAsString());
+                assertEquals(json, AnimalRecord.CODEC.encodeStart(JsonOps.INSTANCE,
+                        AnimalRecord.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow()).getOrThrow());
+                var nbt = (CompoundTag) AnimalRecord.CODEC.encodeStart(NbtOps.INSTANCE, record).getOrThrow();
+                assertEquals(animal[1], AnimalRecord.CODEC.parse(NbtOps.INSTANCE, nbt).getOrThrow().variantId());
+                buffer.clear();
+                AnimalRecord.STREAM_CODEC.encode(buffer, record);
+                assertEquals(json, AnimalRecord.CODEC.encodeStart(JsonOps.INSTANCE,
+                        AnimalRecord.STREAM_CODEC.decode(buffer)).getOrThrow());
+            }
+        } finally {
+            buffer.release();
+        }
+    }
+
     private AnimalRecord pet() {
         return new AnimalRecord(UUID.randomUUID(), "minecraft:wolf", "Rover", false,
                 UUID.randomUUID(), UUID.randomUUID(), 7, 1234, true, 15L, 5678L,

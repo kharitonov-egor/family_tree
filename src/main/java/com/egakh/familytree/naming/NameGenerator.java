@@ -1,6 +1,7 @@
 package com.egakh.familytree.naming;
 
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.util.VariantRules;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -49,6 +50,14 @@ public final class NameGenerator {
             suffix++;
         }
         return baseName + suffix;
+    }
+
+    /**
+     * Unnamed animals other than pets get their species and a code instead of a pet name. The name is saved, so it
+     * comes from the species id rather than the current language, and six digits keep repeats rare on large farms.
+     */
+    public static String farmName(String speciesId, UUID uuid) {
+        return VariantRules.humanize(speciesId) + " " + String.format(Locale.ROOT, "%06X", uuid.getMostSignificantBits() >>> 40);
     }
 
     public static boolean isLegacyOverflowName(String name) {

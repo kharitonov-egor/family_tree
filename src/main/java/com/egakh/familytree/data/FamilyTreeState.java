@@ -6,6 +6,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.Dynamic;
 import com.egakh.familytree.FamilyTreeMod;
+import com.egakh.familytree.util.AnimalCategory;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
@@ -29,6 +30,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
@@ -44,6 +46,10 @@ public class FamilyTreeState extends SavedData {
     private Dynamic<?> protectedData;
     private boolean initialized;
     private boolean readOnly;
+    private int unnamedFarmRecords = -1;
+    private int countedLearnedVersion;
+    private final Set<UUID> farmLimitNotified = ConcurrentHashMap.newKeySet();
+    private long cleanupRetryNanos;
 
     public FamilyTreeState() {}
 
@@ -61,15 +67,51 @@ public class FamilyTreeState extends SavedData {
 
     public void put(AnimalRecord record) {
         if (readOnly) return;
-        records.put(record.id(), record);
+        AnimalRecord previous = records.put(record.id(), record);
+        if (previous != null) unnamedFarmRecords = -1;
+        else if (unnamedFarmRecords >= 0 && FarmRecords.unnamedFarm(record)) unnamedFarmRecords++;
         setDirty();
+    }
+
+    public int unnamedFarmRecords() {
+        if (unnamedFarmRecords < 0 || countedLearnedVersion != AnimalCategory.learnedVersion()) {
+            countedLearnedVersion = AnimalCategory.learnedVersion();
+            unnamedFarmRecords = FarmRecords.count(records.values());
+        }
+        return unnamedFarmRecords;
+    }
+
+    public int recountUnnamedFarmRecords() {
+        unnamedFarmRecords = -1;
+        return unnamedFarmRecords();
+    }
+
+    public boolean firstFarmLimitNotice(UUID player) {
+        return farmLimitNotified.add(player);
+    }
+
+    /** A cleanup that found nothing to remove waits before scanning the whole history again. */
+    boolean cleanupDue(long now) {
+        return now - cleanupRetryNanos >= 0;
+    }
+
+    void delayCleanup(long until) {
+        cleanupRetryNanos = until;
     }
 
     public void update(UUID id, java.util.function.Consumer<AnimalRecord> mutator) {
         if (readOnly) return;
         AnimalRecord r = records.get(id);
         if (r == null) return;
+        boolean counted = unnamedFarmRecords >= 0 && FarmRecords.unnamedFarm(r);
         mutator.accept(r);
+        if (unnamedFarmRecords >= 0 && counted != FarmRecords.unnamedFarm(r)) unnamedFarmRecords += counted ? -1 : 1;
+        setDirty();
+    }
+
+    /** Renames from the screen edit a record directly, outside {@link #update}. */
+    public void recordEdited() {
+        unnamedFarmRecords = -1;
         setDirty();
     }
 
@@ -82,6 +124,18 @@ public class FamilyTreeState extends SavedData {
             }
         }
         if (removed > 0) {
+            unnamedFarmRecords = -1;
+            setDirty();
+        }
+        return removed;
+    }
+
+    public int removeAll(Collection<UUID> ids) {
+        if (readOnly) return 0;
+        int removed = 0;
+        for (UUID id : ids) if (records.remove(id) != null) removed++;
+        if (removed > 0) {
+            unnamedFarmRecords = -1;
             setDirty();
         }
         return removed;
@@ -146,11 +200,17 @@ public class FamilyTreeState extends SavedData {
     public int preservedRecordCount() { return rejectedRecords.size(); }
 
     public Path backup(MinecraftServer server) throws IOException {
+        return backup(server, "before-prune-", true);
+    }
+
+    /** Automatic cleanup writes compact JSON, since it can run many times in a long-lived world. */
+    public Path backup(MinecraftServer server, String prefix, boolean pretty) throws IOException {
         Path directory = server.getWorldPath(LevelResource.ROOT).resolve("familytree-backups");
         Files.createDirectories(directory);
-        Path file = Files.createTempFile(directory, "before-prune-", ".json");
+        Path file = Files.createTempFile(directory, prefix, ".json");
         var json = CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, this).getOrThrow();
-        Files.writeString(file, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(json));
+        var gson = pretty ? new com.google.gson.GsonBuilder().setPrettyPrinting().create() : new com.google.gson.Gson();
+        Files.writeString(file, gson.toJson(json));
         return file;
     }
 

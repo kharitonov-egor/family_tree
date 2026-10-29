@@ -16,7 +16,7 @@ public final class FamilyTreeHelpScreen extends FamilyTreeScreen {
         gfx.fill(0, 0, width, height, 0xFF151A21);
         gfx.centeredText(font, title, width / 2, 14, 0xFFFFFFFF);
         int y = 38;
-        for (String key : java.util.List.of("familytree.help.discover", "familytree.help.parents", "familytree.help.breed", "familytree.help.export")) {
+        for (String key : java.util.List.of("familytree.help.discover", "familytree.help.parents", "familytree.help.breed", "familytree.help.animals", "familytree.help.export")) {
             for (var line : font.split(Component.translatable(key), Math.min(520, width - 32))) {
                 gfx.text(font, line, Math.max(16, (width - 520) / 2), y, 0xFFB0B7C0); y += font.lineHeight + 2;
             }

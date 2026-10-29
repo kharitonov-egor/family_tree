@@ -58,7 +58,7 @@ public final class FamilyTreePackets {
         AnimalRecord record = state.get(petId);
         PetRenaming.Result result = PetRenaming.rename(record, player.getUUID(),
                 ServerPetAccess.operator(player.createCommandSourceStack()), name);
-        if (result == PetRenaming.Result.SUCCESS) state.setDirty();
+        if (result == PetRenaming.Result.SUCCESS) state.recordEdited();
         return new RenameOutcome(result, record);
     }
 
