@@ -14,7 +14,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-//? if >=26.1 {
+//? if >=1.21.11 {
 import net.minecraft.world.level.saveddata.SavedDataType;
 //?}
 import net.minecraft.world.level.storage.LevelResource;
@@ -161,7 +161,15 @@ public class FamilyTreeState extends SavedData {
             CODEC,
             null
     );
-    //?} else {
+    //?} else if >=1.21.11 {
+    /*// Same file as the 1.21.1 build: data/familytree.dat in the overworld folder.
+    private static final SavedDataType<FamilyTreeState> TYPE = new SavedDataType<>(
+            LEGACY_STATE_KEY,
+            FamilyTreeState::new,
+            CODEC,
+            null
+    );
+    *///?} else {
     /*private static final SavedData.Factory<FamilyTreeState> TYPE = new SavedData.Factory<>(
             FamilyTreeState::new, (tag, registries) -> CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow(), null);
 

@@ -38,6 +38,7 @@ def mcVersion = stonecutter.current.version
 
 def fabricApiVersions = [
         '1.21.1': '0.116.17+1.21.1',
+        '1.21.11': '0.141.6+1.21.11',
         '26.1.1': '0.145.4+26.1.1',
         '26.1.2': '0.155.3+26.1.2',
         '26.2'  : '0.154.1+26.2',
@@ -48,6 +49,8 @@ if (fabricApiVersion == null) {
     throw new GradleException("No Fabric API version mapped for Minecraft ${mcVersion} — add it to build.gradle")
 }
 def minecraftDep = "=${mcVersion}"
+def obfuscated = mcVersion.startsWith('1.')
+def javaVersion = obfuscated ? 21 : 25
 
 version = "${project.mod_version}+${mcVersion}"
 group = project.maven_group
@@ -75,7 +78,7 @@ loom {
 dependencies {
     minecraft "com.mojang:minecraft:${mcVersion}"
     loomx.applyMojangMappings()
-    if (mcVersion == '1.21.1') {
+    if (obfuscated) {
         modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
         modImplementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
     } else {
@@ -101,15 +104,15 @@ processResources {
     inputs.property 'minecraft', minecraftDep
 
     filesMatching('fabric.mod.json') {
-        expand 'version': project.version, 'minecraft': minecraftDep, 'java': mcVersion == '1.21.1' ? '21' : '25'
+        expand 'version': project.version, 'minecraft': minecraftDep, 'java': "${javaVersion}"
     }
     filesMatching('familytree.mixins.json') {
-        expand 'java': mcVersion == '1.21.1' ? '21' : '25'
+        expand 'java': "${javaVersion}"
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = mcVersion == '1.21.1' ? 21 : 25
+    it.options.release = javaVersion
 }
 
 java {

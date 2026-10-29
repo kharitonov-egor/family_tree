@@ -2,23 +2,23 @@
 
 ## What this is
 
-Family Tree tracks tamed pets and their lineage. Fabric supports Minecraft 1.21.1, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge supports 1.21.1, 26.2, and 26.3. The NeoForge 26.3 loader and mod build are beta. Install JDK 21 and 25 for all builds. The 1.21.1 jars use Java 21 bytecode; 26.x jars use Java 25.
+Family Tree tracks tamed pets and their lineage. Fabric supports Minecraft 1.21.1, 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge supports 1.21.1, 1.21.11, 26.2, and 26.3. The NeoForge 26.3 loader and mod build are beta. Install JDK 21 and 25 for all builds. The 1.21.x jars use Java 21 bytecode; 26.x jars use Java 25.
 
 Mod ID `familytree`, package `com.egakh.familytree`. `mod_version` lives in `gradle.properties`. Players search pets, pan and zoom through ancestry, locate pets, add known parents, and export a family as a PNG.
 
 ## Build and source versions
 
-`./gradlew buildAll --no-parallel` builds and tests all eight pairs. Fabric jars land in `versions/<minecraft>/build/libs/`; NeoForge jars land in `neoforge/build/<minecraft>/libs/`. Build one Fabric target with `./gradlew :26.2:build`, or NeoForge with `./gradlew -p neoforge build -Pminecraft=26.2`.
+`./gradlew buildAll --no-parallel` builds and tests all ten pairs. Fabric jars land in `versions/<minecraft>/build/libs/`; NeoForge jars land in `neoforge/build/<minecraft>/libs/`. Build one Fabric target with `./gradlew :26.2:build`, or NeoForge with `./gradlew -p neoforge build -Pminecraft=26.2`.
 
 Stonecutter 0.9.6 and loom-back-compat 0.3 generate target-specific source. Loom is pinned to 1.16.3. ModDevGradle is pinned to 2.0.147. Fabric Loader 0.19.3 is the tested minimum.
 
-- `settings.gradle` lists the five Fabric versions. Source names remain authored against 26.1.1.
+- `settings.gradle` lists the six Fabric versions. Source names remain authored against 26.1.1.
 - `stonecutter.gradle` defines `buildAll`, target API replacements, and the ordered NeoForge build tasks.
 - `build.gradle` selects Fabric API and stamps an exact Minecraft predicate into metadata. `loomx.applyMojangMappings()` handles modern Mojang names.
-- `neoforge/build.gradle` compiles generated shared source for `-Pminecraft`. The 1.21.1 loader adapter lives in `neoforge/src/legacy/java`; modern adapters live in `src/main/java` there.
+- `neoforge/build.gradle` compiles generated shared source for `-Pminecraft`. The 1.21.1 loader adapter lives in `neoforge/src/legacy/java`; 1.21.11 and 26.x use the modern adapters in `src/main/java` there.
 - `versions/` is generated and ignored. Never edit or commit it.
 
-Add simple API renames to version-gated replacements in `stonecutter.gradle`. Keep source names compatible with 26.1.1. For a removed API or a changed signature, use a Stonecutter conditional. Its replacement rules reverse when inactive, so avoid overlapping replacement strings or imports that also occur independently in source.
+Add simple API renames to version-gated replacements in `stonecutter.gradle`. Keep source names compatible with 26.1.1. 1.21.11 already has most 26.1 game names (`Identifier`, the animal subpackages, input events, `SavedDataType`, permission sets) but keeps the older GUI and Fabric API names, so game renames sit behind `< 1.21.11` and GUI or Fabric API renames behind `< 26.1`. For a removed API or a changed signature, use a Stonecutter conditional. Its replacement rules reverse when inactive, so avoid overlapping replacement strings or imports that also occur independently in source.
 
 When adding a target, update the version list, dependencies, `buildAll`, release manifest, CI matrix, installation guide, and page matrix. Compile and run Minecraft on that target before claiming compatibility. Exact names can be checked with `javap` in Gradle's deobfuscated Minecraft jars.
 
@@ -33,6 +33,7 @@ Players keep pet history for years. Never discard that history for a code cleanu
 - FamilyTreeState keeps readable records when another record fails. It preserves unreadable and duplicate entries for resave and logs their count. Do not replace this with a strict `listOf()` or silently discard rejected entries.
 - Future or unsupported format versions protect the original data and disable writes. Add a migration before changing the meaning of a data version. Current data version is 1.
 - Legacy import supports both raw records and the SavedData `data` wrapper. It runs only for an uninitialized store and copies the legacy file to a migration backup. An empty modern store must not reimport deleted history.
+- 1.21.1 and 1.21.11 share the overworld `data/familytree.dat` file, so 1.21.11 loads 1.21.1 history in place. 26.x reads it through legacy import.
 - Pruning requires a successful JSON backup before deletion. Backups live under the world's `familytree-backups/` directory.
 - Document downgrade limits. Older mod versions can drop unknown fields on their next save. Never downgrade a Minecraft world for a test.
 
@@ -61,7 +62,7 @@ Commands and discovery share per-player and per-server scan cooldowns. Rate-limi
 - `util/Genealogy.java` calculates generations with an explicit stack and checks cycles. Derived generations are never persisted.
 - `client/SnapshotAssembler.java` validates paged replies and ignores old requests.
 - `client/screen/` contains browser, tree, settings, help, rename, parent editor, and pet picker. Screens use FamilyTreeScreen to adapt input and rendering APIs.
-- `client/export/` copies a tree and renders a PNG on a background task. `PetPortraits` cuts horse side profiles from the equine texture layout, which 1.21.1 and 26.x share. Exports omit explicit player names and coordinates. User-entered pet names may still contain personal information.
+- `client/export/` copies a tree and renders a PNG on a background task. `PetPortraits` cuts horse side profiles from the equine texture layout, which 1.21.1, 1.21.11, and 26.x share. Exports omit explicit player names and coordinates. User-entered pet names may still contain personal information.
 - `platform/` and `client/platform/` hold loader-independent paths and transports. Shared code has no Fabric dependency.
 
 All new player-facing text uses translation keys in `assets/familytree/lang/en_us.json`. Add keys for new errors rather than raw English messages. Clear client entity previews when disconnecting.

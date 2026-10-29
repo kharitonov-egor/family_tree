@@ -21,7 +21,7 @@ public final class ServerPetAccess {
     }
 
     public static boolean operator(CommandSourceStack source) {
-        //? if >=26.1 {
+        //? if >=1.21.11 {
         return Commands.LEVEL_GAMEMASTERS.check(source.permissions());
         //?} else {
         /*return source.hasPermission(2);

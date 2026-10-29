@@ -33,7 +33,7 @@ public final class PetFilter {
     }
 
     public static UUID ownerOf(Entity entity) {
-        //? if >=26.1 {
+        //? if >=1.21.11 {
         if (entity instanceof OwnableEntity ownable && ownable.getOwnerReference() != null) {
             return ownable.getOwnerReference().getUUID();
         }

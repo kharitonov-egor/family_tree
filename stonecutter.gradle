@@ -7,14 +7,14 @@ stonecutter.active '26.1.1' /* [SC] DO NOT EDIT */
 tasks.register('buildAll') {
     group = 'project'
     description = 'Builds and tests all Fabric and NeoForge targets.'
-    dependsOn ':1.21.1:build', ':26.1.1:build', ':26.1.2:build', ':26.2:build', ':26.3:build', 'buildNeoForge'
+    dependsOn ':1.21.1:build', ':1.21.11:build', ':26.1.1:build', ':26.1.2:build', ':26.2:build', ':26.3:build', 'buildNeoForge'
 }
 
-['1.21.1', '26.2', '26.3'].each { target ->
+def neoForgeTargets = ['1.21.1', '1.21.11', '26.2', '26.3']
+neoForgeTargets.eachWithIndex { target, index ->
     tasks.register("buildNeoForge${target.replace('.', '_')}", Exec) {
         dependsOn ":${target}:stonecutterGenerate", ":${target}:stonecutterGenerateClient"
-        if (target == '26.2') mustRunAfter 'buildNeoForge1_21_1'
-        if (target == '26.3') mustRunAfter 'buildNeoForge26_2'
+        if (index > 0) mustRunAfter "buildNeoForge${neoForgeTargets[index - 1].replace('.', '_')}"
         workingDir rootProject.projectDir
         def wrapper = rootProject.file(System.getProperty('os.name').toLowerCase().contains('windows') ? 'gradlew.bat' : 'gradlew')
         def arguments = [wrapper.absolutePath, '-p', 'neoforge', 'build', "-Pminecraft=${target}", '-PsharedSourcesReady', '--console=plain']
@@ -22,15 +22,16 @@ tasks.register('buildAll') {
     }
 }
 tasks.register('buildNeoForge') {
-    dependsOn 'buildNeoForge1_21_1', 'buildNeoForge26_2', 'buildNeoForge26_3'
+    dependsOn neoForgeTargets.collect { "buildNeoForge${it.replace('.', '_')}" }
 }
 
 // Source is authored against 26.1.1 (the vcsVersion). These replacements rewrite the
-// handful of renamed APIs when building newer Minecraft versions. Keep authoring in
-// 26.1 names; add a new `string(...)` gate here when a future version renames an API.
+// handful of renamed APIs for older and newer Minecraft versions. Keep authoring in
+// 26.1 names; add a new `string(...)` gate here when a version renames an API.
+// 1.21.11 already has most 26.1 game names but keeps the older GUI and Fabric API names.
 stonecutter.parameters {
     replacements {
-        string(current.parsed < '26.1') {
+        string(current.parsed < '1.21.11') {
             replace 'Identifier', 'ResourceLocation'
             replace 'net.minecraft.util.Util.getPlatform()', 'net.minecraft.Util.getPlatform()'
             replace 'world.entity.animal.equine.', 'world.entity.animal.horse.'
@@ -38,29 +39,35 @@ stonecutter.parameters {
             replace 'world.entity.animal.wolf.Wolf', 'world.entity.animal.Wolf'
             replace '.identifier()', '.location()'
             replace '.isClientSide()', '.isClientSide'
-            replace 'PayloadTypeRegistry.serverboundPlay()', 'PayloadTypeRegistry.playC2S()'
-            replace 'PayloadTypeRegistry.clientboundPlay()', 'PayloadTypeRegistry.playS2C()'
-            replace 'GuiGraphicsExtractor', 'GuiGraphics'
-            replace 'extractRenderState(', 'render('
-            replace 'gfx.text(', 'gfx.drawString('
-            replace 'gfx.centeredText(', 'gfx.drawCenteredString('
             replace 'InteractionResult.SUCCESS_SERVER', 'InteractionResult.CONSUME'
             replace 'ByteBufCodecs.LONG', 'com.egakh.familytree.network.WireCodecs.LONG'
             replace 'new ClickEvent.RunCommand(', 'new ClickEvent(ClickEvent.Action.RUN_COMMAND, '
             replace 'new ClickEvent.SuggestCommand(', 'new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, '
-            replace 'SavedDataStorage', 'DimensionDataStorage'
             replace 'storage.computeIfAbsent(TYPE)', 'storage.computeIfAbsent(TYPE, LEGACY_STATE_KEY)'
             replace 'storage.set(TYPE, legacyState)', 'storage.set(LEGACY_STATE_KEY, legacyState)'
             replace '.getCompoundOrEmpty(', '.getCompound('
-            replace 'client.keymapping.v1.KeyMappingHelper', 'client.keybinding.v1.KeyBindingHelper'
-            replace 'KeyMappingHelper.registerKeyMapping(', 'KeyBindingHelper.registerKeyBinding('
-            replace 'InventoryScreen.extractEntityInInventoryFollowsMouse(', 'InventoryScreen.renderEntityInInventoryFollowsMouse('
             replace '.create(level, EntitySpawnReason.LOAD)', '.create(level)'
             replace '.registryAccess().lookupOrThrow(', '.registryAccess().registryOrThrow('
             replace 'registry.get(ResourceKey.create(', 'registry.getHolder(ResourceKey.create('
             replace '.get(ResourceKey.create(Registries.', '.getHolder(ResourceKey.create(Registries.'
             replace '.adultAssetInfo().texturePath()', '.texture()'
             replace '.adultInfo().tame().texturePath()', '.tameTexture()'
+        }
+        string(current.parsed >= '1.21.11' && current.parsed < '26.1') {
+            replace '.adultAssetInfo().texturePath()', '.assetInfo().texturePath()'
+            replace '.adultInfo().tame().texturePath()', '.assetInfo().tame().texturePath()'
+        }
+        string(current.parsed < '26.1') {
+            replace 'PayloadTypeRegistry.serverboundPlay()', 'PayloadTypeRegistry.playC2S()'
+            replace 'PayloadTypeRegistry.clientboundPlay()', 'PayloadTypeRegistry.playS2C()'
+            replace 'GuiGraphicsExtractor', 'GuiGraphics'
+            replace 'extractRenderState(', 'render('
+            replace 'gfx.text(', 'gfx.drawString('
+            replace 'gfx.centeredText(', 'gfx.drawCenteredString('
+            replace 'SavedDataStorage', 'DimensionDataStorage'
+            replace 'client.keymapping.v1.KeyMappingHelper', 'client.keybinding.v1.KeyBindingHelper'
+            replace 'KeyMappingHelper.registerKeyMapping(', 'KeyBindingHelper.registerKeyBinding('
+            replace 'InventoryScreen.extractEntityInInventoryFollowsMouse(', 'InventoryScreen.renderEntityInInventoryFollowsMouse('
         }
         string(current.parsed >= '26.3') {
             replace 'InputConstants.Type.KEYSYM', 'InputConstants.Type.KEYBOARD'

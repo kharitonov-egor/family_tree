@@ -1,6 +1,6 @@
 # Runtime validation
 
-`./gradlew buildAll --no-parallel` builds five Fabric and three NeoForge targets and runs the shared JUnit suite for each. Install JDK 21 and JDK 25. Tests cover saved records, names, ancestry, ownership, PNG exports, byte-bounded snapshot pages, parent validation, and horse stat units checked against the Minecraft Wiki's values.
+`./gradlew buildAll --no-parallel` builds six Fabric and four NeoForge targets and runs the shared JUnit suite for each. Install JDK 21 and JDK 25. Tests cover saved records, names, ancestry, ownership, PNG exports, byte-bounded snapshot pages, parent validation, and horse stat units checked against the Minecraft Wiki's values.
 
 The development mods under `src/smoke` and `src/demo` never enter release jars. Their runners fail the Gradle task when the expected PASS file is missing. Use disposable worlds under `build/`. Never use a normal game directory, and never copy a newer Minecraft world into an older target.
 
@@ -19,23 +19,27 @@ spawn-protection=0
 ```
 
 ```sh
-./gradlew :1.21.1:runSmoke :26.1.1:runSmoke :26.1.2:runSmoke :26.2:runSmoke :26.3:runSmoke -Psmoke --no-parallel
+./gradlew :1.21.1:runSmoke :1.21.11:runSmoke :26.1.1:runSmoke :26.1.2:runSmoke :26.2:runSmoke :26.3:runSmoke -Psmoke --no-parallel
 ./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=1.21.1
+./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=1.21.11
 ./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=26.2
 ./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=26.3
 ```
 
 The runner adds tame wolves, invokes Minecraft's breeding method, and checks entity-load discovery, the breeding mixin, inherited ownership, edit permissions, renaming, and death records. It then adds owned horses and a llama, breeds a foal, and checks the recorded stats at discovery, birth, and unload. A camel and an ownerless skeleton horse must stay unrecorded. It writes `smoke-result.txt` and stops the server. The death check calls the shared handler, so it does not prove every loader death event. The separate gameplay run checks a real Fabric death event.
 
-For an upgrade test, copy a previous release's Family Tree data into a disposable world for the same Minecraft version and preserve its save path. To create horse history with an older release, run its jar on a Fabric dedicated server, `forceload` a few chunks, and summon owned horses, for example `summon minecraft:horse 0 -60 0 {Tame:1b,Owner:[I;1,2,3,4],InLove:600}` twice. AI breeding records a foal. Swap in the new jar, let the chunks load, and check `/familytree info` for the retained parents and filled-in stats. Use `-PsmokeHistory=<expected-count>` to require retained records before creating new pets. The 1.21.1 path is `smoke/data/familytree.dat`; modern worlds use `smoke/dimensions/minecraft/overworld/data/familytree/familytree.dat`.
+For an upgrade test, copy a previous release's Family Tree data into a disposable world for the same Minecraft version and preserve its save path. To create horse history with an older release, run its jar on a Fabric dedicated server, `forceload` a few chunks, and summon owned horses, for example `summon minecraft:horse 0 -60 0 {Tame:1b,Owner:[I;1,2,3,4],InLove:600}` twice. AI breeding records a foal. Swap in the new jar, let the chunks load, and check `/familytree info` for the retained parents and filled-in stats. Use `-PsmokeHistory=<expected-count>` to require retained records before creating new pets. The 1.21.1 and 1.21.11 path is `smoke/data/familytree.dat`; 26.x worlds use `smoke/dimensions/minecraft/overworld/data/familytree/familytree.dat`.
+
+1.21.11 reads the 1.21.1 file in place, without an import step. To check that upgrade, run the 1.21.1 smoke on a fresh world, copy its `smoke` folder into `build/smoke-1.21.11/` or `build/smoke-neoforge-1.21.11/`, and run the 1.21.11 smoke with `-PsmokeHistory` set to the number of records the 1.21.1 run created. Copying that world on into `build/smoke-26.1.1/` checks the one-time 26.x import.
 
 ## Client and network checks
 
 Enable the runner with `-Pdemo`. Put a matching disposable world at `build/demo-<minecraft>/saves/Family Tree demo/` or `build/demo-neoforge-<minecraft>/saves/Family Tree demo/`. A Minecraft window opens during the run.
 
 ```sh
-./gradlew :1.21.1:runDemo :26.1.1:runDemo :26.1.2:runDemo :26.2:runDemo :26.3:runDemo -Pdemo --no-parallel
+./gradlew :1.21.1:runDemo :1.21.11:runDemo :26.1.1:runDemo :26.1.2:runDemo :26.2:runDemo :26.3:runDemo -Pdemo --no-parallel
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.1
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.11
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=26.2
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=26.3
 ```

@@ -26,7 +26,7 @@ Stats cover horses, donkeys, mules, llamas, camels, skeleton horses, and zombie 
 
 Visit your pets or choose **Find existing pets** to check loaded tamed animals. Older parents are unknown because Minecraft does not retain them. Open a pet, select it, and choose **Add parents** to record a family you remember. Breed pets while the mod is installed to record new children's parents automatically.
 
-The tracker covers tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Camels and skeleton trap horses join once a player rides or breeds them. Parrots have individual records and cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule.
+The tracker covers tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Camels and skeleton trap horses join once a player rides or breeds them. Parrots have individual records and cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule. On 1.21.11, tamed nautiluses and zombie nautiluses are recorded too.
 
 ## Browse, find, and share
 
@@ -41,6 +41,7 @@ Search by pet name or species, filter living or deceased pets, and open one pet'
 | Minecraft | Fabric | NeoForge | Java |
 | --- | --- | --- | --- |
 | 1.21.1 | Fabric API for 1.21.1 | 21.1.252 or newer within 21.1 | 21 or newer |
+| 1.21.11 | Fabric API for 1.21.11 | 21.11.48 or newer within 21.11 | 21 or newer |
 | 26.1.1 | Fabric API for 26.1.1 | No build | 25 or newer |
 | 26.1.2 | Fabric API for 26.1.2 | No build | 25 or newer |
 | 26.2 | Fabric API for 26.2 | 26.2.0.88 or newer within 26.2 | 25 or newer |

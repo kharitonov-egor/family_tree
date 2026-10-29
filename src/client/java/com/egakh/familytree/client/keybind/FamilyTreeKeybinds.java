@@ -11,7 +11,7 @@ public final class FamilyTreeKeybinds {
             "key.familytree.open_tree",
             InputConstants.Type.KEYSYM,
             com.mojang.blaze3d.platform.InputConstants.KEY_H,
-            //? if >=26.1 {
+            //? if >=1.21.11 {
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath("familytree", "familytree"))
             //?} else {
             /*"key.categories.familytree"

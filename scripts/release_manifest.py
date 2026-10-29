@@ -9,9 +9,9 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGETS = {'fabric': ['1.21.1', '26.1.1', '26.1.2', '26.2', '26.3'],
-           'neoforge': ['1.21.1', '26.2', '26.3']}
-NEOFORGE = {'1.21.1': '21.1.252', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta'}
+TARGETS = {'fabric': ['1.21.1', '1.21.11', '26.1.1', '26.1.2', '26.2', '26.3'],
+           'neoforge': ['1.21.1', '1.21.11', '26.2', '26.3']}
+NEOFORGE = {'1.21.1': '21.1.252', '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta'}
 
 
 def main():
@@ -53,7 +53,7 @@ def main():
                                for item in metadata['dependencies']['familytree'])
                     dependencies = []
                     minimum_loader = NEOFORGE[mc]
-                java = 21 if mc == '1.21.1' else 25
+                java = 21 if mc.startswith('1.') else 25
                 expected_major = java + 44
                 for name in names:
                     if name.endswith('.class') and name.startswith('com/egakh/familytree/'):
