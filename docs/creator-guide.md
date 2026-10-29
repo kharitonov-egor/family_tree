@@ -43,7 +43,7 @@ The gameplay clips show an automated demonstration in Minecraft 26.2. Vanilla fe
 
 ## Compatibility and limits
 
-Version 1.1.0 supports Fabric on Minecraft 1.21.1, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge builds cover 1.21.1, 26.2, and 26.3. NeoForge 26.3 is beta. See the [installation table](../README.md#install) for Java and loader requirements.
+Version 1.2.0 supports Fabric on Minecraft 1.20.1, 1.21.1, 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge builds cover 1.21.1, 1.21.11, 26.2, and 26.3, and Forge covers 1.20.1. NeoForge 26.3 is beta. See the [installation table](../README.md#install) for Java and loader requirements.
 
 The tracker covers vanilla tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Camels and skeleton trap horses join once a player rides or breeds them. Parrots cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule. Compatibility with modded animal species or changed animal models has not been tested.
 

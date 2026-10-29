@@ -22,7 +22,7 @@ class Modrinth:
         if isinstance(data, dict):
             data = json.dumps(data).encode()
         request = urllib.request.Request('https://api.modrinth.com/v2/' + path, data=data, method=method,
-            headers={'Authorization': self.token, 'User-Agent': 'kharitonov-egor/family_tree-publisher/1.1.0',
+            headers={'Authorization': self.token, 'User-Agent': 'kharitonov-egor/family_tree-publisher',
                      'Content-Type': content_type})
         try:
             with urllib.request.urlopen(request, timeout=90) as response:
@@ -48,6 +48,7 @@ def main():
     parser.add_argument('--media', type=Path)
     parser.add_argument('--update-page', action='store_true')
     parser.add_argument('--fix-archive', action='store_true')
+    parser.add_argument('--quilt', action='store_true', help='Also list Fabric files for Quilt')
     args = parser.parse_args()
     api = Modrinth()
     user = api.request('GET', 'user')
@@ -57,6 +58,7 @@ def main():
         versions = api.request('GET', f'project/{PROJECT}/version')
         published = []
         for item in manifest['files']:
+            loaders = [item['loader']] + (['quilt'] if args.quilt and item['loader'] == 'fabric' else [])
             path = args.manifest.parent / item['filename']
             content = path.read_bytes()
             assert hashlib.sha512(content).hexdigest() == item['sha512'], 'Release file changed after verification'
@@ -64,13 +66,13 @@ def main():
             if matches:
                 version = matches[0]
                 assert any(file['hashes']['sha512'] == item['sha512'] for file in version['files'])
-                assert version['game_versions'] == [item['minecraft']] and version['loaders'] == [item['loader']]
+                assert version['game_versions'] == [item['minecraft']] and sorted(version['loaders']) == sorted(loaders)
             else:
                 metadata = {'project_id': PROJECT, 'version_number': item['version'],
                     'name': f'Family Tree {manifest["mod_version"]} for {item["minecraft"]} {item["loader"].capitalize()}',
                     'changelog': (ROOT / 'docs/releases' / (manifest['mod_version'] + '.md')).read_text(),
                     'dependencies': item['dependencies'], 'game_versions': [item['minecraft']],
-                    'version_type': item['release_type'], 'loaders': [item['loader']],
+                    'version_type': item['release_type'], 'loaders': loaders,
                     'featured': True, 'file_parts': ['file'], 'primary_file': 'file'}
                 version = api.version(metadata, item['filename'], content)
             published.append({'version': item['version'], 'id': version['id'], 'sha512': item['sha512']})
@@ -120,7 +122,7 @@ def main():
             print('Corrected archived metadata:', version_id)
     if args.update_page:
         api.request('PATCH', f'project/{PROJECT}', {'title': 'Family Tree for Minecraft pets',
-            'description': "Keep your pets' parents, descendants, and death history. Find their last known location and export a family tree as a PNG.",
+            'description': "Keep your pets' family history and compare each foal's speed, jump, and health with its parents. Find missing pets and export a family tree as a PNG.",
             'body': (ROOT / 'modrinth_description.md').read_text()})
         project = api.request('GET', f'project/{PROJECT}')
         assert project['body'] == (ROOT / 'modrinth_description.md').read_text()

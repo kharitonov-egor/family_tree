@@ -2,7 +2,7 @@
 
 Family Tree records your Minecraft pets, their parents, and their descendants. Keep deceased pets in the family, find a missing pet's last known location, and export a tree as a PNG.
 
-Install the matching file in singleplayer and press **H**. On a server, install Family Tree on the server for tracking and on your client for the screens. Use the same mod version on both sides. Fabric builds also need Fabric API and Fabric Loader 0.19.3 or newer.
+Install the matching file in singleplayer and press **H**. On a server, install Family Tree on the server for tracking and on your client for the screens. Use the same mod version on both sides. Fabric builds also need Fabric API and Fabric Loader 0.19.3 or newer. They run on Quilt Loader 0.30.1 or newer too, with Fabric API.
 
 ![A pet family exported as a PNG](https://cdn.modrinth.com/data/CVQKDAe7/images/4f59a55c92124812e4c90f47cb8d795a8dd218e4.png)
 
@@ -60,11 +60,11 @@ The linking stick remains available. Rename a stick to `familytree`, right-click
 
 Commands correct ages and birth days, inspect records, and manage history. Name-based edits reject duplicate names and offer UUID choices. Operator pruning writes a backup first. See the [command guide](https://github.com/kharitonov-egor/family_tree/blob/main/docs/commands.md).
 
-Version 1.1.0 preserves existing history. Update clients and servers together because the snapshot protocol changed. Back up your world before changing Minecraft versions. A 1.21.1 jar does not make a newer world safe to downgrade.
+Version 1.2.0 preserves existing history and adds one optional field for horse stats. Update clients and servers together because the network channels changed. Back up your world before changing Minecraft versions. An older Minecraft build does not make a newer world safe to downgrade.
 
-The 26.3 client checks passed with Vulkan. This test laptop's Intel OpenGL driver crashed before entering a world. See the [validation notes](https://github.com/kharitonov-egor/family_tree/blob/v1.1.0/docs/releases/1.1.0-validation.md) for tested environments.
+Each new 1.2.0 build ran in a real game instance before release: Fabric and Forge on 1.20.1, Fabric and NeoForge on 1.21.11, and the horse scenes on Fabric 26.3 and NeoForge 1.21.1. The [release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.2.0/docs/releases/1.2.0.md) list what was tested.
 
-[Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.1.0/docs/releases/1.1.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
+[Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.2.0/docs/releases/1.2.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
 
 ## Making a video or adding it to a pack?
 

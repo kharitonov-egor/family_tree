@@ -37,7 +37,7 @@ Choose the file that matches both your Minecraft version and mod loader.
 | 26.3 | Fabric | 25 or newer | Fabric API for 26.3 |
 | 26.3 | NeoForge 26.3.0.37-beta or newer within 26.3 | 25 or newer | Beta loader |
 
-Put the matching jar in `mods/`. Fabric builds use Fabric Loader 0.19.3 for testing. NeoForge and Forge builds do not need Fabric API.
+Put the matching jar in `mods/`. Fabric builds use Fabric Loader 0.19.3 for testing. They also run on Quilt Loader 0.30.1 or newer with Fabric API. NeoForge and Forge builds do not need Fabric API.
 
 Install Family Tree on the server for tracking and on your client for the screens. In singleplayer, one installation does both. Use the same Family Tree version on both sides. Players without the mod can join a server that has it, but cannot open the screens.
 
@@ -91,11 +91,11 @@ Owners and server operators can locate or edit their pets. Linking two parents r
 
 [Command reference](docs/commands.md) includes locating, pairing, age corrections, and operator pruning.
 
-## Upgrading to 1.1.0
+## Upgrading to 1.2.0
 
-Existing Family Tree history and custom names remain. This release does not change saved field names or add required save fields. Update the server and clients together because the screen protocol changed. Minecraft world version restrictions still apply, so the 1.21.1 build is for 1.21.1 worlds, not for downgrading a newer world.
+Existing Family Tree history and custom names remain. Saved records gain one optional `horse_stats` field, and 1.1.0 saves load unchanged. Update the server and clients together because the network channels changed. If you go back to 1.1.0, it keeps every record but drops horse stats on its next save. Minecraft world version restrictions still apply, so each build is for worlds of its own Minecraft version, not for downgrading a newer world.
 
-[Latest release notes](docs/releases/1.1.0.md) | [Upcoming 1.2.0 notes](docs/releases/1.2.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
+[Latest release notes](docs/releases/1.2.0.md) | [1.1.0 release notes](docs/releases/1.1.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
 
 ## Build and test
 
@@ -119,8 +119,8 @@ See [runtime validation](docs/testing.md) for the separate server smoke tests an
 
 ## Releases and download progress
 
-Version 1.1.0 uses paged network snapshots. Update clients and servers together. It preserves existing history, keeps unreadable records in the save, and disables writes to an unsupported future save format. Operator pruning writes a backup before deleting records.
+Version 1.2.0 adds horse breeding stats and builds for Minecraft 1.20.1 and 1.21.11. Update clients and servers together. It preserves existing history, keeps unreadable records in the save, and disables writes to an unsupported future save format. Operator pruning writes a backup before deleting records.
 
-[Release notes](docs/releases/1.1.0.md), [runtime checks](docs/testing.md), and [public download counts](docs/metrics/README.md) describe the release and progress toward 10,000 Modrinth downloads. Run `python scripts/download_counts.py` to update the public counters. The daily GitHub workflow does the same. Repeat downloads and upgrades count toward platform totals.
+[Release notes](docs/releases/1.2.0.md), [runtime checks](docs/testing.md), and [public download counts](docs/metrics/README.md) describe the release and progress toward 10,000 Modrinth downloads. Run `python scripts/download_counts.py` to update the public counters. The daily GitHub workflow does the same. Repeat downloads and upgrades count toward platform totals.
 
-Build all targets with JDK 25, JDK 21, and JDK 17 installed using `./gradlew buildAll --no-parallel`. Commit the tested source, then run `python scripts/release_manifest.py` to verify jar metadata, Java targets, license, icon, and hashes. Publish the copies under `build/releases/1.1.0/`.
+Build all targets with JDK 25, JDK 21, and JDK 17 installed using `./gradlew buildAll --no-parallel`. Commit the tested source, then run `python scripts/release_manifest.py` to verify jar metadata, Java targets, license, icon, and hashes. Publish the copies under `build/releases/<version>/`.
