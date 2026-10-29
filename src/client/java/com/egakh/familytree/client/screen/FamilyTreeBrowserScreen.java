@@ -185,6 +185,8 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
             scroll = 0;
             recompute();
         }).bounds(212, scopeY + 24, 104, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("familytree.feedback.button"), button ->
+                minecraft.setScreen(new FeedbackScreen(this))).bounds(this.width - 116, wrapControls ? btnY : scopeY + 24, 100, 18).build());
         refreshSortButton();
         refreshSpeciesButtons();
         recompute();

@@ -10,6 +10,13 @@ def neoVersions = ['1.21.1': '21.1.252', '1.21.4': '21.4.161', '1.21.5': '21.5.1
         '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta']
 if (!neoVersions.containsKey(mcVersion)) throw new GradleException("Unsupported Minecraft version ${mcVersion}")
 def javaVersion = mcVersion.startsWith('1.') ? 21 : 25
+// Optional integrations stay compile-only. -Pintegrations=jade,journeymap adds the listed mods to development runs.
+def integrationVersions = [
+        '1.21.1' : [jade: '15.10.6+neoforge', wthit: 'neo-12.10.2', badpackets: 'neo-0.8.2', journeymap: '1.21.1-6.0.9+neoforge', xaero: 'neoforge-1.21.1-26.6.0'],
+        '1.21.11': [jade: '21.1.7+neoforge', wthit: 'neo-18.2.2', badpackets: 'neo-0.11.2', journeymap: '1.21.11-6.0.0+neoforge', xaero: 'neoforge-1.21.11-26.6.2'],
+        '26.2'   : [jade: '26.2.10+neoforge', wthit: 'neo-20.0.0', badpackets: 'neo-0.12.2', journeymap: '26.2-6.0.10+neoforge', xaero: 'neoforge-26.2-26.6.2'],
+        '26.3'   : [jade: '26.3.5+neoforge', journeymap: '26.3-6.0.10+neoforge', xaero: 'neoforge-26.3-26.6.2'],
+][mcVersion]
 version = "${sharedProperties.mod_version}+${mcVersion}-neoforge"
 layout.buildDirectory = file("build/${mcVersion}")
 group = sharedProperties.maven_group
@@ -28,26 +35,57 @@ neoForge {
     }
 }
 
+sourceSets {
+    stubs {
+        java.setSrcDirs(['../src/stubs/java'])
+        resources.setSrcDirs([])
+    }
+}
 sourceSets.main {
     java.setSrcDirs(["../versions/${mcVersion}/build/generated/stonecutter/main/java",
             "../versions/${mcVersion}/build/generated/stonecutter/client/java",
             mcVersion in ['1.21.1', '1.21.4', '1.21.5'] ? 'src/legacy/java' : 'src/main/java' ])
     java.exclude '**/fabric/**'
+    if (!integrationVersions.wthit) java.exclude '**/integration/wthit/**'
     resources.setSrcDirs(['../src/main/resources', 'src/main/resources'])
     resources.exclude 'fabric.mod.json'
+    if (!integrationVersions.wthit) resources.exclude 'waila_plugins.json'
+    compileClasspath += sourceSets.stubs.output
 }
 sourceSets.test {
     java.setSrcDirs(['../src/test/java'])
     compileClasspath += sourceSets.main.compileClasspath
     runtimeClasspath += sourceSets.main.runtimeClasspath
 }
-repositories { mavenCentral() }
+repositories {
+    exclusiveContent {
+        forRepository { maven { url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup 'maven.modrinth' }
+    }
+    mavenCentral()
+}
+sourceSets.stubs.compileClasspath = configurations.compileClasspath
 dependencies {
+    compileOnly("maven.modrinth:jade:${integrationVersions.jade}") { transitive = false }
+    if (integrationVersions.wthit) compileOnly("maven.modrinth:wthit:${integrationVersions.wthit}") { transitive = false }
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 test { useJUnitPlatform() }
+
+// Development runs load the listed mods from the run directory's mods folder, as a player's game would.
+configurations { integrationMods { transitive = false } }
+(project.findProperty('integrations') ?: '').tokenize(',').each { name ->
+    if (!['jade', 'wthit', 'journeymap', 'xaero', 'modmenu'].contains(name)) throw new GradleException("Unknown integration '${name}'")
+    def coordinates = [jade: "maven.modrinth:jade:${integrationVersions.jade}",
+                       wthit: integrationVersions.wthit ? "maven.modrinth:wthit:${integrationVersions.wthit}" : null,
+                       journeymap: "maven.modrinth:journeymap:${integrationVersions.journeymap}",
+                       xaero: "maven.modrinth:xaeros-minimap:${integrationVersions.xaero}"][name]
+    if (coordinates == null) logger.warn("${name} has no NeoForge build for Minecraft ${mcVersion}; development runs skip it")
+    else dependencies.add('integrationMods', coordinates)
+    if (name == 'wthit' && coordinates != null) dependencies.add('integrationMods', "maven.modrinth:badpackets:${integrationVersions.badpackets}")
+}
 
 tasks.register('prepareSharedSources', Exec) {
     onlyIf { !project.hasProperty('sharedSourcesReady') }
@@ -78,7 +116,7 @@ if (project.hasProperty('demo')) {
             java.exclude '**/FabricDemoClient.java'
             resources.setSrcDirs(['src/demo/resources'])
             compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
-            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+            runtimeClasspath += output + sourceSets.main.output + sourceSets.main.runtimeClasspath
         }
     }
     neoForge {
@@ -87,6 +125,7 @@ if (project.hasProperty('demo')) {
             demo {
                 client()
                 sourceSet = sourceSets.demo
+                jvmArgument '-Xmx2G'
                 gameDirectory = file("../build/demo-neoforge-${mcVersion}")
                 systemProperty 'familytree.demo.gameplay', project.hasProperty('gameplay').toString()
                 systemProperty 'familytree.demo.horses', project.hasProperty('horses').toString()
@@ -94,12 +133,20 @@ if (project.hasProperty('demo')) {
                 systemProperty 'familytree.demo.farm', project.hasProperty('farm').toString()
                 if (project.hasProperty('moddedAnimal')) systemProperty 'familytree.demo.moddedAnimal', project.property('moddedAnimal').toString()
                 if (project.hasProperty('moddedFood')) systemProperty 'familytree.demo.moddedFood', project.property('moddedFood').toString()
+                systemProperty 'familytree.demo.integrationScene', (project.hasProperty('integrationScene') || project.hasProperty('integrations')).toString()
+                systemProperty 'familytree.demo.integrations', (project.findProperty('integrations') ?: '').toString()
+                systemProperty 'familytree.demo.sendFeedback', project.hasProperty('sendFeedback').toString()
                 programArguments.addAll '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
                 if (mcVersion == '26.3' && project.hasProperty('graphicsBackend')) programArguments.addAll '--graphicsBackend', project.property('graphicsBackend')
             }
         }
     }
+    def syncIntegrationMods = tasks.register('syncDemoMods', Sync) {
+        from configurations.integrationMods
+        into file("../build/demo-neoforge-${mcVersion}/mods")
+    }
     tasks.named('runDemo') {
+        dependsOn syncIntegrationMods
         def result = file("../build/demo-neoforge-${mcVersion}/demo-result.txt")
         doFirst { result.delete() }
         doLast {
@@ -116,7 +163,7 @@ if (project.hasProperty('smoke')) {
             java.exclude '**/FabricSmoke.java'
             resources.setSrcDirs(['src/smoke/resources'])
             compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
-            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+            runtimeClasspath += output + sourceSets.main.output + sourceSets.main.runtimeClasspath
         }
     }
     neoForge {

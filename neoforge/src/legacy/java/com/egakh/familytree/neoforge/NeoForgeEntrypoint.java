@@ -72,5 +72,8 @@ public final class NeoForgeEntrypoint {
                 FamilyTreePackets.locate(packet, (ServerPlayer) context.player()));
         registrar.playToServer(RenamePetRequest.TYPE, RenamePetRequest.STREAM_CODEC, (packet, context) ->
                 FamilyTreePackets.rename(packet, (ServerPlayer) context.player()));
+        registrar.playToClient(WaypointResult.TYPE, WaypointResult.STREAM_CODEC, (packet, context) -> context.enqueueWork(() -> LegacyClientPackets.receive(packet)));
+        registrar.playToServer(WaypointRequest.TYPE, WaypointRequest.STREAM_CODEC, (packet, context) ->
+                FamilyTreePackets.waypoint(packet, (ServerPlayer) context.player()));
     }
 }

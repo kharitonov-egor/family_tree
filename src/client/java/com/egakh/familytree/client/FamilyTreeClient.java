@@ -14,6 +14,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import com.egakh.familytree.network.payloads.SnapshotPagePayload;
 import com.egakh.familytree.network.payloads.DiscoverPetsRequest;
+import com.egakh.familytree.network.payloads.WaypointResult;
+import com.egakh.familytree.client.integration.MapWaypoints;
+import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.integration.PetInsight;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public final class FamilyTreeClient {
@@ -21,10 +27,27 @@ public final class FamilyTreeClient {
     private static final SnapshotAssembler ASSEMBLER = new SnapshotAssembler();
     private static int requestTicks;
     private static boolean pending;
+    private static volatile Map<UUID, AnimalRecord> latestRecords = Map.of();
     public void initialize() { FamilyTreeClientSettings.load(); }
 
     public static void receive(FamilyTreeSnapshotPayload packet) {
+        Map<UUID, AnimalRecord> records = new HashMap<>();
+        for (AnimalRecord record : packet.records()) records.put(record.id(), record);
+        latestRecords = records;
         FamilyTreeBrowserScreen.deliverSnapshot(packet);
+    }
+
+    /** Tooltip details from the last snapshot the server sent, which already holds only records this player may see. */
+    public static PetInsight latestInsight(UUID petId) {
+        return PetInsight.of(petId, latestRecords::get);
+    }
+
+    public static AnimalRecord latestRecord(UUID petId) {
+        return latestRecords.get(petId);
+    }
+
+    public static void receive(WaypointResult packet) {
+        MapWaypoints.receive(packet);
     }
 
     public static void receive(SnapshotPagePayload packet) {
@@ -66,6 +89,8 @@ public final class FamilyTreeClient {
             com.egakh.familytree.client.screen.PetFaceRenderer.clearCache();
             pending = false;
             ASSEMBLER.clear();
+            latestRecords = Map.of();
+            MapWaypoints.clear();
         } else if (pending && ++requestTicks >= 200) {
             pending = false;
             ASSEMBLER.clear();

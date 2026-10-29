@@ -140,7 +140,7 @@ public final class HorseCapture {
     }
 
     // Reflection keeps this development-only runner usable across the supported game APIs.
-    private static Animal horse(ServerLevel world, String type, String name, double x, double z,
+    static Animal horse(ServerLevel world, String type, String name, double x, double z,
                                 String coat, String markings, ServerPlayer owner) throws Exception {
         Animal animal = create(world, type);
         animal.setPos(x, 101, z);

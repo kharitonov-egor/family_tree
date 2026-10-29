@@ -32,11 +32,13 @@ final class ForgeNetwork {
         channel(SnapshotPagePayload.TYPE, SnapshotPagePayload.STREAM_CODEC);
         channel(LinkParentsResult.TYPE, LinkParentsResult.STREAM_CODEC);
         channel(RenamePetResult.TYPE, RenamePetResult.STREAM_CODEC);
+        channel(WaypointResult.TYPE, WaypointResult.STREAM_CODEC);
         serverbound(LinkParentsRequest.TYPE, LinkParentsRequest.STREAM_CODEC, FamilyTreePackets::link);
         serverbound(OpenFamilyTreeRequest.TYPE, OpenFamilyTreeRequest.STREAM_CODEC, FamilyTreePackets::open);
         serverbound(DiscoverPetsRequest.TYPE, DiscoverPetsRequest.STREAM_CODEC, FamilyTreePackets::discover);
         serverbound(LocatePetRequest.TYPE, LocatePetRequest.STREAM_CODEC, FamilyTreePackets::locate);
         serverbound(RenamePetRequest.TYPE, RenamePetRequest.STREAM_CODEC, FamilyTreePackets::rename);
+        serverbound(WaypointRequest.TYPE, WaypointRequest.STREAM_CODEC, FamilyTreePackets::waypoint);
     }
 
     static boolean present(CustomPacketPayload.Type<?> type, Connection connection) {

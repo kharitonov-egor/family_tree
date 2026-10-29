@@ -1,0 +1,1 @@
+These are compile-only copies of the JourneyMap API 2.0.0 signatures that Family Tree calls. JourneyMap publishes that API only as snapshot builds, so the build compiles against these instead. They never enter a jar; at runtime JourneyMap supplies the real classes. Keep each signature identical to the real API.

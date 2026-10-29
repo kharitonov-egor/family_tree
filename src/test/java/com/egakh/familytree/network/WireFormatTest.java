@@ -45,6 +45,9 @@ class WireFormatTest {
         assertEquals("0000000000000013000000000000001400000000000000150000000000000016000000000000001700000000000000180000000000000000000000000000000001", bytes(LinkParentsRequest.STREAM_CODEC, new LinkParentsRequest(new UUID(19, 20), new UUID(21, 22), new UUID(23, 24), new UUID(0, 0), true), WireFormatTest::registryBuffer));
         assertEquals("0000000000000019000000000000001aac02", bytes(LinkParentsResult.STREAM_CODEC, new LinkParentsResult(new UUID(25, 26), 300), WireFormatTest::registryBuffer));
         assertEquals("000000000000001b000000000000001c0200", bytes(RenamePetResult.STREAM_CODEC, new RenamePetResult(new UUID(27, 28), 2, Optional.empty()), WireFormatTest::registryBuffer));
+        assertEquals("000000000000001d000000000000001e000000000000001f0000000000000020", bytes(WaypointRequest.STREAM_CODEC, new WaypointRequest(new UUID(29, 30), new UUID(31, 32)), WireFormatTest::registryBuffer));
+        assertEquals("000000000000002100000000000000220005456d626572136d696e6563726166743a6f766572776f726c640102030405060708",
+                bytes(WaypointResult.STREAM_CODEC, new WaypointResult(new UUID(33, 34), 0, "Ember", "minecraft:overworld", 0x0102030405060708L), WireFormatTest::registryBuffer));
     }
 
     private static <B extends ByteBuf, T> String bytes(StreamCodec<? super B, T> codec, T value, Function<ByteBuf, B> wrap) {

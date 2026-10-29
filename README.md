@@ -147,6 +147,33 @@ Exports include pet names, generations, variants, horse stats, portraits, and li
 
 ![A PNG exported from the example family](docs/family-tree-export.png)
 
+## Works with
+
+These mods are optional. Family Tree doesn't bundle them and starts without them.
+
+| Mod | What Family Tree adds | Tested with |
+| --- | --- | --- |
+| [Jade](https://modrinth.com/mod/jade) | Looking at a tracked animal shows its Family Tree name, parents, generation, and horse stats beside its parents' | Fabric 26.3 with Jade 26.3.5, NeoForge 1.21.1 with Jade 15.10.6 |
+| [WTHIT](https://modrinth.com/mod/wthit) | The same tooltip lines | Fabric 1.21.11 with WTHIT 18.2.2, NeoForge 1.21.1 with WTHIT 12.10.2 |
+| [JourneyMap](https://modrinth.com/mod/journeymap) | **Waypoint** in the tree screen adds a waypoint at the pet | Fabric 26.3 with JourneyMap 6.0.10, NeoForge 1.21.1 with JourneyMap 6.0.9 |
+| [Xaero's Minimap](https://modrinth.com/mod/xaeros-minimap) | **Waypoint** shares the pet's position in chat. Xaero's **Add** link opens its waypoint form, filled in with the pet's name and position | Fabric 26.3 with Xaero's Minimap 26.6.2, NeoForge 1.21.1 with 26.6.0 |
+| [Mod Menu](https://modrinth.com/mod/modmenu) | Its Configure button opens Family Tree's settings | Fabric 26.3 with Mod Menu 21.0.0, Fabric 1.21.11 with 17.0.1 |
+
+NeoForge's and Forge's mod list Config button opens the same settings. Family Tree compiles against Jade, WTHIT, Mod Menu, and the JourneyMap API for every target where those mods exist. WTHIT has no build for Minecraft 26.3 yet.
+
+Tooltips show only what the player could open in Family Tree's own screens: pets the server's `viewPolicy` hides stay hidden, and coordinates never appear. Waypoints follow the same rule as **Locate pet**, so only the pet's owner or an operator can add one.
+
+### For pack authors
+
+- Install Jade or WTHIT on the server as well as the clients. The server then sends family details for any animal a player looks at. A client on a server without them only knows the pets from its last Family Tree screen.
+- JourneyMap, Xaero's Minimap, and Mod Menu are client-side for this.
+- Client settings live in `config/familytree-client.properties`. The server's `viewPolicy` lives in `config/familytree-server.properties`.
+- The tooltip lines follow the client's **Show generation** and **Show horse stats** settings. Jade lists them as "Family Tree pets" in its plugin settings.
+
+## Send feedback
+
+**Send feedback** in the browser and on the Getting started screen opens a form for a message to the developer, with an optional contact field if you'd like a reply. The form lists everything that will be sent: your message, the contact if you give one, the Family Tree, Minecraft, and loader versions, and the game language. Nothing is sent until you press **Send**, and Family Tree never sends anything on its own or in the background. The feedback server uses your IP address only to limit spam and leaves it out of the email. [The endpoint's source](tools/feedback-endpoint/) is in this repository.
+
 ## Existing families and server permissions
 
 Rename a stick to `familytree` in an anvil. Right-click the first parent, second parent, and child, then confirm in chat. Clicking an animal other than a pet that isn't in the history yet adds it for you first. Sneak and right-click a pet to clear its parents after confirmation. Manual links require distinct pets and reject ancestry loops. Horse and donkey parents can link to a mule.

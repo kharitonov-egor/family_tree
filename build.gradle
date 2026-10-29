@@ -9,7 +9,7 @@ if (project.hasProperty('smoke')) {
             java.setSrcDirs([rootProject.file('src/smoke/java')])
             resources.setSrcDirs([rootProject.file('src/smoke/resources')])
             compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
-            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+            runtimeClasspath += output + sourceSets.main.output + sourceSets.main.runtimeClasspath
         }
     }
     loom {
@@ -59,6 +59,28 @@ def minecraftDep = minecraftRanges[mcVersion] ?: "=${mcVersion}"
 def obfuscated = mcVersion.startsWith('1.')
 def javaVersion = mcVersion == '1.20.1' ? 17 : obfuscated ? 21 : 25
 
+// Optional integrations. Jade, WTHIT, and Mod Menu are compile-only; JourneyMap compiles against src/stubs.
+// Xaero's Minimap needs no API. -Pintegrations=jade,journeymap adds the listed mods to development runs.
+def integrationVersions = [
+        '1.20.1' : [jade: '11.13.3+fabric', wthit: 'fabric-8.21.1', badpackets: 'fabric-0.4.3', modmenu: '7.2.2',
+                    journeymap: '1.20.1-6.0.7+fabric', xaero: 'fabric-1.20.1-26.6.0'],
+        '1.21.1' : [jade: '15.10.6+fabric', wthit: 'fabric-12.10.2', badpackets: 'fabric-0.8.2', modmenu: '11.0.5',
+                    journeymap: '1.21.1-6.0.9+fabric', xaero: 'fabric-1.21.1-26.6.0'],
+        '1.21.11': [jade: '21.1.6+fabric', wthit: 'fabric-18.2.2', badpackets: 'fabric-0.11.2', modmenu: '17.0.1',
+                    journeymap: '1.21.11-6.0.0+fabric', xaero: 'fabric-1.21.11-26.6.2'],
+        '26.1.1' : [jade: '26.1.11+fabric', wthit: 'fabric-19.0.1', badpackets: 'fabric-0.12.2', modmenu: '18.0.2',
+                    journeymap: '26.1-6.0.0-beta.67+fabric', xaero: 'fabric-26.1.2-26.6.2'],
+        '26.1.2' : [jade: '26.1.11+fabric', wthit: 'fabric-19.0.1', badpackets: 'fabric-0.12.2', modmenu: '18.0.2',
+                    journeymap: '26.1.2-6.0.10+fabric', xaero: 'fabric-26.1.2-26.6.2'],
+        '26.2'   : [jade: '26.2.11+fabric', wthit: 'fabric-20.0.0', badpackets: 'fabric-0.12.2', modmenu: '20.0.3',
+                    journeymap: '26.2-6.0.10+fabric', xaero: 'fabric-26.2-26.6.2'],
+        '26.3'   : [jade: '26.3.5+fabric', modmenu: '21.0.0',
+                    journeymap: '26.3-6.0.10+fabric', xaero: 'fabric-26.3-26.6.2'],
+][mcVersion]
+if (integrationVersions == null) {
+    throw new GradleException("No integration versions mapped for Minecraft ${mcVersion} — add them to build.gradle")
+}
+
 version = "${project.mod_version}+${mcVersion}"
 group = project.maven_group
 
@@ -68,7 +90,22 @@ base {
 
 repositories {
     maven { url = 'https://maven.fabricmc.net/' }
+    maven {
+        url = 'https://maven.terraformersmc.com/releases/'
+        content { includeGroup 'com.terraformersmc' }
+    }
+    exclusiveContent {
+        forRepository { maven { url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup 'maven.modrinth' }
+    }
     mavenCentral()
+}
+
+sourceSets {
+    stubs {
+        java.setSrcDirs([rootProject.file('src/stubs/java')])
+        resources.setSrcDirs([])
+    }
 }
 
 loom {
@@ -92,14 +129,43 @@ dependencies {
         implementation "net.fabricmc:fabric-loader:${project.loader_version}"
         implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
     }
+    def integrationCompile = obfuscated ? 'modCompileOnly' : 'compileOnly'
+    add(integrationCompile, "maven.modrinth:jade:${integrationVersions.jade}") { transitive = false }
+    add(integrationCompile, "com.terraformersmc:modmenu:${integrationVersions.modmenu}") { transitive = false }
+    if (integrationVersions.wthit) add(integrationCompile, "maven.modrinth:wthit:${integrationVersions.wthit}") { transitive = false }
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+sourceSets.stubs.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.client.compileClasspath += sourceSets.stubs.output
+
 sourceSets.test {
     compileClasspath += sourceSets.client.output
     runtimeClasspath += sourceSets.client.output
+}
+
+// Development runs load the listed mods from the run directory's mods folder, as a player's game would.
+// Loom rejects mod jars built by a newer Loom, so they stay off the classpath.
+configurations { integrationMods { transitive = false } }
+(project.findProperty('integrations') ?: '').tokenize(',').each { name ->
+    def coordinates = [jade: "maven.modrinth:jade:${integrationVersions.jade}",
+                       wthit: integrationVersions.wthit ? "maven.modrinth:wthit:${integrationVersions.wthit}" : null,
+                       modmenu: "com.terraformersmc:modmenu:${integrationVersions.modmenu}",
+                       journeymap: "maven.modrinth:journeymap:${integrationVersions.journeymap}",
+                       xaero: "maven.modrinth:xaeros-minimap:${integrationVersions.xaero}"][name]
+    if (!['jade', 'wthit', 'modmenu', 'journeymap', 'xaero'].contains(name)) throw new GradleException("Unknown integration '${name}'")
+    if (coordinates == null) logger.warn("${name} has no build for Minecraft ${mcVersion}; its development runs skip it")
+    else dependencies.add('integrationMods', coordinates)
+    if (name == 'wthit' && coordinates != null) dependencies.add('integrationMods', "maven.modrinth:badpackets:${integrationVersions.badpackets}")
+}
+
+// WTHIT has no build for every target. Without it, its plugin classes and plugin list stay out of the jar.
+if (!integrationVersions.wthit) {
+    sourceSets.main.java.exclude '**/integration/wthit/**'
+    sourceSets.client.java.exclude '**/integration/wthit/**'
+    processResources.exclude 'waila_plugins.json'
 }
 
 test {
@@ -157,7 +223,7 @@ if (project.hasProperty('demo')) {
             java.setSrcDirs([rootProject.file('src/demo/java')])
             resources.setSrcDirs([rootProject.file('src/demo/resources')])
             compileClasspath += sourceSets.main.output + sourceSets.client.output + sourceSets.client.compileClasspath
-            runtimeClasspath += output + compileClasspath + sourceSets.client.runtimeClasspath
+            runtimeClasspath += output + sourceSets.main.output + sourceSets.client.output + sourceSets.client.runtimeClasspath
         }
     }
     loom {
@@ -166,19 +232,29 @@ if (project.hasProperty('demo')) {
             demo {
                 client()
                 source sourceSets.demo
+                vmArg '-Xmx2G'
+                vmArg '-Djava.awt.headless=true'
                 vmArg "-Dfamilytree.demo.gameplay=${project.hasProperty('gameplay')}"
                 vmArg "-Dfamilytree.demo.horses=${project.hasProperty('horses')}"
                 vmArg "-Dfamilytree.demo.animals=${project.hasProperty('animals')}"
                 vmArg "-Dfamilytree.demo.farm=${project.hasProperty('farm')}"
                 if (project.hasProperty('moddedAnimal')) vmArg "-Dfamilytree.demo.moddedAnimal=${project.property('moddedAnimal')}"
                 if (project.hasProperty('moddedFood')) vmArg "-Dfamilytree.demo.moddedFood=${project.property('moddedFood')}"
+                vmArg "-Dfamilytree.demo.integrationScene=${project.hasProperty('integrationScene') || project.hasProperty('integrations')}"
+                vmArg "-Dfamilytree.demo.integrations=${project.findProperty('integrations') ?: ''}"
+                vmArg "-Dfamilytree.demo.sendFeedback=${project.hasProperty('sendFeedback')}"
                 runDir "../../build/demo-${mcVersion}"
                 programArgs '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
                 if (mcVersion == '26.3' && project.hasProperty('graphicsBackend')) programArgs '--graphicsBackend', project.property('graphicsBackend')
             }
         }
     }
+    def syncIntegrationMods = tasks.register('syncDemoMods', Sync) {
+        from configurations.integrationMods
+        into rootProject.file("build/demo-${mcVersion}/mods")
+    }
     tasks.named('runDemo') {
+        dependsOn syncIntegrationMods
         def result = rootProject.file("build/demo-${mcVersion}/demo-result.txt")
         doFirst { result.delete() }
         doLast {

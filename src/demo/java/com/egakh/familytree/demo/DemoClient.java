@@ -20,6 +20,7 @@ public final class DemoClient {
     private final HorseCapture horses = new HorseCapture();
     private final AnimalCapture animals = new AnimalCapture();
     private final FarmCapture farm = new FarmCapture();
+    private final IntegrationCapture integrations = new IntegrationCapture();
     private int tick;
     private int totalTicks;
     private final List<AnimalRecord> pets = new ArrayList<>();
@@ -38,6 +39,7 @@ public final class DemoClient {
             if (Boolean.getBoolean("familytree.demo.horses")) { horses.tick(client, this); return; }
             if (Boolean.getBoolean("familytree.demo.animals")) { animals.tick(client, this); return; }
             if (Boolean.getBoolean("familytree.demo.farm")) { farm.tick(client, this); return; }
+            if (Boolean.getBoolean("familytree.demo.integrationScene")) { integrations.tick(client, this); return; }
             tick++;
             if (tick == 1) {
                 exportsBefore = exportCount(client);
@@ -153,6 +155,11 @@ public final class DemoClient {
         catch (NoSuchFieldException newerVersion) {
             return (Screen) client.gui.getClass().getMethod("screen").invoke(client.gui);
         }
+    }
+
+    Screen current(Minecraft client) throws Exception {
+        currentScreen = activeScreen(client);
+        return currentScreen;
     }
 
     void show(Minecraft client, Screen screen) throws Exception {
