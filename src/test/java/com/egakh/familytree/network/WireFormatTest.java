@@ -1,6 +1,7 @@
 package com.egakh.familytree.network;
 
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.data.HorseStats;
 import com.egakh.familytree.network.payloads.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -25,9 +26,14 @@ class WireFormatTest {
                 7, 1234, true, 15L, null, new UUID(5, 6), "Owner", "minecraft:pale",
                 new AnimalRecord.LastSeen(1.5, 64, -8, "minecraft:overworld", 14), new AnimalRecord.DeathCause("Creeper", null));
         pet.setTreeName("Snowball");
-        var page = new SnapshotPagePayload(new UUID(7, 8), 0, 1, 1, List.of(pet), 5, 100, true, false, true);
-        assertEquals("0000000000000007000000000000000800010101000000000000000100000000000000020e6d696e6563726166743a776f6c6605526f76657200010000000000000003000000000000000400000000000000000700000000000004d20101000000000000000f00010000000000000005000000000000"
-                + "000601054f776e6572010e6d696e6563726166743a70616c65013ff80000000000004050000000000000c020000000000000136d696e6563726166743a6f766572776f726c64000000000000000e01010743726565706572000108536e6f7762616c6c00000000000000050000000000000064010001", bytes(SnapshotPagePayload.STREAM_CODEC, page, FriendlyByteBuf::new));
+        AnimalRecord horse = new AnimalRecord(new UUID(9, 10), "minecraft:horse", "Clover", true, null, null,
+                3, 99, false, null, null, null, null, "chestnut/white", null, null);
+        horse.setHorseStats(new HorseStats(0.3375, 0.7, 30.0, null));
+        var page = new SnapshotPagePayload(new UUID(7, 8), 0, 1, 2, List.of(pet, horse), 5, 100, true, false, true);
+        assertEquals("0000000000000007000000000000000800010202000000000000000100000000000000020e6d696e6563726166743a776f6c6605526f76657200010000000000000003000000000000000400000000000000000700000000000004d20101000000000000"
+                + "000f00010000000000000005000000000000000601054f776e6572010e6d696e6563726166743a70616c65013ff80000000000004050000000000000c020000000000000136d696e6563726166743a6f766572776f726c64000000000000000e01010743"
+                + "726565706572000108536e6f7762616c6c000000000000000009000000000000000a0f6d696e6563726166743a686f72736506436c6f766572010000000000000000000300000000000000630000000000010e63686573746e75742f7768697465000000"
+                + "01013fd599999999999a013fe666666666666601403e0000000000000000000000000000050000000000000064010001", bytes(SnapshotPagePayload.STREAM_CODEC, page, FriendlyByteBuf::new));
     }
 
     @Test void requestsAndResultsKeepTheirByteLayout() {
