@@ -14,12 +14,14 @@ public final class FamilyTreeClientSettings {
     private static final String SHOW_AGE_KEY = "showAge";
     private static final String SHOW_BIRTH_DAY_KEY = "showBirthDay";
     private static final String SHOW_GENERATION_KEY = "showGeneration";
+    private static final String SHOW_HORSE_STATS_KEY = "showHorseStats";
     private static final Path CONFIG_PATH = FamilyTreePaths.config()
             .resolve("familytree-client.properties");
 
     private static boolean showAge = false;
     private static boolean showBirthDay = false;
     private static boolean showGeneration = true;
+    private static boolean showHorseStats = true;
     private static boolean welcomeShown = false;
 
     private FamilyTreeClientSettings() {}
@@ -35,6 +37,7 @@ public final class FamilyTreeClientSettings {
         showAge = Boolean.parseBoolean(properties.getProperty(SHOW_AGE_KEY, "false"));
         showBirthDay = Boolean.parseBoolean(properties.getProperty(SHOW_BIRTH_DAY_KEY, "false"));
         showGeneration = Boolean.parseBoolean(properties.getProperty(SHOW_GENERATION_KEY, "true"));
+        showHorseStats = Boolean.parseBoolean(properties.getProperty(SHOW_HORSE_STATS_KEY, "true"));
         welcomeShown = Boolean.parseBoolean(properties.getProperty("welcomeShown", "false"));
     }
 
@@ -43,6 +46,7 @@ public final class FamilyTreeClientSettings {
         properties.setProperty(SHOW_AGE_KEY, Boolean.toString(showAge));
         properties.setProperty(SHOW_BIRTH_DAY_KEY, Boolean.toString(showBirthDay));
         properties.setProperty(SHOW_GENERATION_KEY, Boolean.toString(showGeneration));
+        properties.setProperty(SHOW_HORSE_STATS_KEY, Boolean.toString(showHorseStats));
         properties.setProperty("welcomeShown", Boolean.toString(welcomeShown));
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
@@ -84,6 +88,15 @@ public final class FamilyTreeClientSettings {
 
     public static void setShowGeneration(boolean value) {
         showGeneration = value;
+        save();
+    }
+
+    public static boolean showHorseStats() {
+        return showHorseStats;
+    }
+
+    public static void setShowHorseStats(boolean value) {
+        showHorseStats = value;
         save();
     }
 }

@@ -15,6 +15,12 @@ In singleplayer, install once. On a multiplayer server, install the same Family 
 
 For an existing survival world, visit your pets or choose **Find existing pets**. Minecraft does not retain old parentage. **Add parents** lets you record a family you remember; it does not recover forgotten ancestry automatically.
 
+## A horse breeding video idea
+
+Tame two horses, feed them golden carrots, and open the foal's tree. Each card shows speed, jump height, and health. A green triangle marks a stat higher than both parents, and a red one marks a stat lower than both. Breeders can sort the browser by speed, jump, or health to pick the next pair. A possible opening line is "This mod tells you if your foal beat its parents."
+
+Stats are in the units on the Minecraft Wiki: blocks per second, blocks of jump height, and hearts. Horses tamed before installing the mod show stats once they load, but their parents stay unknown.
+
 ## A short video idea
 
 Open with the exported family image. Show the two wolves, breed the puppy, then open its tree and export the result. A possible opening line is "Minecraft forgets who your wolf's parents were. This mod keeps the family tree."
@@ -30,14 +36,16 @@ The mod also retains deceased pets. Show an existing death record if you have on
 | [Exported family PNG](family-tree-gameplay-export.png) | The family produced in that scene |
 | [Gameplay animation](family-tree-gameplay.webp) | An animated example for an article |
 | [Pet browser](tracked-pets-browser.webp) | Search and existing-pet discovery |
+| [Horse family export](horse-breeding-export.png) | A foal and its parents with speed, jump, and health |
+| [Horse tree screen](horse-breeding-tree.webp) | A foal's stats beside its parents' values |
 
-The gameplay clips show an automated demonstration in Minecraft 26.2. Vanilla feeding and AI breeding produce the puppy, and the mod records its actual parents. The browser screenshot uses staged records. Preserve those distinctions in captions.
+The gameplay clips show an automated demonstration in Minecraft 26.2. Vanilla feeding and AI breeding produce the puppy, and the mod records its actual parents. The horse images come from an automated scene in Minecraft 26.3, where golden carrots and vanilla AI breeding produced the foal. The browser screenshot uses staged records. Preserve those distinctions in captions.
 
 ## Compatibility and limits
 
 Version 1.1.0 supports Fabric on Minecraft 1.21.1, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge builds cover 1.21.1, 26.2, and 26.3. NeoForge 26.3 is beta. See the [installation table](../README.md#install) for Java and loader requirements.
 
-The tracker covers vanilla tamed wolves, cats, parrots, horses, donkeys, mules, and llamas. Parrots cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule. Compatibility with modded animal species or changed animal models has not been tested.
+The tracker covers vanilla tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Camels and skeleton trap horses join once a player rides or breeds them. Parrots cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule. Compatibility with modded animal species or changed animal models has not been tested.
 
 Locate reports a pet's last recorded position if it is unloaded. It does not load chunks or teleport animals. Exports omit explicit player names and coordinates, but pet names appear in the image. Nothing uploads automatically.
 

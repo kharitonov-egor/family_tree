@@ -7,6 +7,8 @@
     "AnimalEntityBreedMixin",
     "CatVariantInvoker",
     "EntitySetCustomNameMixin",
+    "HorseVariantInvoker",
+    "LlamaVariantInvoker",
     "TamableAnimalTameMixin",
     "WolfVariantInvoker"
   ],

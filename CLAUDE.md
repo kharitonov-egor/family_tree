@@ -27,6 +27,7 @@ When adding a target, update the version list, dependencies, `buildAll`, release
 Players keep pet history for years. Never discard that history for a code cleanup.
 
 - Never rename or remove existing saved AnimalRecord fields, including `birth_world_day`, `death_epoch`, `variant_id`, and `name`.
+- `horse_stats` stores base speed, jump strength, max health, and llama strength in Minecraft's attribute units. Every value inside it is optional; null means unknown. Convert to player units only for display, in `util/HorseStatUnits.java`.
 - New saved fields must use `optionalFieldOf`. Old saves must parse without the field. Handle missing values when reading it.
 - RecordCodecBuilder groups cap at 16 fields. `BASE_CODEC` preserves the original 16 flat fields. The outer codec combines it with optional additions such as `tree_name`.
 - FamilyTreeState keeps readable records when another record fails. It preserves unreadable and duplicate entries for resave and logs their count. Do not replace this with a strict `listOf()` or silently discard rejected entries.
@@ -41,7 +42,7 @@ When touching persistence, load previous-release data on the same game version a
 
 Server code owns the saved history. Both loaders dispatch shared packet handlers on the server thread. PetAccess defines view and manage rules; public snapshots remove foreign pet coordinates. Snapshot copies do not retain mutable server records.
 
-Version 1.1.0 uses `open_request_v3`, `snapshot_pages_v3`, and `discover_v2`. NeoForge registers protocol `2`. Update client and server together. Incompatible packet changes need new channels or a negotiated version. Keep fields in codec encode and decode order.
+The current protocol uses `open_request_v4`, `snapshot_pages_v4`, `discover_v3`, `rename_request_v2`, and `rename_result_v2`. NeoForge registers protocol `3`. Version 1.1.0 used `open_request_v3`, `snapshot_pages_v3`, `discover_v2`, and protocol `2`. Update client and server together. Incompatible packet changes need new channels or a negotiated version. Keep fields in codec encode and decode order.
 
 Snapshots use a request UUID, page number, total count, and byte-bounded records. The client exposes the result only after validating every page. Current page budget is 256 KiB and aggregate limit is 100,000 records. Never silently truncate a family.
 
@@ -51,7 +52,8 @@ Commands and discovery share per-player and per-server scan cooldowns. Rate-limi
 
 - `data/AnimalRecord.java` contains the persisted and network record schema. `name()` uses the custom tree name; `originalName()` retains the entity name. Tree names never change an entity's name tag.
 - `data/FamilyTreeState.java` contains the overworld save, tolerant recovery, legacy import, and prune backup.
-- `event/PetLifecycleListeners.java` records breeding, tame, name, unload, and death events. Existing loaded pets enter through discovery.
+- `event/PetLifecycleListeners.java` records breeding, tame, name, unload, and death events. Existing loaded pets enter through discovery. Each last-seen update also refreshes horse stats.
+- `util/PetFilter.java` decides what is tracked. Horse-type mounts need a Minecraft owner. Camels always report as tamed and trap skeleton horses have no owner, so they join only when a player rides or breeds them. Records that already exist stay current even when the animal is not tamed, such as foals.
 - `permissions/` contains ownership and parent-link rules. Horse and donkey parents are allowed for a mule.
 - `network/` contains cooldowns, page splitting, and shared handlers. Loader adapters register channels and events.
 - `command/FamilyTreeCommand.java` handles list, scan, locate, info, pairing, age corrections, and pruning. Name edits reject ambiguity and accept exact UUIDs.
@@ -59,7 +61,7 @@ Commands and discovery share per-player and per-server scan cooldowns. Rate-limi
 - `util/Genealogy.java` calculates generations with an explicit stack and checks cycles. Derived generations are never persisted.
 - `client/SnapshotAssembler.java` validates paged replies and ignores old requests.
 - `client/screen/` contains browser, tree, settings, help, rename, parent editor, and pet picker. Screens use FamilyTreeScreen to adapt input and rendering APIs.
-- `client/export/` copies a tree and renders a PNG on a background task. Exports omit explicit player names and coordinates. User-entered pet names may still contain personal information.
+- `client/export/` copies a tree and renders a PNG on a background task. `PetPortraits` cuts horse side profiles from the equine texture layout, which 1.21.1 and 26.x share. Exports omit explicit player names and coordinates. User-entered pet names may still contain personal information.
 - `platform/` and `client/platform/` hold loader-independent paths and transports. Shared code has no Fabric dependency.
 
 All new player-facing text uses translation keys in `assets/familytree/lang/en_us.json`. Add keys for new errors rather than raw English messages. Clear client entity previews when disconnecting.

@@ -141,6 +141,7 @@ if (project.hasProperty('demo')) {
                 client()
                 source sourceSets.demo
                 vmArg "-Dfamilytree.demo.gameplay=${project.hasProperty('gameplay')}"
+                vmArg "-Dfamilytree.demo.horses=${project.hasProperty('horses')}"
                 runDir "../../build/demo-${mcVersion}"
                 programArgs '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
                 if (mcVersion == '26.3' && project.hasProperty('graphicsBackend')) programArgs '--graphicsBackend', project.property('graphicsBackend')

@@ -2,6 +2,7 @@ package com.egakh.familytree.event;
 
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
+import com.egakh.familytree.data.HorseStats;
 import com.egakh.familytree.mixin.WolfVariantInvoker;
 import com.egakh.familytree.naming.NameGenerator;
 import com.egakh.familytree.util.PetFilter;
@@ -14,14 +15,17 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
+import net.minecraft.world.entity.animal.equine.Horse;
+import net.minecraft.world.entity.animal.equine.Llama;
 import net.minecraft.world.entity.animal.feline.Cat;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 
-import java.util.Objects;
+import java.util.Locale;
 import java.util.UUID;
 
 public final class PetLifecycleListeners {
@@ -29,22 +33,24 @@ public final class PetLifecycleListeners {
     private PetLifecycleListeners() {}
 
     public static void onLoad(Entity entity, ServerLevel world) {
-        if (PetFilter.isTrackable(entity)) ensureRecord(world, FamilyTreeState.get(world), entity);
+        if (!PetFilter.isTameableSpecies(entity)) return;
+        ensureRecord(world, FamilyTreeState.get(world), entity);
     }
 
     public static void onUnload(Entity entity, ServerLevel world) {
-        if (!PetFilter.isTrackable(entity)) return;
+        if (!PetFilter.isTameableSpecies(entity)) return;
         FamilyTreeState state = FamilyTreeState.get(world);
-        if (state.contains(entity.getUUID())) stampPosition(world, state, entity);
+        if (state.contains(entity.getUUID())) stampLastSeen(world, state, entity);
     }
 
     public static void onBred(ServerLevel world, Animal parentA, Animal parentB, Animal child) {
         if (!PetFilter.isTameableSpecies(child)) return;
 
         FamilyTreeState state = FamilyTreeState.get(world);
+        ServerPlayer breeder = parentA.getLoveCause() != null ? parentA.getLoveCause() : parentB.getLoveCause();
 
-        ensureRecord(world, state, parentA);
-        ensureRecord(world, state, parentB);
+        rememberParent(world, state, parentA, breeder);
+        rememberParent(world, state, parentB, breeder);
 
         UUID childId = child.getUUID();
 
@@ -76,6 +82,10 @@ public final class PetLifecycleListeners {
                     parentOwnerName = parentBRecord.ownerName();
                 }
             }
+            if (parentOwner == null && breeder != null) {
+                parentOwner = breeder.getUUID();
+                parentOwnerName = breeder.getName().getString();
+            }
             owner = parentOwner;
             ownerName = parentOwnerName;
         }
@@ -88,6 +98,7 @@ public final class PetLifecycleListeners {
                 record.setParents(parentA.getUUID(), parentB.getUUID());
                 if (inheritedOwner != null) record.setOwner(inheritedOwner, inheritedOwnerName);
             });
+            stampLastSeen(world, state, child);
             return;
         }
 
@@ -105,7 +116,12 @@ public final class PetLifecycleListeners {
                 null, null
         );
         state.put(rec);
-        stampPosition(world, state, child);
+        stampLastSeen(world, state, child);
+    }
+
+    private static void rememberParent(ServerLevel world, FamilyTreeState state, Animal parent, ServerPlayer breeder) {
+        if (breeder != null && PetFilter.isUnclaimedMount(parent)) claim(world, state, parent, breeder);
+        else ensureRecord(world, state, parent);
     }
 
     public static void onCustomNameChanged(Entity entity, Component newName) {
@@ -139,6 +155,21 @@ public final class PetLifecycleListeners {
         }
     }
 
+    /** The first rider of an unclaimed mount becomes its owner in Family Tree. Vanilla ownership is unchanged. */
+    public static void onMountRidden(AbstractHorse mount, ServerPlayer rider) {
+        if (!(mount.level() instanceof ServerLevel world) || !PetFilter.isUnclaimedMount(mount)) return;
+        claim(world, FamilyTreeState.get(world), mount, rider);
+    }
+
+    private static void claim(ServerLevel world, FamilyTreeState state, Entity entity, ServerPlayer player) {
+        UUID id = entity.getUUID();
+        if (!state.contains(id)) state.put(newRecord(world, state, entity));
+        state.update(id, record -> {
+            if (record.ownerId() == null) record.setOwner(player.getUUID(), player.getName().getString());
+        });
+        ensureRecord(world, state, entity);
+    }
+
     public static void onHorseTamed(AbstractHorse entity, ServerPlayer player) {
         if (!(entity.level() instanceof ServerLevel world)) return;
         FamilyTreeState state = FamilyTreeState.get(world);
@@ -161,11 +192,16 @@ public final class PetLifecycleListeners {
         String attacker = killer != null ? killer.getDisplayName().getString() : null;
         AnimalRecord.DeathCause cause = new AnimalRecord.DeathCause(attacker, source.getMsgId());
         state.update(id, r -> r.markDeceased(TimeUtil.currentWorldDay(world), TimeUtil.currentEpochMillis(), cause));
-        stampPosition(world, state, entity);
+        stampLastSeen(world, state, entity);
+    }
+
+    /** Pets already in the history stay current even when Minecraft no longer reports them as tamed, such as foals. */
+    private static boolean tracked(FamilyTreeState state, Entity entity) {
+        return PetFilter.isTrackable(entity) || PetFilter.isTameableSpecies(entity) && state.contains(entity.getUUID());
     }
 
     public static void ensureRecord(ServerLevel world, FamilyTreeState state, Entity entity) {
-        if (!PetFilter.isTrackable(entity)) return;
+        if (!tracked(state, entity)) return;
         UUID id = entity.getUUID();
         if (state.contains(id)) {
             UUID owner = ownerOf(entity);
@@ -188,16 +224,21 @@ public final class PetLifecycleListeners {
                     state.update(id, rec -> rec.rename(currentName, false));
                 }
             }
-            stampPosition(world, state, entity);
+            stampLastSeen(world, state, entity);
             return;
         }
 
+        state.put(newRecord(world, state, entity));
+        stampLastSeen(world, state, entity);
+    }
+
+    private static AnimalRecord newRecord(ServerLevel world, FamilyTreeState state, Entity entity) {
+        UUID id = entity.getUUID();
         String species = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
         String existingName = nameOrNull(entity);
         boolean autoNamed = existingName == null;
         String name = autoNamed ? NameGenerator.generate(id, state.all()) : existingName;
-
-        AnimalRecord rec = new AnimalRecord(
+        return new AnimalRecord(
                 id, species, name, autoNamed,
                 null, null,
                 TimeUtil.currentWorldDay(world),
@@ -206,15 +247,30 @@ public final class PetLifecycleListeners {
                 ownerOf(entity), ownerNameOf(world, ownerOf(entity)), variantOf(entity),
                 null, null
         );
-        state.put(rec);
-        stampPosition(world, state, entity);
     }
 
-    public static void stampPosition(ServerLevel world, FamilyTreeState state, Entity entity) {
-        state.update(entity.getUUID(), r -> r.updateLastSeen(
-                entity.getX(), entity.getY(), entity.getZ(),
-                world.dimension().identifier().toString(),
-                TimeUtil.currentWorldDay(world)));
+    /** Records where the pet was seen and, for horse-type mounts, its current base stats. */
+    public static void stampLastSeen(ServerLevel world, FamilyTreeState state, Entity entity) {
+        HorseStats stats = statsOf(entity);
+        state.update(entity.getUUID(), r -> {
+            r.updateLastSeen(entity.getX(), entity.getY(), entity.getZ(),
+                    world.dimension().identifier().toString(),
+                    TimeUtil.currentWorldDay(world));
+            if (stats != null) r.setHorseStats(stats);
+        });
+    }
+
+    private static HorseStats statsOf(Entity entity) {
+        if (!(entity instanceof AbstractHorse horse)) return null;
+        return new HorseStats(
+                baseValue(horse.getAttribute(Attributes.MOVEMENT_SPEED)),
+                baseValue(horse.getAttribute(Attributes.JUMP_STRENGTH)),
+                baseValue(horse.getAttribute(Attributes.MAX_HEALTH)),
+                horse instanceof Llama llama ? llama.getStrength() : null);
+    }
+
+    private static Double baseValue(AttributeInstance attribute) {
+        return attribute == null ? null : attribute.getBaseValue();
     }
 
     public static ScanResult scanLoadedPets(net.minecraft.server.MinecraftServer server) {
@@ -229,7 +285,7 @@ public final class PetLifecycleListeners {
 
         for (ServerLevel level : server.getAllLevels()) {
             for (Entity entity : level.getAllEntities()) {
-                if (!PetFilter.isTrackable(entity)) continue;
+                if (!tracked(state, entity)) continue;
                 UUID id = entity.getUUID();
                 boolean existed = state.contains(id);
                 ensureRecord(level, state, entity);
@@ -255,14 +311,7 @@ public final class PetLifecycleListeners {
     }
 
     private static UUID ownerOf(Entity entity) {
-        //? if >=26.1 {
-        if (entity instanceof OwnableEntity ownable && ownable.getOwnerReference() != null) {
-            return ownable.getOwnerReference().getUUID();
-        }
-        //?} else {
-        /*if (entity instanceof OwnableEntity ownable) return ownable.getOwnerUUID();
-        *///?}
-        return null;
+        return PetFilter.ownerOf(entity);
     }
 
     private static String ownerNameOf(ServerLevel world, UUID ownerId) {
@@ -282,6 +331,12 @@ public final class PetLifecycleListeners {
         }
         if (entity instanceof Wolf wolf) {
             return variantKey(((WolfVariantInvoker) (Object) wolf).familytree$getVariant());
+        }
+        if (entity instanceof Horse horse) {
+            return horse.getVariant().getSerializedName() + "/" + horse.getMarkings().name().toLowerCase(Locale.ROOT);
+        }
+        if (entity instanceof Llama llama) {
+            return llama.getVariant().getSerializedName();
         }
         return null;
     }

@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public record RenamePetResult(UUID requestId, int status, Optional<AnimalRecord> record) implements CustomPacketPayload {
     public static final Type<RenamePetResult> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("familytree", "rename_result"));
+            new Type<>(Identifier.fromNamespaceAndPath("familytree", "rename_result_v2"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, RenamePetResult> STREAM_CODEC = StreamCodec.composite(
             UUIDUtil.STREAM_CODEC, RenamePetResult::requestId,

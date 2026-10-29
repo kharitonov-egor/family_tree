@@ -25,6 +25,7 @@ public final class PetAccess {
                 pet.deathWorldDay(), pet.deathEpochMillis(), pet.ownerId(), pet.ownerName(), pet.variantId(),
                 canManage(pet, player, operator) ? pet.lastSeen() : null, pet.deathCause());
         publicPet.setTreeName(pet.treeName());
+        publicPet.setHorseStats(pet.horseStats());
         return publicPet;
     }
 }

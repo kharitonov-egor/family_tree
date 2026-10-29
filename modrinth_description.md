@@ -12,15 +12,25 @@ Moss stays in Clover's tree after his death. This export comes from the automate
 
 A 20-second automated scene in Minecraft 26.2. Vanilla feeding and AI breeding produce the actual puppy; Family Tree records the parents and keeps the deceased parent.
 
+## Breed better horses
+
+Every horse card shows speed, jump height, and health beside its parents. A green triangle marks a stat higher than both parents, and a red triangle marks one lower than both. Sort your horses by speed, jump, or health, and export the family with its stats.
+
+![A horse family exported with speed, jump, and health](https://raw.githubusercontent.com/kharitonov-egor/family_tree/main/docs/horse-breeding-export.png)
+
+An automated scene in Minecraft 26.3. Two tamed horses ate golden carrots, and vanilla AI bred them. Ember's jump is lower than both parents'.
+
+Stats cover horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Speed is in blocks per second, jump in blocks, and health in hearts. Llamas also show chest slots.
+
 ## Start with the pets already in your world
 
 Visit your pets or choose **Find existing pets** to check loaded tamed animals. Older parents are unknown because Minecraft does not retain them. Open a pet, select it, and choose **Add parents** to record a family you remember. Breed pets while the mod is installed to record new children's parents automatically.
 
-The tracker covers tamed wolves, cats, parrots, horses, donkeys, mules, and llamas. Parrots have individual records and cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule.
+The tracker covers tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Camels and skeleton trap horses join once a player rides or breeds them. Parrots have individual records and cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule.
 
 ## Browse, find, and share
 
-Search by pet name or species, filter living or deceased pets, and open one pet's tree or a whole species. Cat and wolf portraits match their coat variants. Tree names leave the animal's name tag unchanged. Use **Refresh** to load births and edits that happened while the screen was open.
+Search by pet name or species, filter living or deceased pets, and open one pet's tree or a whole species. Cat, wolf, and horse portraits match their coats. Tree names leave the animal's name tag unchanged. Use **Refresh** to load births and edits that happened while the screen was open.
 
 **Locate pet** reports coordinates and dimension in chat. Unloaded pets show their last recorded location and day. The mod does not load chunks or teleport pets.
 

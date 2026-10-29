@@ -18,7 +18,7 @@ public class FamilyTreeSettingsScreen extends Screen {
     @Override
     protected void init() {
         int centerX = this.width / 2;
-        int top = this.height / 2 - 38;
+        int top = this.height / 2 - 52;
 
         this.addRenderableWidget(Button.builder(showAgeLabel(), button -> {
                     FamilyTreeClientSettings.setShowAge(!FamilyTreeClientSettings.showAge());
@@ -41,13 +41,20 @@ public class FamilyTreeSettingsScreen extends Screen {
                 .bounds(centerX - 100, top + 56, 200, 20)
                 .build());
 
+        this.addRenderableWidget(Button.builder(showHorseStatsLabel(), button -> {
+                    FamilyTreeClientSettings.setShowHorseStats(!FamilyTreeClientSettings.showHorseStats());
+                    button.setMessage(showHorseStatsLabel());
+                })
+                .bounds(centerX - 100, top + 84, 200, 20)
+                .build());
+
         this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"),
                         button -> {
                             if (this.minecraft != null) {
                                 this.minecraft.setScreen(parent);
                             }
                         })
-                .bounds(centerX - 100, top + 84, 200, 20)
+                .bounds(centerX - 100, top + 112, 200, 20)
                 .build());
     }
 
@@ -55,7 +62,7 @@ public class FamilyTreeSettingsScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         gfx.fill(0, 0, this.width, this.height, 0xCC0F1115);
         super.extractRenderState(gfx, mouseX, mouseY, delta);
-        gfx.centeredText(this.font, this.title, this.width / 2, this.height / 2 - 52, 0xFFFFFFFF);
+        gfx.centeredText(this.font, this.title, this.width / 2, this.height / 2 - 66, 0xFFFFFFFF);
     }
 
     @Override
@@ -73,6 +80,13 @@ public class FamilyTreeSettingsScreen extends Screen {
     private static Component showBirthDayLabel() {
         return Component.translatable("familytree.screen.settings.show_birth_day",
                 FamilyTreeClientSettings.showBirthDay()
+                        ? Component.translatable("familytree.screen.settings.on")
+                        : Component.translatable("familytree.screen.settings.off"));
+    }
+
+    private static Component showHorseStatsLabel() {
+        return Component.translatable("familytree.screen.settings.show_horse_stats",
+                FamilyTreeClientSettings.showHorseStats()
                         ? Component.translatable("familytree.screen.settings.on")
                         : Component.translatable("familytree.screen.settings.off"));
     }
