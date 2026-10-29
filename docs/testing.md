@@ -142,6 +142,8 @@ Write `onboardAccessibility:false` to the client's `options.txt` first. Send `op
 
 Tamed wolves sit while their owner is offline, so wolves summoned with an `Owner` for a player who is not connected never breed. Owned horses breed without their owner.
 
+The Fabric 1.21.8 jar also declares 1.21.6 and 1.21.7, and the 1.21.10 jar declares 1.21.9. Both went through the same steps on those versions with their Fabric API builds. Every `net/minecraft` class, method, and field name in the remapped jars was also found in Fabric's intermediary mappings for those versions. Before adding another version to a range, run both checks on it.
+
 ## Release packaging
 
 After testing and committing source, run `python scripts/release_manifest.py`. It checks Minecraft metadata, Java class versions, license, icon, and development-class exclusions, then copies the tested artifacts and records hashes under `build/releases/<mod-version>/`. Publish those files with `scripts/publish_modrinth.py --manifest <path-to-manifest>`. The publisher rejects files whose hashes changed after verification.

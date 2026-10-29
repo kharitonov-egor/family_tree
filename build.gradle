@@ -53,7 +53,7 @@ def fabricApiVersion = fabricApiVersions[mcVersion]
 if (fabricApiVersion == null) {
     throw new GradleException("No Fabric API version mapped for Minecraft ${mcVersion} — add it to build.gradle")
 }
-// These jars also run on the earlier hotfix releases they replaced.
+// The 1.21.8 and 1.21.10 jars also declare earlier patches they ran on. ALSO_RUNS_ON in release_manifest.py must match.
 def minecraftRanges = ['1.21.8': '>=1.21.6 <=1.21.8', '1.21.10': '>=1.21.9 <=1.21.10']
 def minecraftDep = minecraftRanges[mcVersion] ?: "=${mcVersion}"
 def obfuscated = mcVersion.startsWith('1.')

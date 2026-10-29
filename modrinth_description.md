@@ -62,7 +62,9 @@ Search by name, species, or variant, filter living or deceased animals, and open
 | 1.21.1 | Fabric API for 1.21.1 | 21.1.252 or newer within 21.1 | No build | 21 or newer |
 | 1.21.4 | Fabric API for 1.21.4 | 21.4.161 or newer within 21.4 | No build | 21 or newer |
 | 1.21.5 | Fabric API for 1.21.5 | 21.5.101 or newer within 21.5 | No build | 21 or newer |
+| 1.21.6, 1.21.7 | The 1.21.8 file, with Fabric API for your version | No build | No build | 21 or newer |
 | 1.21.8 | Fabric API for 1.21.8 | 21.8.57 or newer within 21.8 | No build | 21 or newer |
+| 1.21.9 | The 1.21.10 file, with Fabric API for 1.21.9 | No build | No build | 21 or newer |
 | 1.21.10 | Fabric API for 1.21.10 | 21.10.64 or newer within 21.10 | No build | 21 or newer |
 | 1.21.11 | Fabric API for 1.21.11 | 21.11.48 or newer within 21.11 | No build | 21 or newer |
 | 26.1.1 | Fabric API for 26.1.1 | No build | No build | 25 or newer |

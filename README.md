@@ -32,9 +32,9 @@ Choose the file that matches both your Minecraft version and mod loader.
 | 1.21.4 | NeoForge 21.4.161 or newer within 21.4 | 21 or newer | None |
 | 1.21.5 | Fabric | 21 or newer | Fabric API for 1.21.5 |
 | 1.21.5 | NeoForge 21.5.101 or newer within 21.5 | 21 or newer | None |
-| 1.21.8 | Fabric | 21 or newer | Fabric API for 1.21.8 |
+| 1.21.6, 1.21.7, 1.21.8 | Fabric, one file for all three | 21 or newer | Fabric API for your version |
 | 1.21.8 | NeoForge 21.8.57 or newer within 21.8 | 21 or newer | None |
-| 1.21.10 | Fabric | 21 or newer | Fabric API for 1.21.10 |
+| 1.21.9, 1.21.10 | Fabric, one file for both | 21 or newer | Fabric API for your version |
 | 1.21.10 | NeoForge 21.10.64 or newer within 21.10 | 21 or newer | None |
 | 1.21.11 | Fabric | 21 or newer | Fabric API for 1.21.11 |
 | 1.21.11 | NeoForge 21.11.48 or newer within 21.11 | 21 or newer | None |

@@ -2,7 +2,7 @@
 
 ## What this is
 
-Family Tree tracks tamed pets, the animals players breed, name, or add, and their lineage. Fabric supports Minecraft 1.20.1, 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge supports 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.2, and 26.3. Forge supports 1.20.1. The NeoForge 26.3 loader and mod build are beta. Install JDK 17, 21, and 25 for all builds. The 1.20.1 jars use Java 17 bytecode, the 1.21.x jars Java 21, and 26.x jars Java 25.
+Family Tree tracks tamed pets, the animals players breed, name, or add, and their lineage. Fabric supports Minecraft 1.20.1, 1.21.1, 1.21.4 through 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. Its 1.21.8 jar also covers 1.21.6 and 1.21.7, and its 1.21.10 jar covers 1.21.9. NeoForge supports 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.2, and 26.3. Forge supports 1.20.1. The NeoForge 26.3 loader and mod build are beta. Install JDK 17, 21, and 25 for all builds. The 1.20.1 jars use Java 17 bytecode, the 1.21.x jars Java 21, and 26.x jars Java 25.
 
 Mod ID `familytree`, package `com.egakh.familytree`. `mod_version` lives in `gradle.properties`. Players search pets, pan and zoom through ancestry, locate pets, add known parents, and export a family as a PNG.
 
@@ -14,7 +14,7 @@ Stonecutter 0.9.6 and loom-back-compat 0.3 generate target-specific source. Loom
 
 - `settings.gradle` lists the eleven Fabric versions. Source names remain authored against 26.1.1.
 - `stonecutter.gradle` defines `buildAll`, target API replacements, and the ordered NeoForge and Forge build tasks.
-- `build.gradle` selects Fabric API and stamps an exact Minecraft predicate into metadata. `loomx.applyMojangMappings()` handles modern Mojang names.
+- `build.gradle` selects Fabric API and stamps a Minecraft predicate into metadata. It is exact except for the 1.21.8 and 1.21.10 ranges. Declare an earlier patch only after running the jar on it, and list it in `ALSO_RUNS_ON` in `scripts/release_manifest.py`, which the publishers use for game versions. `loomx.applyMojangMappings()` handles modern Mojang names.
 - `neoforge/build.gradle` compiles generated shared source for `-Pminecraft`. 1.21.1, 1.21.4, and 1.21.5 use the legacy loader adapter in `neoforge/src/legacy/java`, because NeoForge 21.5 and older lack `RegisterClientPayloadHandlersEvent` and `ClientPacketDistributor`. 1.21.8 and newer use the modern adapters in `src/main/java` there.
 - `forge/build.gradle` compiles the generated 1.20.1 main, client, and test source with JDK 17. Forge runs on SRG names, so the Mixin annotation processor writes `familytree.refmap.json`, the jar manifest lists the mixin config, and `reobfJar` produces the release jar. Forge 1.20.1 also requires `pack.mcmeta` in every mod, including the smoke and demo mods.
 - `versions/` is generated and ignored. Never edit or commit it.

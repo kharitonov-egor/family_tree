@@ -16,7 +16,7 @@ TARGETS = {'fabric': ['1.20.1', '1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10
 NEOFORGE = {'1.21.1': '21.1.252', '1.21.4': '21.4.161', '1.21.5': '21.5.101', '1.21.8': '21.8.57',
             '1.21.10': '21.10.64', '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta'}
 FORGE = {'1.20.1': '47.1.0'}
-# Fabric jars that also run on the earlier hotfix releases they replaced.
+# Earlier patches the Fabric 1.21.8 and 1.21.10 jars ran on. build.gradle declares the same ranges.
 ALSO_RUNS_ON = {'1.21.8': ['1.21.6', '1.21.7'], '1.21.10': ['1.21.9']}
 
 
