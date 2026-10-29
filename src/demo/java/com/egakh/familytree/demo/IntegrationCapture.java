@@ -35,7 +35,7 @@ public final class IntegrationCapture {
     private final boolean sendFeedback = Boolean.getBoolean("familytree.demo.sendFeedback");
     private final List<String> checks = new ArrayList<>();
     private int tick;
-    private Animal comet, dusk, ember;
+    private Animal comet, dusk, ember, woolly;
     private FamilyTreeBrowserScreen browser;
     private FeedbackScreen feedback;
 
@@ -54,12 +54,22 @@ public final class IntegrationCapture {
                 dusk = HorseCapture.horse(world, "HORSE", "Dusk", 3, 4, "BLACK", "WHITE_FIELD", player);
                 ember = HorseCapture.horse(world, "HORSE", "Ember", 0, 0, "CREAMY", "WHITE", player);
                 for (Animal horse : List.of(comet, dusk, ember)) ((Mob) horse).setNoAi(true);
+                server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "summon minecraft:sheep 8 101 0");
                 server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "tp @a 0 101 -2.2 0 28");
             } catch (Exception failure) { throw new RuntimeException(failure); }
         });
         if (tick == 20) server.execute(() -> {
             var state = FamilyTreeState.get(server);
             if (state.get(ember.getUUID()) == null) throw new AssertionError("The scene's horses were not recorded");
+            var sheep = server.overworld().getEntitiesOfClass(Animal.class, new net.minecraft.world.phys.AABB(7, 100, -1, 9, 103, 1));
+            if (sheep.size() != 1) throw new AssertionError("The scene's sheep is missing");
+            woolly = sheep.get(0);
+            ((Mob) woolly).setNoAi(true);
+            try {
+                woolly.getClass().getMethod("setColor", net.minecraft.world.item.DyeColor.class).invoke(woolly, net.minecraft.world.item.DyeColor.BLUE);
+            } catch (ReflectiveOperationException failure) { throw new RuntimeException(failure); }
+            state.put(new com.egakh.familytree.data.AnimalRecord(woolly.getUUID(), "minecraft:sheep", "Woolly", false, null, null,
+                    1, System.currentTimeMillis(), false, null, null, client.player.getUUID(), "Tester", "blue", null, null));
             state.update(ember.getUUID(), pet -> {
                 pet.setParents(comet.getUUID(), dusk.getUUID());
                 pet.setTreeName("Little Ember");
@@ -137,8 +147,16 @@ public final class IntegrationCapture {
                 checks.add("config screen");
             }
         }
-        if (tick == 460) {
-            runner.capture(client, "integration-config.png");
+        if (tick == 460) runner.capture(client, "integration-config.png");
+        if (tick == 465) {
+            runner.show(client, null);
+            server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "tp @a 8 101 -2.4 0 30"));
+        }
+        if (tick == 530) {
+            if (mods.contains("jade") || mods.contains("wthit")) {
+                runner.capture(client, "integration-variant.png");
+                checks.add("variant tooltip");
+            }
             Files.writeString(client.gameDirectory.toPath().resolve("demo-result.txt"),
                     "PASS: integrations [" + String.join(", ", mods) + "]; " + String.join("; ", checks) + "\n");
             client.stop();
