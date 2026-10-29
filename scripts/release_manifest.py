@@ -9,9 +9,11 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGETS = {'fabric': ['1.21.1', '1.21.11', '26.1.1', '26.1.2', '26.2', '26.3'],
-           'neoforge': ['1.21.1', '1.21.11', '26.2', '26.3']}
+TARGETS = {'fabric': ['1.20.1', '1.21.1', '1.21.11', '26.1.1', '26.1.2', '26.2', '26.3'],
+           'neoforge': ['1.21.1', '1.21.11', '26.2', '26.3'],
+           'forge': ['1.20.1']}
 NEOFORGE = {'1.21.1': '21.1.252', '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta'}
+FORGE = {'1.20.1': '47.1.0'}
 
 
 def main():
@@ -29,8 +31,8 @@ def main():
     files = []
     for loader, targets in TARGETS.items():
         for mc in targets:
-            release_version = f'{version}+{mc}' + ('-neoforge' if loader == 'neoforge' else '')
-            base = ROOT / ('versions' if loader == 'fabric' else 'neoforge/build') / mc
+            release_version = f'{version}+{mc}' + ('' if loader == 'fabric' else f'-{loader}')
+            base = ROOT / ('versions' if loader == 'fabric' else f'{loader}/build') / mc
             folder = base / ('build/libs' if loader == 'fabric' else 'libs')
             path = folder / f'familytree-{release_version}.jar'
             with zipfile.ZipFile(path) as jar:
@@ -45,7 +47,7 @@ def main():
                     assert metadata['depends']['minecraft'] == '=' + mc
                     dependencies = [{'project_id': 'P7dR8mSH', 'dependency_type': 'required'}]
                     minimum_loader = metadata['depends']['fabricloader']
-                else:
+                elif loader == 'neoforge':
                     metadata = tomllib.loads(jar.read('META-INF/neoforge.mods.toml').decode())
                     assert metadata['mods'][0]['version'] == release_version
                     assert metadata['mods'][0].get('logoFile', metadata['mods'][0].get('iconFile')) == 'assets/familytree/icon.png'
@@ -53,7 +55,20 @@ def main():
                                for item in metadata['dependencies']['familytree'])
                     dependencies = []
                     minimum_loader = NEOFORGE[mc]
-                java = 21 if mc.startswith('1.') else 25
+                else:
+                    metadata = tomllib.loads(jar.read('META-INF/mods.toml').decode())
+                    assert metadata['mods'][0]['version'] == release_version
+                    assert metadata['mods'][0]['logoFile'] == 'assets/familytree/icon.png'
+                    assert any(item['modId'] == 'minecraft' and item['versionRange'] == '[' + mc + ']'
+                               for item in metadata['dependencies']['familytree'])
+                    assert any(item['modId'] == 'forge' and item['versionRange'].startswith('[' + FORGE[mc] + ',')
+                               for item in metadata['dependencies']['familytree'])
+                    assert 'MixinConfigs: familytree.mixins.json' in jar.read('META-INF/MANIFEST.MF').decode()
+                    assert json.loads(jar.read('familytree.mixins.json'))['refmap'] in names, f'{path}: missing refmap'
+                    assert 'pack.mcmeta' in names, f'{path}: missing pack.mcmeta'
+                    dependencies = []
+                    minimum_loader = FORGE[mc]
+                java = 17 if mc == '1.20.1' else 21 if mc.startswith('1.') else 25
                 expected_major = java + 44
                 for name in names:
                     if name.endswith('.class') and name.startswith('com/egakh/familytree/'):

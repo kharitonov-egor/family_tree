@@ -83,7 +83,11 @@ public final class LinkingTool {
 
     private static boolean isLinkingTool(ItemStack stack) {
         if (!stack.is(Items.STICK)) return false;
+        //? if >=1.21 {
         Component customName = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
+        //?} else {
+        /*Component customName = stack.hasCustomHoverName() ? stack.getHoverName() : null;
+        *///?}
         return customName != null && customName.getString().trim().equalsIgnoreCase(TOOL_NAME);
     }
 
@@ -105,7 +109,7 @@ public final class LinkingTool {
             return;
         }
         if (session.pets.size() == 1) {
-            AnimalRecord first = state.get(session.pets.getFirst());
+            AnimalRecord first = state.get(session.pets.get(0));
             if (first != null && !first.speciesId().equals(record.speciesId())
                     && !java.util.Set.of(first.speciesId(), record.speciesId()).equals(java.util.Set.of("minecraft:horse", "minecraft:donkey"))) {
                 player.sendSystemMessage(Component.translatable("familytree.command.pair.species_mismatch"));

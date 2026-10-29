@@ -4,7 +4,9 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.mixin.CatVariantInvoker;
 import com.egakh.familytree.mixin.HorseVariantInvoker;
 import com.egakh.familytree.mixin.LlamaVariantInvoker;
+//? if >=1.21 {
 import com.egakh.familytree.mixin.WolfVariantInvoker;
+//?}
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -29,7 +31,9 @@ import net.minecraft.world.entity.animal.equine.Variant;
 import net.minecraft.world.entity.animal.feline.Cat;
 import net.minecraft.world.entity.animal.feline.CatVariant;
 import net.minecraft.world.entity.animal.wolf.Wolf;
+//? if >=1.21 {
 import net.minecraft.world.entity.animal.wolf.WolfVariant;
+//?}
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -79,8 +83,15 @@ public final class PetFaceRenderer {
         gfx.enableScissor(x, y, x1, y1);
         try {
             // Looking toward the left edge turns a mount's head into a three-quarter view.
+            float lookX = mount ? x - size : centerX;
+            //? if >=1.21 {
             InventoryScreen.extractEntityInInventoryFollowsMouse(
-                    gfx, x, y, x1, y1, scale, 0.0625f, mount ? x - size : centerX, centerY, entity);
+                    gfx, x, y, x1, y1, scale, 0.0625f, lookX, centerY, entity);
+            //?} else {
+            /*// 1.20.1 places the model's feet at the given point and takes the look offset from the model.
+            int feetY = Math.round(centerY + scale * (entity.getBbHeight() / 2f + 0.0625f));
+            InventoryScreen.renderEntityInInventoryFollowsMouse(gfx, Math.round(centerX), feetY, scale, centerX - lookX, 0, entity);
+            *///?}
         } finally {
             gfx.disableScissor();
         }
@@ -122,8 +133,13 @@ public final class PetFaceRenderer {
                 if (cat == null) {
                     return null;
                 }
+                //? if >=1.21 {
                 catVariant(level, record.variantId())
                         .ifPresent(holder -> ((CatVariantInvoker) (Object) cat).familytree$setVariant(holder));
+                //?} else {
+                /*catVariant(level, record.variantId())
+                        .ifPresent(holder -> ((CatVariantInvoker) (Object) cat).familytree$setVariant(holder.value()));
+                *///?}
                 return cat;
             }
             if (isWolf(record)) {
@@ -131,8 +147,10 @@ public final class PetFaceRenderer {
                 if (wolf == null) {
                     return null;
                 }
+                //? if >=1.21 {
                 wolfVariant(level, record.variantId())
                         .ifPresent(holder -> ((WolfVariantInvoker) (Object) wolf).familytree$setVariant(holder));
+                //?}
                 return wolf;
             }
             if (MOUNTS.contains(record.speciesId())) return createMount(level, record);
@@ -173,6 +191,7 @@ public final class PetFaceRenderer {
         return registry.get(ResourceKey.create(Registries.CAT_VARIANT, id));
     }
 
+    //? if >=1.21 {
     private static Optional<Holder.Reference<WolfVariant>> wolfVariant(ClientLevel level, String variantId) {
         Identifier id = variantId == null ? null : Identifier.tryParse(variantId);
         if (id == null) {
@@ -181,6 +200,7 @@ public final class PetFaceRenderer {
         Registry<WolfVariant> registry = level.registryAccess().lookupOrThrow(Registries.WOLF_VARIANT);
         return registry.get(ResourceKey.create(Registries.WOLF_VARIANT, id));
     }
+    //?}
 
     private static boolean isCat(AnimalRecord record) {
         return "minecraft:cat".equals(record.speciesId());

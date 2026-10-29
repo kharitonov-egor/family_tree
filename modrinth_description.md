@@ -30,7 +30,7 @@ The tracker covers tamed wolves, cats, parrots, horses, donkeys, mules, llamas, 
 
 ## Browse, find, and share
 
-Search by pet name or species, filter living or deceased pets, and open one pet's tree or a whole species. Cat, wolf, and horse portraits match their coats. Tree names leave the animal's name tag unchanged. Use **Refresh** to load births and edits that happened while the screen was open.
+Search by pet name or species, filter living or deceased pets, and open one pet's tree or a whole species. Cat, wolf, and horse portraits match their coats. Wolves in 1.20.1 have one coat. Tree names leave the animal's name tag unchanged. Use **Refresh** to load births and edits that happened while the screen was open.
 
 **Locate pet** reports coordinates and dimension in chat. Unloaded pets show their last recorded location and day. The mod does not load chunks or teleport pets.
 
@@ -38,16 +38,17 @@ Search by pet name or species, filter living or deceased pets, and open one pet'
 
 ## Choose the matching file
 
-| Minecraft | Fabric | NeoForge | Java |
-| --- | --- | --- | --- |
-| 1.21.1 | Fabric API for 1.21.1 | 21.1.252 or newer within 21.1 | 21 or newer |
-| 1.21.11 | Fabric API for 1.21.11 | 21.11.48 or newer within 21.11 | 21 or newer |
-| 26.1.1 | Fabric API for 26.1.1 | No build | 25 or newer |
-| 26.1.2 | Fabric API for 26.1.2 | No build | 25 or newer |
-| 26.2 | Fabric API for 26.2 | 26.2.0.88 or newer within 26.2 | 25 or newer |
-| 26.3 | Fabric API for 26.3 | 26.3.0.37-beta or newer within 26.3, beta build | 25 or newer |
+| Minecraft | Fabric | NeoForge | Forge | Java |
+| --- | --- | --- | --- | --- |
+| 1.20.1 | Fabric API for 1.20.1 | No build | 47.1.0 or newer | 17 or newer |
+| 1.21.1 | Fabric API for 1.21.1 | 21.1.252 or newer within 21.1 | No build | 21 or newer |
+| 1.21.11 | Fabric API for 1.21.11 | 21.11.48 or newer within 21.11 | No build | 21 or newer |
+| 26.1.1 | Fabric API for 26.1.1 | No build | No build | 25 or newer |
+| 26.1.2 | Fabric API for 26.1.2 | No build | No build | 25 or newer |
+| 26.2 | Fabric API for 26.2 | 26.2.0.88 or newer within 26.2 | No build | 25 or newer |
+| 26.3 | Fabric API for 26.3 | 26.3.0.37-beta or newer within 26.3, beta build | No build | 25 or newer |
 
-NeoForge builds do not need Fabric API. Players without Family Tree can join a server running it, but need the matching client mod to open the screens.
+NeoForge and Forge builds do not need Fabric API. Players without Family Tree can join a server running it, but need the matching client mod to open the screens.
 
 ![Choose and confirm known parents](https://cdn.modrinth.com/data/CVQKDAe7/images/ffa335f35d20cab921cdea37992bf823d38bd70f.webp)
 

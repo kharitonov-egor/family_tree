@@ -6,8 +6,9 @@ stonecutter.active '26.1.1' /* [SC] DO NOT EDIT */
 
 tasks.register('buildAll') {
     group = 'project'
-    description = 'Builds and tests all Fabric and NeoForge targets.'
-    dependsOn ':1.21.1:build', ':1.21.11:build', ':26.1.1:build', ':26.1.2:build', ':26.2:build', ':26.3:build', 'buildNeoForge'
+    description = 'Builds and tests all Fabric, NeoForge, and Forge targets.'
+    dependsOn ':1.20.1:build', ':1.21.1:build', ':1.21.11:build', ':26.1.1:build', ':26.1.2:build', ':26.2:build', ':26.3:build',
+            'buildNeoForge', 'buildForge'
 }
 
 def neoForgeTargets = ['1.21.1', '1.21.11', '26.2', '26.3']
@@ -23,6 +24,18 @@ neoForgeTargets.eachWithIndex { target, index ->
 }
 tasks.register('buildNeoForge') {
     dependsOn neoForgeTargets.collect { "buildNeoForge${it.replace('.', '_')}" }
+}
+
+tasks.register('buildForge1_20_1', Exec) {
+    dependsOn ':1.20.1:stonecutterGenerate', ':1.20.1:stonecutterGenerateClient', ':1.20.1:stonecutterGenerateTest'
+    mustRunAfter 'buildNeoForge26_3'
+    workingDir rootProject.projectDir
+    def wrapper = rootProject.file(System.getProperty('os.name').toLowerCase().contains('windows') ? 'gradlew.bat' : 'gradlew')
+    def arguments = [wrapper.absolutePath, '-p', 'forge', 'build', '-Pminecraft=1.20.1', '-PsharedSourcesReady', '--console=plain']
+    commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c'] + arguments : arguments)
+}
+tasks.register('buildForge') {
+    dependsOn 'buildForge1_20_1'
 }
 
 // Source is authored against 26.1.1 (the vcsVersion). These replacements rewrite the
@@ -68,6 +81,18 @@ stonecutter.parameters {
             replace 'client.keymapping.v1.KeyMappingHelper', 'client.keybinding.v1.KeyBindingHelper'
             replace 'KeyMappingHelper.registerKeyMapping(', 'KeyBindingHelper.registerKeyBinding('
             replace 'InventoryScreen.extractEntityInInventoryFollowsMouse(', 'InventoryScreen.renderEntityInInventoryFollowsMouse('
+        }
+        // 1.20.1 predates the payload codecs. Shared code keeps their names and compiles against network/backport.
+        // Inactive rules run in reverse, so each replacement must never occur in source for newer targets.
+        string(current.parsed < '1.21') {
+            replace 'net.minecraft.network.protocol.common.custom.CustomPacketPayload', 'com.egakh.familytree.network.backport.CustomPacketPayload'
+            replace 'net.minecraft.network.codec.StreamCodec', 'com.egakh.familytree.network.backport.StreamCodec'
+            replace 'net.minecraft.network.codec.ByteBufCodecs', 'com.egakh.familytree.network.backport.ByteBufCodecs'
+            replace 'net.minecraft.network.RegistryFriendlyByteBuf', 'com.egakh.familytree.network.backport.RegistryFriendlyByteBuf'
+            replace 'UUIDUtil.STREAM_CODEC', 'com.egakh.familytree.network.backport.ByteBufCodecs.UUID'
+            replace '.fromNamespaceAndPath(', '.tryBuild('
+            replace '.getOrThrow()', '.getOrThrow(false, error -> {})'
+            replace 'NbtIo.readCompressed(in, net.minecraft.nbt.NbtAccounter.unlimitedHeap())', 'NbtIo.readCompressed(in)'
         }
         string(current.parsed >= '26.3') {
             replace 'InputConstants.Type.KEYSYM', 'InputConstants.Type.KEYBOARD'

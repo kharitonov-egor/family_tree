@@ -1,0 +1,156 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.147'
+}
+
+def sharedProperties = new Properties()
+file('../gradle.properties').withInputStream { sharedProperties.load(it) }
+def mcVersion = project.findProperty('minecraft') ?: '1.20.1'
+def forgeVersions = ['1.20.1': '47.4.28']
+// Packs often stay on older 47.x builds. Raise this only after testing the release jar on the new minimum.
+def forgeMinimums = ['1.20.1': '47.1.0']
+if (!forgeVersions.containsKey(mcVersion)) throw new GradleException("Unsupported Minecraft version ${mcVersion}")
+version = "${sharedProperties.mod_version}+${mcVersion}-forge"
+layout.buildDirectory = file("build/${mcVersion}")
+group = sharedProperties.maven_group
+base.archivesName = 'familytree'
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.withSourcesJar()
+// JDK 17 javac otherwise reads source in the platform encoding, which is CP1252 on Windows.
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+
+legacyForge {
+    version = "${mcVersion}-${forgeVersions[mcVersion]}"
+    runs {
+        client { client() }
+        server { server(); programArgument '--nogui' }
+    }
+    mods {
+        familytree { sourceSet(sourceSets.main) }
+    }
+}
+
+mixin {
+    add sourceSets.main, 'familytree.refmap.json'
+    config 'familytree.mixins.json'
+}
+
+def generated = "../versions/${mcVersion}/build/generated/stonecutter"
+sourceSets.main {
+    java.setSrcDirs(["${generated}/main/java", "${generated}/client/java", 'src/main/java'])
+    java.exclude '**/fabric/**'
+    resources.setSrcDirs(['../src/main/resources', 'src/main/resources'])
+    resources.exclude 'fabric.mod.json'
+}
+sourceSets.test {
+    java.setSrcDirs(["${generated}/test/java"])
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.runtimeClasspath
+}
+repositories { mavenCentral() }
+dependencies {
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+test { useJUnitPlatform() }
+
+tasks.register('prepareSharedSources', Exec) {
+    onlyIf { !project.hasProperty('sharedSourcesReady') }
+    workingDir '..'
+    def windows = System.getProperty('os.name').toLowerCase().contains('windows')
+    def wrapper = file(windows ? '../gradlew.bat' : '../gradlew')
+    def arguments = [wrapper.absolutePath, ":${mcVersion}:stonecutterGenerate", ":${mcVersion}:stonecutterGenerateClient",
+            ":${mcVersion}:stonecutterGenerateTest", '--console=plain']
+    commandLine(windows ? ['cmd', '/c'] + arguments : arguments)
+}
+compileJava.dependsOn 'prepareSharedSources'
+compileTestJava.dependsOn 'prepareSharedSources'
+sourcesJar.dependsOn 'prepareSharedSources'
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('META-INF/mods.toml') {
+        expand version: project.version, minecraft: mcVersion, forge: forgeMinimums[mcVersion]
+    }
+    filesMatching('familytree.mixins.json') { expand 'java': '17' }
+    // Forge 1.20.1 runs on SRG names, so mixins need the refmap. Its wolves also have no variants to invoke.
+    doLast {
+        def file = new File(destinationDir, 'familytree.mixins.json')
+        def config = new groovy.json.JsonSlurper().parse(file)
+        if (!config.mixins.remove('WolfVariantInvoker')) throw new GradleException('WolfVariantInvoker is missing from familytree.mixins.json')
+        config.refmap = 'familytree.refmap.json'
+        config.minVersion = '0.8'
+        file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
+    }
+}
+
+jar {
+    manifest.attributes('MixinConfigs': 'familytree.mixins.json')
+    from('../LICENSE') { rename { "LICENSE_familytree" } }
+}
+
+if (project.hasProperty('demo')) {
+    sourceSets {
+        demo {
+            java.setSrcDirs(['../src/demo/java', 'src/demo/java'])
+            java.exclude '**/FabricDemoClient.java'
+            resources.setSrcDirs(['src/demo/resources'])
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+        }
+    }
+    legacyForge {
+        mods { familytree_demo { sourceSet(sourceSets.demo) } }
+        runs {
+            demo {
+                client()
+                sourceSet = sourceSets.demo
+                gameDirectory = file("../build/demo-forge-${mcVersion}")
+                programArguments.addAll '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
+                systemProperty 'familytree.demo.gameplay', project.hasProperty('gameplay').toString()
+                systemProperty 'familytree.demo.horses', project.hasProperty('horses').toString()
+            }
+        }
+    }
+    tasks.named('runDemo') {
+        def result = file("../build/demo-forge-${mcVersion}/demo-result.txt")
+        doFirst { result.delete() }
+        doLast {
+            if (!result.exists() || !result.text.startsWith('PASS:'))
+                throw new GradleException(result.exists() ? result.text : 'Client demo did not report a result')
+        }
+    }
+}
+
+if (project.hasProperty('smoke')) {
+    sourceSets {
+        smoke {
+            java.setSrcDirs(['../src/smoke/java', 'src/smoke/java'])
+            java.exclude '**/FabricSmoke.java'
+            resources.setSrcDirs(['src/smoke/resources'])
+            compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+            runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+        }
+    }
+    legacyForge {
+        mods { familytree_smoke { sourceSet(sourceSets.smoke) } }
+        runs {
+            smoke {
+                server()
+                sourceSet = sourceSets.smoke
+                gameDirectory = file("../build/smoke-forge-${mcVersion}")
+                programArgument '--nogui'
+                systemProperty 'familytree.smoke.minimumHistory', project.findProperty('smokeHistory') ?: '0'
+            }
+        }
+    }
+    tasks.named('runSmoke') {
+        def result = file("../build/smoke-forge-${mcVersion}/smoke-result.txt")
+        doFirst { result.delete() }
+        doLast {
+            if (!result.exists() || !result.text.startsWith('PASS:'))
+                throw new GradleException(result.exists() ? result.text : 'Smoke test did not report a result')
+        }
+    }
+}

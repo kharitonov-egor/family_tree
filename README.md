@@ -24,6 +24,8 @@ Choose the file that matches both your Minecraft version and mod loader.
 
 | Minecraft | Loader | Java | Extra dependency |
 | --- | --- | --- | --- |
+| 1.20.1 | Fabric | 17 or newer | [Fabric API](https://modrinth.com/mod/fabric-api) for 1.20.1 |
+| 1.20.1 | Forge 47.1.0 or newer | 17 or newer | None |
 | 1.21.1 | Fabric | 21 or newer | [Fabric API](https://modrinth.com/mod/fabric-api) for 1.21.1 |
 | 1.21.1 | NeoForge 21.1.252 or newer within 21.1 | 21 or newer | None |
 | 1.21.11 | Fabric | 21 or newer | Fabric API for 1.21.11 |
@@ -35,7 +37,7 @@ Choose the file that matches both your Minecraft version and mod loader.
 | 26.3 | Fabric | 25 or newer | Fabric API for 26.3 |
 | 26.3 | NeoForge 26.3.0.37-beta or newer within 26.3 | 25 or newer | Beta loader |
 
-Put the matching jar in `mods/`. Fabric builds use Fabric Loader 0.19.3 for testing. NeoForge builds do not need Fabric API.
+Put the matching jar in `mods/`. Fabric builds use Fabric Loader 0.19.3 for testing. NeoForge and Forge builds do not need Fabric API.
 
 Install Family Tree on the server for tracking and on your client for the screens. In singleplayer, one installation does both. Use the same Family Tree version on both sides. Players without the mod can join a server that has it, but cannot open the screens.
 
@@ -45,7 +47,7 @@ Install Family Tree on the server for tracking and on your client for the screen
 2. Visit your pets. Family Tree records existing tamed pets as their chunks load. **Find existing pets** also checks the pets currently loaded on the server.
 3. Open a pet's tree, or choose a species to see its combined family trees. Breed pets while the mod is installed to record their children's parents automatically.
 
-The tracker covers tamed cats, wolves, parrots, horses, donkeys, mules, llamas, trader llamas, camels, skeleton horses, and zombie horses. Parrots have individual records but cannot breed in vanilla Minecraft. Cat, wolf, and horse portraits match their coat variants, and horse portraits include markings. On 1.21.11, tamed nautiluses and zombie nautiluses are recorded too. They have no portraits; the browser shows the first letter of the name.
+The tracker covers tamed cats, wolves, parrots, horses, donkeys, mules, llamas, trader llamas, camels, skeleton horses, and zombie horses. Parrots have individual records but cannot breed in vanilla Minecraft. Cat, wolf, and horse portraits match their coat variants, and horse portraits include markings. Wolves in 1.20.1 have a single coat. On 1.21.11, tamed nautiluses and zombie nautiluses are recorded too. They have no portraits; the browser shows the first letter of the name.
 
 Minecraft does not retain older parentage or birth dates. Newly discovered pets start with an unknown family and the discovery day as their recorded birth day. Select a pet and choose **Add parents** to record a family you remember. The picker searches names, species, and UUIDs. Confirm the two parents before saving. The linking stick and age commands also remain available. Horse and donkey parents can link to a mule.
 
@@ -97,16 +99,17 @@ Existing Family Tree history and custom names remain. This release does not chan
 
 ## Build and test
 
-Install JDK 25 and JDK 21, then use the included Gradle wrapper. The 1.21.1 and 1.21.11 jars target Java 21 bytecode.
+Install JDK 25, JDK 21, and JDK 17, then use the included Gradle wrapper. The 1.20.1 jars target Java 17 bytecode, and the 1.21.1 and 1.21.11 jars Java 21.
 
 ```sh
 ./gradlew buildAll
-./gradlew :1.21.1:build
+./gradlew :1.20.1:build
 ./gradlew :26.2:build
 ./gradlew -p neoforge build
+./gradlew -p forge build -Pminecraft=1.20.1
 ```
 
-Fabric jars are in `versions/<minecraft>/build/libs/`. NeoForge jars are in `neoforge/build/<minecraft>/libs/`. `buildAll` runs the shared tests for all ten targets. Stonecutter generates Fabric sources for each version, and NeoForge compiles the generated sources for its selected target with its own event and networking entrypoints. Do not edit generated files under `versions/`.
+Fabric jars are in `versions/<minecraft>/build/libs/`, NeoForge jars in `neoforge/build/<minecraft>/libs/`, and Forge jars in `forge/build/<minecraft>/libs/`. `buildAll` runs the shared tests for all twelve targets. Stonecutter generates Fabric sources for each version. NeoForge and Forge compile the generated sources for their selected target with their own event and networking entrypoints. Do not edit generated files under `versions/`.
 
 See [runtime validation](docs/testing.md) for the separate server smoke tests and client demo. [CLAUDE.md](CLAUDE.md) covers the source layout and save compatibility rules.
 
@@ -120,4 +123,4 @@ Version 1.1.0 uses paged network snapshots. Update clients and servers together.
 
 [Release notes](docs/releases/1.1.0.md), [runtime checks](docs/testing.md), and [public download counts](docs/metrics/README.md) describe the release and progress toward 10,000 Modrinth downloads. Run `python scripts/download_counts.py` to update the public counters. The daily GitHub workflow does the same. Repeat downloads and upgrades count toward platform totals.
 
-Build all targets with JDK 25 and JDK 21 installed using `./gradlew buildAll --no-parallel`. Commit the tested source, then run `python scripts/release_manifest.py` to verify jar metadata, Java targets, license, icon, and hashes. Publish the copies under `build/releases/1.1.0/`.
+Build all targets with JDK 25, JDK 21, and JDK 17 installed using `./gradlew buildAll --no-parallel`. Commit the tested source, then run `python scripts/release_manifest.py` to verify jar metadata, Java targets, license, icon, and hashes. Publish the copies under `build/releases/1.1.0/`.

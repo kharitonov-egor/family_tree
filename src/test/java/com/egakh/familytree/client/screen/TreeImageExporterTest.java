@@ -42,7 +42,7 @@ class TreeImageExporterTest {
         var image = ImageIO.read(file.toFile());
         assertEquals(picture.width(), image.getWidth());
         assertEquals(picture.height(), image.getHeight());
-        var firstCard = picture.cards().getFirst();
+        var firstCard = picture.cards().get(0);
         assertNotEquals(image.getRGB(0, 0), image.getRGB(
                 (int) (firstCard.x() + 10) * TreeImageExporter.SCALE,
                 (int) (firstCard.y() + 10) * TreeImageExporter.SCALE));

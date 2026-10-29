@@ -72,9 +72,9 @@ class SnapshotPagesTest {
         UUID old = UUID.randomUUID(), current = UUID.randomUUID();
         var pages = SnapshotPages.split(old, List.of(), 5, 100, false, false, false);
         var assembler = new SnapshotAssembler(); assembler.begin(current);
-        assertTrue(assembler.accept(pages.getFirst()).isEmpty());
+        assertTrue(assembler.accept(pages.get(0)).isEmpty());
         assembler.begin(old);
-        var page = pages.getFirst();
+        var page = pages.get(0);
         assertThrows(IllegalArgumentException.class, () -> assembler.accept(new com.egakh.familytree.network.payloads.SnapshotPagePayload(
                 old, 1, 2, 0, List.of(), 5, 100, false, false, false)));
     }

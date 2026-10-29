@@ -1,5 +1,6 @@
 package com.egakh.familytree.mixin;
 
+//? if >=1.21 {
 import net.minecraft.core.Holder;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.animal.wolf.WolfVariant;
@@ -14,3 +15,4 @@ public interface WolfVariantInvoker {
     @Invoker("setVariant")
     void familytree$setVariant(Holder<WolfVariant> variant);
 }
+//?}
