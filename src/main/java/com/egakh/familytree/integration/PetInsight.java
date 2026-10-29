@@ -2,7 +2,6 @@ package com.egakh.familytree.integration;
 
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
-import com.egakh.familytree.data.HorseStats;
 import com.egakh.familytree.permissions.PetAccess;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import com.egakh.familytree.util.Genealogy;
@@ -21,23 +20,18 @@ import java.util.UUID;
 import java.util.function.Function;
 
 /**
- * The family details a tooltip mod may show for one tracked animal. It is built for one viewer and holds only
- * records that viewer can open in Family Tree's own screens, so it never carries coordinates or hidden relatives.
+ * The family details a tooltip mod may show for one tracked animal: the animal and its parents as the viewer's
+ * Family Tree screens would show them. Hidden parents are absent, and no record carries a last known position.
  */
-public record PetInsight(String name, String parentA, String parentB, int generation,
-                         HorseStats stats, HorseStats parentAStats, HorseStats parentBStats) {
+public record PetInsight(AnimalRecord pet, AnimalRecord parentA, AnimalRecord parentB, int generation) {
     public static final String TAG = "familytree";
 
     private static final Codec<PetInsight> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.STRING.fieldOf("name").forGetter(PetInsight::name),
-            Codec.STRING.optionalFieldOf("parent_a").forGetter(insight -> Optional.ofNullable(insight.parentA)),
-            Codec.STRING.optionalFieldOf("parent_b").forGetter(insight -> Optional.ofNullable(insight.parentB)),
-            Codec.INT.optionalFieldOf("generation", 0).forGetter(PetInsight::generation),
-            HorseStats.CODEC.optionalFieldOf("stats").forGetter(insight -> Optional.ofNullable(insight.stats)),
-            HorseStats.CODEC.optionalFieldOf("parent_a_stats").forGetter(insight -> Optional.ofNullable(insight.parentAStats)),
-            HorseStats.CODEC.optionalFieldOf("parent_b_stats").forGetter(insight -> Optional.ofNullable(insight.parentBStats))
-    ).apply(instance, (name, a, b, generation, stats, aStats, bStats) -> new PetInsight(name, a.orElse(null), b.orElse(null),
-            generation, stats.orElse(null), aStats.orElse(null), bStats.orElse(null))));
+            AnimalRecord.CODEC.fieldOf("pet").forGetter(PetInsight::pet),
+            AnimalRecord.CODEC.optionalFieldOf("parent_a").forGetter(insight -> Optional.ofNullable(insight.parentA)),
+            AnimalRecord.CODEC.optionalFieldOf("parent_b").forGetter(insight -> Optional.ofNullable(insight.parentB)),
+            Codec.INT.optionalFieldOf("generation", 0).forGetter(PetInsight::generation)
+    ).apply(instance, (pet, a, b, generation) -> new PetInsight(pet, a.orElse(null), b.orElse(null), generation)));
 
     /** Looks up a pet for this player with the same view rules as the Family Tree browser. */
     public static PetInsight forViewer(ServerPlayer viewer, UUID petId) {
@@ -56,9 +50,20 @@ public record PetInsight(String name, String parentA, String parentB, int genera
         if (pet == null) return null;
         AnimalRecord a = pet.parentA() == null ? null : visible.apply(pet.parentA());
         AnimalRecord b = pet.parentB() == null ? null : visible.apply(pet.parentB());
-        return new PetInsight(pet.name(), a == null ? null : a.name(), b == null ? null : b.name(),
-                Genealogy.generationOf(pet.id(), lineage(pet, visible)), pet.horseStats(),
-                a == null ? null : a.horseStats(), b == null ? null : b.horseStats());
+        return new PetInsight(withoutPosition(pet), withoutPosition(a), withoutPosition(b),
+                Genealogy.generationOf(pet.id(), lineage(pet, visible)));
+    }
+
+    /** Resolves the pet's parents for the shared stat and variant text. */
+    public AnimalRecord parent(UUID id) {
+        if (id == null) return null;
+        if (parentA != null && id.equals(parentA.id())) return parentA;
+        if (parentB != null && id.equals(parentB.id())) return parentB;
+        return null;
+    }
+
+    private static AnimalRecord withoutPosition(AnimalRecord record) {
+        return record == null ? null : PetAccess.forViewer(record, null, false);
     }
 
     private static Map<UUID, AnimalRecord> lineage(AnimalRecord pet, Function<UUID, AnimalRecord> visible) {

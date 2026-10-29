@@ -3,11 +3,9 @@ package com.egakh.familytree.client.integration;
 import com.egakh.familytree.client.FamilyTreeClient;
 import com.egakh.familytree.client.screen.HorseStatsText;
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
-import com.egakh.familytree.data.HorseStats;
+import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.integration.PetInsight;
-import com.egakh.familytree.util.HorseStatUnits;
-import com.egakh.familytree.util.HorseStatUnits.Stat;
-import com.egakh.familytree.util.HorseStatUnits.Trend;
+import com.egakh.familytree.util.VariantText;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -15,7 +13,6 @@ import net.minecraft.network.chat.MutableComponent;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
 /** Tooltip lines for Jade and WTHIT, from the server's reply or else the last family snapshot this client received. */
@@ -29,47 +26,39 @@ public final class PetTooltip {
     }
 
     public static List<Component> lines(PetInsight insight) {
+        AnimalRecord pet = insight.pet();
         List<Component> lines = new ArrayList<>();
-        lines.add(Component.translatable("familytree.tooltip.name", insight.name()).withStyle(ChatFormatting.GREEN));
+        lines.add(Component.translatable("familytree.tooltip.name", pet.name()).withStyle(ChatFormatting.GREEN));
         lines.add(parents(insight).withStyle(ChatFormatting.GRAY));
         if (FamilyTreeClientSettings.showGeneration() && insight.generation() > 0)
             lines.add(Component.translatable("familytree.tooltip.generation", insight.generation()).withStyle(ChatFormatting.GRAY));
-        if (FamilyTreeClientSettings.showHorseStats() && insight.stats() != null) {
-            for (Stat stat : Stat.values()) {
-                Component line = statLine(stat, insight);
-                if (line != null) lines.add(line);
+        MutableComponent variant = VariantText.label(pet);
+        if (variant != null) {
+            MutableComponent line = Component.translatable("familytree.variant.line", variant);
+            if (VariantText.rare(pet))
+                line.append(Component.literal(" " + VariantText.RARE_MARKER).withStyle(style -> style.withColor(VariantText.RARE_COLOR & 0xFFFFFF)));
+            lines.add(line);
+            Component note = VariantText.note(pet, insight::parent);
+            if (note != null) lines.add(note.copy().withStyle(ChatFormatting.GRAY));
+        }
+        if (FamilyTreeClientSettings.showHorseStats()) {
+            for (HorseStatsText.DetailLine stat : HorseStatsText.details(pet, insight::parent)) {
+                MutableComponent line = Component.literal(stat.text());
+                String marker = HorseStatsText.marker(stat.trend());
+                if (!marker.isEmpty())
+                    line.append(Component.literal(" " + marker).withStyle(style -> style.withColor(HorseStatsText.markerColor(stat.trend()) & 0xFFFFFF)));
+                if (!stat.parents().isEmpty()) line.append(Component.literal("  " + stat.parents()).withStyle(ChatFormatting.GRAY));
+                lines.add(line);
             }
         }
         return lines;
     }
 
     private static MutableComponent parents(PetInsight insight) {
-        if (insight.parentA() == null && insight.parentB() == null)
-            return Component.translatable("familytree.tooltip.parents_unknown");
+        AnimalRecord a = insight.parent(insight.pet().parentA()), b = insight.parent(insight.pet().parentB());
+        if (a == null && b == null) return Component.translatable("familytree.tooltip.parents_unknown");
         Component unknown = Component.translatable("familytree.tooltip.parent_unknown");
         return Component.translatable("familytree.tooltip.parents",
-                insight.parentA() == null ? unknown : Component.literal(insight.parentA()),
-                insight.parentB() == null ? unknown : Component.literal(insight.parentB()));
-    }
-
-    private static Component statLine(Stat stat, PetInsight insight) {
-        HorseStats stats = insight.stats();
-        Double value = stat.value(stats);
-        if (value == null) return null;
-        String key = stat.name().toLowerCase(Locale.ROOT);
-        MutableComponent line = stat == Stat.STRENGTH
-                ? Component.translatable("familytree.stats.strength", stats.strength(), HorseStatUnits.chestSlots(stats.strength()))
-                : Component.translatable("familytree.stats." + key, stat.format(value));
-        Trend trend = HorseStatUnits.compare(stat, stats, insight.parentAStats(), insight.parentBStats());
-        String marker = HorseStatsText.marker(trend);
-        if (!marker.isEmpty())
-            line.append(Component.literal(" " + marker).withStyle(style -> style.withColor(HorseStatsText.markerColor(trend) & 0xFFFFFF)));
-        Double a = stat.value(insight.parentAStats()), b = stat.value(insight.parentBStats());
-        if (a != null || b != null) {
-            line.append(Component.literal("  "));
-            line.append(Component.translatable("familytree.stats.parents", a == null ? "?" : stat.format(a), b == null ? "?" : stat.format(b))
-                    .withStyle(ChatFormatting.GRAY));
-        }
-        return line;
+                a == null ? unknown : Component.literal(a.name()), b == null ? unknown : Component.literal(b.name()));
     }
 }

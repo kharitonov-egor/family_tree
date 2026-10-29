@@ -43,7 +43,22 @@ class PetInsightTest {
 
         PetInsight insight = PetInsight.of(ember.id(), visibleTo(ALEX, false));
 
-        assertEquals(new PetInsight("Little Ember", "Comet", "Dusk", 3, ember.horseStats(), comet.horseStats(), dusk.horseStats()), insight);
+        assertEquals("Little Ember", insight.pet().name());
+        assertEquals("Comet", insight.parent(comet.id()).name());
+        assertEquals("Dusk", insight.parent(dusk.id()).name());
+        assertEquals(3, insight.generation());
+        assertEquals(ember.horseStats(), insight.pet().horseStats());
+        assertEquals(comet.horseStats(), insight.parentA().horseStats());
+        assertEquals(dusk.horseStats(), insight.parentB().horseStats());
+    }
+
+    @Test void neverCarriesAPosition() {
+        AnimalRecord comet = horse(1, "Comet", ALEX, null, null, null);
+        AnimalRecord ember = horse(2, "Ember", ALEX, comet, null, null);
+        PetInsight insight = PetInsight.of(ember.id(), visibleTo(ALEX, false));
+        assertNull(insight.pet().lastSeen());
+        assertNull(insight.parentA().lastSeen());
+        assertNotNull(ember.lastSeen(), "the saved record keeps its position");
     }
 
     @Test void hiddenPetsAndParentsStayHidden() {
@@ -53,11 +68,11 @@ class PetInsightTest {
 
         assertNull(PetInsight.of(foreign.id(), visibleTo(ALEX, false)));
         PetInsight insight = PetInsight.of(ember.id(), visibleTo(ALEX, false));
-        assertEquals("Comet", insight.parentA());
+        assertEquals("Comet", insight.parentA().name());
         assertNull(insight.parentB());
-        assertNull(insight.parentBStats());
+        assertNull(insight.parent(foreign.id()));
         assertEquals(2, insight.generation());
-        assertEquals("Shadow", PetInsight.of(ember.id(), visibleTo(ALEX, true)).parentB());
+        assertEquals("Shadow", PetInsight.of(ember.id(), visibleTo(ALEX, true)).parentB().name());
     }
 
     @Test void survivesTheTooltipTag() {
@@ -66,7 +81,13 @@ class PetInsightTest {
         PetInsight insight = PetInsight.of(ember.id(), visibleTo(ALEX, false));
         CompoundTag tag = new CompoundTag();
         PetInsight.write(tag, insight);
-        assertEquals(insight, PetInsight.read(tag));
+        PetInsight read = PetInsight.read(tag);
+        assertEquals(ember.id(), read.pet().id());
+        assertEquals("Ember", read.pet().name());
+        assertEquals(ember.horseStats(), read.pet().horseStats());
+        assertEquals(comet.horseStats(), read.parentA().horseStats());
+        assertNull(read.parentB());
+        assertEquals(insight.generation(), read.generation());
         assertNull(PetInsight.read(new CompoundTag()));
     }
 
