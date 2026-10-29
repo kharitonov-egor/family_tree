@@ -9,11 +9,15 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGETS = {'fabric': ['1.20.1', '1.21.1', '1.21.11', '26.1.1', '26.1.2', '26.2', '26.3'],
-           'neoforge': ['1.21.1', '1.21.11', '26.2', '26.3'],
+TARGETS = {'fabric': ['1.20.1', '1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10', '1.21.11',
+                      '26.1.1', '26.1.2', '26.2', '26.3'],
+           'neoforge': ['1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10', '1.21.11', '26.2', '26.3'],
            'forge': ['1.20.1']}
-NEOFORGE = {'1.21.1': '21.1.252', '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta'}
+NEOFORGE = {'1.21.1': '21.1.252', '1.21.4': '21.4.161', '1.21.5': '21.5.101', '1.21.8': '21.8.57',
+            '1.21.10': '21.10.64', '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta'}
 FORGE = {'1.20.1': '47.1.0'}
+# Earlier patches the Fabric 1.21.8 and 1.21.10 jars ran on. build.gradle declares the same ranges.
+ALSO_RUNS_ON = {'1.21.8': ['1.21.6', '1.21.7'], '1.21.10': ['1.21.9']}
 
 
 def main():
@@ -41,10 +45,12 @@ def main():
                 assert 'assets/familytree/icon.png' in names, f'{path}: missing icon'
                 assert not any('/demo/' in name or '/smoke/' in name for name in names), f'{path}: development classes'
                 assert jar.read('LICENSE_familytree') == (ROOT / 'LICENSE').read_bytes()
+                game_versions = (ALSO_RUNS_ON.get(mc, []) if loader == 'fabric' else []) + [mc]
                 if loader == 'fabric':
                     metadata = json.loads(jar.read('fabric.mod.json'))
                     assert metadata['version'] == release_version
-                    assert metadata['depends']['minecraft'] == '=' + mc
+                    predicate = '=' + mc if len(game_versions) == 1 else f'>={game_versions[0]} <={mc}'
+                    assert metadata['depends']['minecraft'] == predicate
                     dependencies = [{'project_id': 'P7dR8mSH', 'dependency_type': 'required'}]
                     minimum_loader = metadata['depends']['fabricloader']
                 elif loader == 'neoforge':
@@ -75,7 +81,8 @@ def main():
                         assert int.from_bytes(jar.read(name)[6:8], 'big') == expected_major, f'{path}: wrong Java target'
             destination = output / path.name
             shutil.copyfile(path, destination)
-            files.append({'filename': path.name, 'version': release_version, 'minecraft': mc, 'loader': loader,
+            files.append({'filename': path.name, 'version': release_version, 'minecraft': mc,
+                'game_versions': game_versions, 'loader': loader,
                 'minimum_loader': minimum_loader, 'java': java, 'dependencies': dependencies,
                 'release_type': 'beta' if loader == 'neoforge' and mc == '26.3' else 'release',
                 'sha512': hashlib.sha512(destination.read_bytes()).hexdigest(), 'size': destination.stat().st_size})

@@ -253,7 +253,12 @@ public final class SmokeChecks {
             while (!type.getSimpleName().equals("AbstractHorse")) type = type.getSuperclass();
             var field = type.getDeclaredField("owner");
             field.setAccessible(true);
-            field.set(horse, Class.forName("net.minecraft.world.entity.EntityReference").getMethod("of", UUID.class).invoke(null, owner));
+            Class<?> reference = Class.forName("net.minecraft.world.entity.EntityReference");
+            try {
+                field.set(horse, reference.getMethod("of", UUID.class).invoke(null, owner));
+            } catch (NoSuchMethodException before1_21_9) {
+                field.set(horse, reference.getConstructor(UUID.class).newInstance(owner));
+            }
         }
     }
 

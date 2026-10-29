@@ -1,6 +1,6 @@
 # Runtime validation
 
-`./gradlew buildAll --no-parallel` builds seven Fabric, four NeoForge, and one Forge target and runs the shared JUnit suite for each. Install JDK 17, JDK 21, and JDK 25. The 1.20.1 tests and development runs use JDK 17. Tests cover saved records, names, ancestry, ownership, PNG exports, byte-bounded snapshot pages, parent validation, horse stat units checked against the Minecraft Wiki's values, variant inheritance and rarity, animal categories, tracking settings, the farm limit and cleanup order, large farm layouts, and portrait transparency. `WireFormatTest` expects the same payload bytes on every target, which checks the 1.20.1 codec backport against Minecraft's codecs.
+`./gradlew buildAll --no-parallel` builds eleven Fabric, eight NeoForge, and one Forge target and runs the shared JUnit suite for each. Install JDK 17, JDK 21, and JDK 25. The 1.20.1 tests and development runs use JDK 17. Tests cover saved records, names, ancestry, ownership, PNG exports, byte-bounded snapshot pages, parent validation, horse stat units checked against the Minecraft Wiki's values, variant inheritance and rarity, animal categories, tracking settings, the farm limit and cleanup order, large farm layouts, and portrait transparency. `WireFormatTest` expects the same payload bytes on every target, which checks the 1.20.1 codec backport against Minecraft's codecs.
 
 The development mods under `src/smoke` and `src/demo` never enter release jars. Their runners fail the Gradle task when the expected PASS file is missing. Use disposable worlds under `build/`. Never use a normal game directory, and never copy a newer Minecraft world into an older target.
 
@@ -19,8 +19,13 @@ spawn-protection=0
 ```
 
 ```sh
-./gradlew :1.20.1:runSmoke :1.21.1:runSmoke :1.21.11:runSmoke :26.1.1:runSmoke :26.1.2:runSmoke :26.2:runSmoke :26.3:runSmoke -Psmoke --no-parallel
+./gradlew :1.20.1:runSmoke :1.21.1:runSmoke :1.21.4:runSmoke :1.21.5:runSmoke :1.21.8:runSmoke :1.21.10:runSmoke :1.21.11:runSmoke -Psmoke --no-parallel
+./gradlew :26.1.1:runSmoke :26.1.2:runSmoke :26.2:runSmoke :26.3:runSmoke -Psmoke --no-parallel
 ./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=1.21.1
+./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=1.21.4
+./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=1.21.5
+./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=1.21.8
+./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=1.21.10
 ./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=1.21.11
 ./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=26.2
 ./gradlew -p neoforge runSmoke -Psmoke -Pminecraft=26.3
@@ -29,17 +34,22 @@ spawn-protection=0
 
 The runner adds tame wolves, invokes Minecraft's breeding method, and checks entity-load discovery, the breeding mixin, inherited ownership, edit permissions, renaming, and death records. It then adds owned horses and a llama, breeds a foal, and checks the recorded stats at discovery, birth, and unload. A camel and an ownerless skeleton horse must stay unrecorded. Then it checks animals other than pets: a wild cow and a cow bred without a player stay out, a player's sheep breeding records the lamb and both parents for the breeder with mixed wool colors, a recorded family keeps growing without a player, an added axolotl keeps its color, and every vanilla variant reads and applies on the running Minecraft version. It rewrites `config/familytree-server.properties` to check a disabled category, the farm limit, and opt-in cleanup with its backup, then restores the file. It writes `smoke-result.txt` and stops the server. The death check calls the shared handler, so it does not prove every loader death event. The separate gameplay run checks a real Fabric death event.
 
-For an upgrade test, copy a previous release's Family Tree data into a disposable world for the same Minecraft version and preserve its save path. To create horse history with an older release, run its jar on a Fabric dedicated server, `forceload` a few chunks, and summon owned horses, for example `summon minecraft:horse 0 -60 0 {Tame:1b,Owner:[I;1,2,3,4],InLove:600}` twice. AI breeding records a foal. Swap in the new jar, let the chunks load, and check `/familytree info` for the retained parents and filled-in stats. Use `-PsmokeHistory=<expected-count>` to require retained records before creating new pets. The 1.20.1, 1.21.1, and 1.21.11 path is `smoke/data/familytree.dat`; 26.x worlds use `smoke/dimensions/minecraft/overworld/data/familytree/familytree.dat`.
+For an upgrade test, copy a previous release's Family Tree data into a disposable world for the same Minecraft version and preserve its save path. To create horse history with an older release, run its jar on a Fabric dedicated server, `forceload` a few chunks, and summon owned horses, for example `summon minecraft:horse 0 -60 0 {Tame:1b,Owner:[I;1,2,3,4],InLove:600}` twice. AI breeding records a foal. Swap in the new jar, let the chunks load, and check `/familytree info` for the retained parents and filled-in stats. Use `-PsmokeHistory=<expected-count>` to require retained records before creating new pets. Every 1.20.1 and 1.21.x target uses `smoke/data/familytree.dat`; 26.x worlds use `smoke/dimensions/minecraft/overworld/data/familytree/familytree.dat`.
 
-1.21.11 reads the 1.21.1 file in place, without an import step. To check that upgrade, run the 1.21.1 smoke on a fresh world, copy its `smoke` folder into `build/smoke-1.21.11/` or `build/smoke-neoforge-1.21.11/`, and run the 1.21.11 smoke with `-PsmokeHistory` set to the number of records the 1.21.1 run created. Copying that world on into `build/smoke-26.1.1/` checks the one-time 26.x import. A 1.20.1 world upgrades to 1.21.1 the same way: copy its `smoke` folder into `build/smoke-1.21.1/` and run that smoke with `-PsmokeHistory`.
+Every 1.21.x target reads the 1.21.1 file in place, without an import step. 1.21.1 and 1.21.4 load it through Minecraft's older `SavedData.Factory`, and 1.21.5 and newer through `SavedDataType`. To check an upgrade, run the 1.21.1 smoke on a fresh world, copy its `smoke` folder into the newer target's smoke directory, such as `build/smoke-1.21.10/` or `build/smoke-neoforge-1.21.4/`, and run that smoke with `-PsmokeHistory` set to the number of records the 1.21.1 run created. Repeat the copy from 1.21.4 to 1.21.5 to cross the change in save API. Copying that world on into `build/smoke-26.1.1/` checks the one-time 26.x import. A 1.20.1 world upgrades to 1.21.1 the same way: copy its `smoke` folder into `build/smoke-1.21.1/` and run that smoke with `-PsmokeHistory`.
 
 ## Client and network checks
 
 Enable the runner with `-Pdemo`. Put a matching disposable world at `build/demo-<minecraft>/saves/Family Tree demo/`, `build/demo-neoforge-<minecraft>/saves/Family Tree demo/`, or `build/demo-forge-<minecraft>/saves/Family Tree demo/`. A Minecraft window opens during the run. To make a 1.20.1 world without copying a newer one, start the vanilla 1.20.1 server jar with `level-name=Family Tree demo` and `level-type=minecraft\:flat`, stop it with `stop`, and copy the world folder.
 
 ```sh
-./gradlew :1.20.1:runDemo :1.21.1:runDemo :1.21.11:runDemo :26.1.1:runDemo :26.1.2:runDemo :26.2:runDemo :26.3:runDemo -Pdemo --no-parallel
+./gradlew :1.20.1:runDemo :1.21.1:runDemo :1.21.4:runDemo :1.21.5:runDemo :1.21.8:runDemo :1.21.10:runDemo :1.21.11:runDemo -Pdemo --no-parallel
+./gradlew :26.1.1:runDemo :26.1.2:runDemo :26.2:runDemo :26.3:runDemo -Pdemo --no-parallel
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.1
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.4
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.5
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.8
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.10
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.11
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=26.2
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=26.3
@@ -118,6 +128,21 @@ Summon owned, named wolves from the server console with the player's offline UUI
 - shift-click, number keys, double-click, dragging, middle-click, `Q`, `F` over an icon, and closing with an item picked up from the inventory. Compare `data get entity <player> Inventory` before and after, and check the offhand slot in the hotbar.
 
 Join the same server with a modded client as well. `/familytree` must print the command list, and **H** must open the screens.
+
+## Release jars in real 1.21.x instances
+
+The 1.21.4, 1.21.5, 1.21.8, and 1.21.10 jars were checked with a separate dedicated server and client. The server is the Fabric server launcher for Loader 0.19.3, or NeoForge installed with `--install-server`. The client joins it through portablemc:
+
+```sh
+portablemc --main-dir ~/.cache/pmc start fabric:1.21.10:0.19.3 --mc-dir build/real-fabric-1.21.10/client -u Tester --join-server 127.0.0.1 --join-server-port 25612 --jvm-arg=-Xmx2G
+portablemc --main-dir ~/.cache/pmc start neoforge::21.10.64 --mc-dir build/real-neoforge-1.21.10/client -u Tester --join-server 127.0.0.1 --join-server-port 25624 --jvm-arg=-Xmx2G
+```
+
+Write `onboardAccessibility:false` to the client's `options.txt` first. Send `op Tester` and the setup commands through the server console. Summon a wolf with `NoAI:1b` two blocks in front of the player and right-click it with bones until it is tamed. Do the same for a second wolf, feed both beef, then clear `NoAI` and `Sitting` so vanilla AI breeds them. For horses, summon one with `Temper:100`, mount it with an empty hand, and dismount once it is tamed. Feed two tamed horses golden carrots. Open the browser with **H**, open the species and pet trees, export, then restart the server and client and check the history again.
+
+Tamed wolves sit while their owner is offline, so wolves summoned with an `Owner` for a player who is not connected never breed. Owned horses breed without their owner.
+
+The Fabric 1.21.8 jar also declares 1.21.6 and 1.21.7, and the 1.21.10 jar declares 1.21.9. Both went through the same steps on those versions with their Fabric API builds. Every `net/minecraft` class, method, and field name in the remapped jars was also found in Fabric's intermediary mappings for those versions. Before adding another version to a range, run both checks on it.
 
 ## Release packaging
 

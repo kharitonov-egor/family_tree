@@ -7,11 +7,12 @@ stonecutter.active '26.1.1' /* [SC] DO NOT EDIT */
 tasks.register('buildAll') {
     group = 'project'
     description = 'Builds and tests all Fabric, NeoForge, and Forge targets.'
-    dependsOn ':1.20.1:build', ':1.21.1:build', ':1.21.11:build', ':26.1.1:build', ':26.1.2:build', ':26.2:build', ':26.3:build',
+    dependsOn ':1.20.1:build', ':1.21.1:build', ':1.21.4:build', ':1.21.5:build', ':1.21.8:build', ':1.21.10:build',
+            ':1.21.11:build', ':26.1.1:build', ':26.1.2:build', ':26.2:build', ':26.3:build',
             'buildNeoForge', 'buildForge'
 }
 
-def neoForgeTargets = ['1.21.1', '1.21.11', '26.2', '26.3']
+def neoForgeTargets = ['1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10', '1.21.11', '26.2', '26.3']
 neoForgeTargets.eachWithIndex { target, index ->
     tasks.register("buildNeoForge${target.replace('.', '_')}", Exec) {
         dependsOn ":${target}:stonecutterGenerate", ":${target}:stonecutterGenerateClient"
@@ -41,6 +42,7 @@ tasks.register('buildForge') {
 // Source is authored against 26.1.1 (the vcsVersion). These replacements rewrite the
 // handful of renamed APIs for older and newer Minecraft versions. Keep authoring in
 // 26.1 names; add a new `string(...)` gate here when a version renames an API.
+// Each game rename sits behind the release that introduced it: 1.21.2, 1.21.5, 1.21.9, or 1.21.11.
 // 1.21.11 already has most 26.1 game names but keeps the older GUI and Fabric API names.
 stonecutter.parameters {
     replacements {
@@ -49,25 +51,31 @@ stonecutter.parameters {
             replace 'net.minecraft.util.Util.getPlatform()', 'net.minecraft.Util.getPlatform()'
             replace 'world.entity.animal.equine.', 'world.entity.animal.horse.'
             replace 'world.entity.animal.feline.Cat', 'world.entity.animal.Cat'
-            replace 'world.entity.animal.wolf.Wolf', 'world.entity.animal.Wolf'
             replace 'world.entity.animal.panda.Panda', 'world.entity.animal.Panda'
             replace '.identifier()', '.location()'
+        }
+        string(current.parsed < '1.21.9') {
             replace '.isClientSide()', '.isClientSide'
-            replace 'InteractionResult.SUCCESS_SERVER', 'InteractionResult.CONSUME'
-            replace 'ByteBufCodecs.LONG', 'com.egakh.familytree.network.WireCodecs.LONG'
+        }
+        string(current.parsed < '1.21.5') {
+            replace 'world.entity.animal.wolf.Wolf', 'world.entity.animal.Wolf'
             replace 'new ClickEvent.RunCommand(', 'new ClickEvent(ClickEvent.Action.RUN_COMMAND, '
             replace 'new ClickEvent.SuggestCommand(', 'new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, '
             replace 'storage.computeIfAbsent(TYPE)', 'storage.computeIfAbsent(TYPE, LEGACY_STATE_KEY)'
             replace 'storage.set(TYPE, legacyState)', 'storage.set(LEGACY_STATE_KEY, legacyState)'
             replace '.getCompoundOrEmpty(', '.getCompound('
+            replace '.adultAssetInfo().texturePath()', '.texture()'
+            replace '.adultInfo().tame().texturePath()', '.tameTexture()'
+        }
+        string(current.parsed < '1.21.2') {
+            replace 'InteractionResult.SUCCESS_SERVER', 'InteractionResult.CONSUME'
+            replace 'ByteBufCodecs.LONG', 'com.egakh.familytree.network.WireCodecs.LONG'
             replace '.create(level, EntitySpawnReason.LOAD)', '.create(level)'
             replace '.registryAccess().lookupOrThrow(', '.registryAccess().registryOrThrow('
             replace 'registry.get(ResourceKey.create(', 'registry.getHolder(ResourceKey.create('
             replace '.get(ResourceKey.create(Registries.', '.getHolder(ResourceKey.create(Registries.'
-            replace '.adultAssetInfo().texturePath()', '.texture()'
-            replace '.adultInfo().tame().texturePath()', '.tameTexture()'
         }
-        string(current.parsed >= '1.21.11' && current.parsed < '26.1') {
+        string(current.parsed >= '1.21.5' && current.parsed < '26.1') {
             replace '.adultAssetInfo().texturePath()', '.assetInfo().texturePath()'
             replace '.adultInfo().tame().texturePath()', '.assetInfo().tame().texturePath()'
         }
