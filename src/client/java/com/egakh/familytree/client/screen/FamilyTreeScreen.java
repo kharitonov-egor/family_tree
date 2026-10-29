@@ -65,4 +65,17 @@ public abstract class FamilyTreeScreen extends Screen {
         return onKeyPress(key) || super.keyPressed(key, scanCode, modifiers);
     }
     *///?}
+    //? if <1.21 {
+    /*// Newer Screen.render draws the dimmed background itself, and scrolling reports both axes.
+    @Override public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
+        renderBackground(gfx);
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
+    }
+    @Override public boolean mouseScrolled(double x, double y, double amount) {
+        return mouseScrolled(x, y, 0, amount);
+    }
+    public boolean mouseScrolled(double x, double y, double horizontalAmount, double verticalAmount) {
+        return super.mouseScrolled(x, y, verticalAmount);
+    }
+    *///?}
 }

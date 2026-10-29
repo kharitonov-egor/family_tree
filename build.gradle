@@ -37,6 +37,7 @@ if (project.hasProperty('smoke')) {
 def mcVersion = stonecutter.current.version
 
 def fabricApiVersions = [
+        '1.20.1': '0.92.12+1.20.1',
         '1.21.1': '0.116.17+1.21.1',
         '1.21.11': '0.141.6+1.21.11',
         '26.1.1': '0.145.4+26.1.1',
@@ -50,7 +51,7 @@ if (fabricApiVersion == null) {
 }
 def minecraftDep = "=${mcVersion}"
 def obfuscated = mcVersion.startsWith('1.')
-def javaVersion = obfuscated ? 21 : 25
+def javaVersion = mcVersion == '1.20.1' ? 17 : obfuscated ? 21 : 25
 
 version = "${project.mod_version}+${mcVersion}"
 group = project.maven_group
@@ -109,10 +110,24 @@ processResources {
     filesMatching('familytree.mixins.json') {
         expand 'java': "${javaVersion}"
     }
+    // 1.20.1 wolves have no variants, so the wolf variant invoker has no target.
+    if (mcVersion == '1.20.1') doLast {
+        def file = new File(destinationDir, 'familytree.mixins.json')
+        def config = new groovy.json.JsonSlurper().parse(file)
+        if (!config.mixins.remove('WolfVariantInvoker')) throw new GradleException('WolfVariantInvoker is missing from familytree.mixins.json')
+        file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
     it.options.release = javaVersion
+}
+
+// Run tests and development games on the Java release that 1.20.1 players use.
+if (mcVersion == '1.20.1') {
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
+    tasks.withType(Test).configureEach { javaLauncher = launcher }
+    tasks.withType(net.fabricmc.loom.task.RunGameTask).configureEach { javaLauncher = launcher }
 }
 
 java {

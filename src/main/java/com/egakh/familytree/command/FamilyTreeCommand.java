@@ -388,7 +388,7 @@ public final class FamilyTreeCommand {
     private static AnimalRecord findUnique(FamilyTreeState state, String name, CommandSourceStack source, boolean manage) {
         var matches = PetNames.matches(state.all(), name, pet -> manage
                 ? ServerPetAccess.canManage(source, pet) : ServerPetAccess.canView(source, pet));
-        if (matches.size() == 1) return matches.getFirst();
+        if (matches.size() == 1) return matches.get(0);
         if (matches.size() > 1) {
             source.sendFailure(Component.translatable("familytree.command.ambiguous", name));
             for (AnimalRecord pet : matches.stream().limit(10).toList()) source.sendFailure(Component.literal(

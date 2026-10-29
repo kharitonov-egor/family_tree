@@ -169,7 +169,7 @@ public class FamilyTreeState extends SavedData {
             CODEC,
             null
     );
-    *///?} else {
+    *///?} else if >=1.21 {
     /*private static final SavedData.Factory<FamilyTreeState> TYPE = new SavedData.Factory<>(
             FamilyTreeState::new, (tag, registries) -> CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow(), null);
 
@@ -177,12 +177,25 @@ public class FamilyTreeState extends SavedData {
     public CompoundTag save(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         return (CompoundTag) CODEC.encodeStart(NbtOps.INSTANCE, this).getOrThrow();
     }
+    *///?} else {
+    /*private static FamilyTreeState load(CompoundTag tag) {
+        return CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow();
+    }
+
+    @Override
+    public CompoundTag save(CompoundTag tag) {
+        return (CompoundTag) CODEC.encodeStart(NbtOps.INSTANCE, this).getOrThrow();
+    }
     *///?}
 
     public static FamilyTreeState get(MinecraftServer server) {
         ServerLevel overworld = server.overworld();
         SavedDataStorage storage = overworld.getDataStorage();
+        //? if >=1.21 {
         FamilyTreeState state = storage.computeIfAbsent(TYPE);
+        //?} else {
+        /*FamilyTreeState state = storage.computeIfAbsent(FamilyTreeState::load, FamilyTreeState::new, LEGACY_STATE_KEY);
+        *///?}
         if (!state.initialized) {
             state.initialized = true;
             FamilyTreeState legacyState = tryLoadLegacy(server);

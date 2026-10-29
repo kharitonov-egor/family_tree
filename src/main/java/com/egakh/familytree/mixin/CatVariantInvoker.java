@@ -9,5 +9,9 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 @Mixin(Cat.class)
 public interface CatVariantInvoker {
     @Invoker("setVariant")
+    //? if >=1.21 {
     void familytree$setVariant(Holder<CatVariant> variant);
+    //?} else {
+    /*void familytree$setVariant(CatVariant variant);
+    *///?}
 }

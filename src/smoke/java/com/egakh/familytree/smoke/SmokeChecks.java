@@ -32,9 +32,9 @@ public final class SmokeChecks {
             first.setPos(2, 64, 2);
             second.setPos(4, 64, 2);
             child.setPos(6, 64, 2);
-            ((TamableAnimal) first).setTame(true, false);
-            ((TamableAnimal) second).setTame(true, false);
-            ((TamableAnimal) child).setTame(true, false);
+            tame(first);
+            tame(second);
+            tame(child);
             world.addFreshEntity(first);
             world.addFreshEntity(second);
             world.addFreshEntity(child);
@@ -149,6 +149,17 @@ public final class SmokeChecks {
             }
         }
         throw new IllegalStateException("No entity factory");
+    }
+
+    private static void tame(Animal animal) throws Exception {
+        for (var method : TamableAnimal.class.getMethods()) {
+            if (!method.getName().equals("setTame")) continue;
+            if (method.getParameterCount() == 2) method.invoke(animal, true, false);
+            else if (method.getParameterCount() == 1) method.invoke(animal, true);
+            else continue;
+            return;
+        }
+        throw new IllegalStateException("No tame setter");
     }
 
     private static void require(boolean condition, String message) {

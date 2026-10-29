@@ -32,10 +32,14 @@ public final class PetPortraits {
                 if (entry.isEmpty()) return null;
                 texture = entry.get().value().adultAssetInfo().texturePath();
             } else {
+                //? if >=1.21 {
                 var entry = client.level.registryAccess().lookupOrThrow(Registries.WOLF_VARIANT)
                         .get(ResourceKey.create(Registries.WOLF_VARIANT, variant));
                 if (entry.isEmpty()) return null;
                 texture = entry.get().value().adultInfo().tame().texturePath();
+                //?} else {
+                /*texture = Identifier.fromNamespaceAndPath("minecraft", "textures/entity/wolf/wolf_tame.png");
+                *///?}
             }
             var resource = client.getResourceManager().getResource(texture);
             if (resource.isEmpty()) return null;

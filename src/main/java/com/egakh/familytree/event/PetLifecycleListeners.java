@@ -3,7 +3,9 @@ package com.egakh.familytree.event;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.data.HorseStats;
+//? if >=1.21 {
 import com.egakh.familytree.mixin.WolfVariantInvoker;
+//?}
 import com.egakh.familytree.naming.NameGenerator;
 import com.egakh.familytree.util.PetFilter;
 import com.egakh.familytree.util.TimeUtil;
@@ -326,12 +328,19 @@ public final class PetLifecycleListeners {
     }
 
     private static String variantOf(Entity entity) {
+        //? if >=1.21 {
         if (entity instanceof Cat cat) {
             return variantKey(cat.getVariant());
         }
         if (entity instanceof Wolf wolf) {
             return variantKey(((WolfVariantInvoker) (Object) wolf).familytree$getVariant());
         }
+        //?} else {
+        /*if (entity instanceof Cat cat) {
+            var key = BuiltInRegistries.CAT_VARIANT.getKey(cat.getVariant());
+            return key == null ? null : key.toString();
+        }
+        *///?}
         if (entity instanceof Horse horse) {
             return horse.getVariant().getSerializedName() + "/" + horse.getMarkings().name().toLowerCase(Locale.ROOT);
         }
