@@ -14,11 +14,13 @@ jobs:
       matrix:
         include:
           - {loader: fabric, minecraft: '1.21.1'}
+          - {loader: fabric, minecraft: '1.21.11'}
           - {loader: fabric, minecraft: '26.1.1'}
           - {loader: fabric, minecraft: '26.1.2'}
           - {loader: fabric, minecraft: '26.2'}
           - {loader: fabric, minecraft: '26.3'}
           - {loader: neoforge, minecraft: '1.21.1'}
+          - {loader: neoforge, minecraft: '1.21.11'}
           - {loader: neoforge, minecraft: '26.2'}
           - {loader: neoforge, minecraft: '26.3'}
     steps:

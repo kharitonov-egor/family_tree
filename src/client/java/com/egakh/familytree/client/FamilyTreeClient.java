@@ -72,8 +72,13 @@ public final class FamilyTreeClient {
             FamilyTreeBrowserScreen.loadingFailed();
         } else if (!FamilyTreeClientSettings.welcomeShown()
                 && ClientTransport.canSend(OpenFamilyTreeRequest.TYPE) && ++welcomeTicks >= 60) {
-            client.player.sendSystemMessage(Component.translatable("familytree.welcome",
-                    FamilyTreeKeybinds.OPEN_TREE.getTranslatedKeyMessage()));
+            Component welcome = Component.translatable("familytree.welcome",
+                    FamilyTreeKeybinds.OPEN_TREE.getTranslatedKeyMessage());
+            //? if >=26.1 {
+            client.player.sendSystemMessage(welcome);
+            //?} else {
+            /*client.player.displayClientMessage(welcome, false);
+            *///?}
             FamilyTreeClientSettings.markWelcomeShown();
         }
         while (FamilyTreeKeybinds.OPEN_TREE.consumeClick()) {

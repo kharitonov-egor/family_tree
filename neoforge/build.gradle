@@ -6,13 +6,14 @@ plugins {
 def sharedProperties = new Properties()
 file('../gradle.properties').withInputStream { sharedProperties.load(it) }
 def mcVersion = project.findProperty('minecraft') ?: '26.2'
-def neoVersions = ['1.21.1': '21.1.252', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta']
+def neoVersions = ['1.21.1': '21.1.252', '1.21.11': '21.11.48', '26.2': '26.2.0.88', '26.3': '26.3.0.37-beta']
 if (!neoVersions.containsKey(mcVersion)) throw new GradleException("Unsupported Minecraft version ${mcVersion}")
+def javaVersion = mcVersion.startsWith('1.') ? 21 : 25
 version = "${sharedProperties.mod_version}+${mcVersion}-neoforge"
 layout.buildDirectory = file("build/${mcVersion}")
 group = sharedProperties.maven_group
 base.archivesName = 'familytree'
-java.toolchain.languageVersion = JavaLanguageVersion.of(mcVersion == '1.21.1' ? 21 : 25)
+java.toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
 java.withSourcesJar()
 
 neoForge {
@@ -62,10 +63,10 @@ processResources {
     filesMatching('META-INF/neoforge.mods.toml') {
         expand version: project.version, minecraft: mcVersion,
                 neoforge: neoVersions[mcVersion],
-                logoProperty: mcVersion == '1.21.1' ? 'logoFile' : 'iconFile',
-                neoUpper: mcVersion == '1.21.1' ? '21.2' : mcVersion == '26.2' ? '26.3' : '26.4'
+                logoProperty: mcVersion.startsWith('1.') ? 'logoFile' : 'iconFile',
+                neoUpper: ['1.21.1': '21.2', '1.21.11': '21.12', '26.2': '26.3', '26.3': '26.4'][mcVersion]
     }
-    filesMatching('familytree.mixins.json') { expand 'java': mcVersion == '1.21.1' ? '21' : '25' }
+    filesMatching('familytree.mixins.json') { expand 'java': "${javaVersion}" }
 }
 
 if (project.hasProperty('demo')) {
