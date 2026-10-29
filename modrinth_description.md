@@ -16,7 +16,7 @@ A 20-second automated scene in Minecraft 26.2. Vanilla feeding and AI breeding p
 
 Every horse card shows speed, jump height, and health beside its parents. A green triangle marks a stat higher than both parents, and a red triangle marks one lower than both. Sort your horses by speed, jump, or health, and export the family with its stats.
 
-![A horse family exported with speed, jump, and health](https://raw.githubusercontent.com/kharitonov-egor/family_tree/main/docs/horse-breeding-export.png)
+![A horse family exported with speed, jump, and health](https://cdn.modrinth.com/data/CVQKDAe7/images/e3b88ce556bec5416e211ad4238e962badac4f97.png)
 
 An automated scene in Minecraft 26.3. Two tamed horses ate golden carrots, and vanilla AI bred them. Ember's jump is lower than both parents'.
 
