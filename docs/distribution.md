@@ -47,6 +47,14 @@ The main and tag build workflows passed all eight Linux jobs. The manually dispa
 
 CurseForge publication is complete. The `curseforge-upload-kit.zip` on the GitHub release contains the eight verified jars, manifest, listing copy, a logo below the 100 KiB limit, media, changelog, and the existing project's URL. Do not upload duplicate files from the kit. Distribution uploads fetched seven more jars from Modrinth, and CurseForge CDN verification fetched eight jars. These are verification downloads, not evidence of new players. Keep CurseForge counts separate from the 10,000-download Modrinth target.
 
+## 1.2.0 publication
+
+On October 29, 2026 UTC, commit `94ea9e7` was tagged `v1.2.0`. The [GitHub release](https://github.com/kharitonov-egor/family_tree/releases/tag/v1.2.0) has twelve jars, their source jars, and the manifest. Modrinth had 1,023 downloads when it went out.
+
+Modrinth has twelve matching versions. The seven Fabric versions also list Quilt, after a Quilt Loader 0.30.1 server started on every Fabric target and 1.21.1 and 26.3 clients joined it and opened the browser. The page summary now mentions horse breeding stats, and the gallery has the horse export and tree images. Version metadata and SHA-512 hashes were checked through the API without downloading the files.
+
+CurseForge received the same twelve files through the upload API, file IDs 9365774 to 9365785. Each has its Minecraft version, loader, Java version, Client, and Server tags. Fabric files also carry Quilt and require Fabric API. They go public after CurseForge's review. The upload API cannot edit the project description, which still describes 1.1.0. `scripts/publish_curseforge.py` reads `CURSEFORGE_TOKEN` from the ignored `.env`.
+
 ## Measurement decisions
 
 At 30 days, compare the actual download rate with the remaining target. The audit's 180-day deadline requires roughly 53 additional downloads a day from the baseline. If the rate stays below that, broader distribution is still needed. More code alone cannot establish that the target will be reached.
