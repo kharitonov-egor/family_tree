@@ -9,6 +9,12 @@ public final class PetRelations {
         return speciesMatch(a.speciesId(), b.speciesId(), child.speciesId());
     }
 
+    /** Whether one parent of this species can appear in some valid pairing for the child. */
+    public static boolean mayBeParent(String parent, String child) {
+        return parent.equals(child) || child.equals("minecraft:mule")
+                && (parent.equals("minecraft:horse") || parent.equals("minecraft:donkey"));
+    }
+
     public static boolean speciesMatch(String a, String b, String child) {
         if (a.equals(b) && a.equals(child)) return true;
         return child.equals("minecraft:mule")

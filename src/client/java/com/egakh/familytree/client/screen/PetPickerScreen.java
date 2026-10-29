@@ -54,7 +54,7 @@ public final class PetPickerScreen extends FamilyTreeScreen {
         for (int i = page * rows; i < Math.min(matches.size(), (page + 1) * rows); i++) {
             AnimalRecord pet = matches.get(i);
             String label = pet.id().toString().substring(0, 8) + " | " + pet.name() + " | "
-                    + pet.speciesId().substring(pet.speciesId().indexOf(':') + 1);
+                    + FamilyTreeBrowserScreen.speciesName(pet.speciesId()).getString();
             choices.add(addRenderableWidget(Button.builder(Component.literal(font.plainSubstrByWidth(label, width - 48)),
                     button -> { choose.accept(pet.id()); onClose(); }).bounds(16, 64 + (i % rows) * 24, width - 32, 20).build()));
         }

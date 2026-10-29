@@ -10,6 +10,7 @@ import com.egakh.familytree.permissions.ServerPetAccess;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
+import com.egakh.familytree.text.ServerText;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
@@ -54,18 +55,18 @@ public final class LinkingTool {
         FamilyTreeState state = FamilyTreeState.get(level);
         if (state.readOnly()) return InteractionResult.SUCCESS_SERVER;
         if (!PetFilter.isTrackable(entity) && !state.contains(entity.getUUID())) {
-            sp.sendSystemMessage(Component.translatable(PetFilter.isUnclaimedMount(entity)
+            ServerText.send(sp, Component.translatable(PetFilter.isUnclaimedMount(entity)
                     ? "familytree.tool.ride_first" : "familytree.tool.not_tamed"));
             return InteractionResult.SUCCESS_SERVER;
         }
         PetLifecycleListeners.ensureRecord(level, state, entity);
         AnimalRecord record = state.get(entity.getUUID());
         if (record == null) {
-            sp.sendSystemMessage(Component.translatable("familytree.tool.not_tamed"));
+            ServerText.send(sp, Component.translatable("familytree.tool.not_tamed"));
             return InteractionResult.SUCCESS_SERVER;
         }
         if (!ServerPetAccess.canManage(sp.createCommandSourceStack(), record)) {
-            sp.sendSystemMessage(Component.translatable("familytree.access.denied"));
+            ServerText.send(sp, Component.translatable("familytree.access.denied"));
             return InteractionResult.SUCCESS_SERVER;
         }
 
@@ -96,7 +97,7 @@ public final class LinkingTool {
         long now = System.currentTimeMillis();
         if (session == null || session.expired(now) || session.pending != Mode.NONE) {
             if (session != null && !session.expired(now)) {
-                player.sendSystemMessage(Component.translatable("familytree.tool.restarted")
+                ServerText.send(player, Component.translatable("familytree.tool.restarted")
                         .withStyle(ChatFormatting.GRAY));
             }
             session = new Session();
@@ -105,26 +106,26 @@ public final class LinkingTool {
         session.lastTouchedMillis = now;
 
         if (session.pets.contains(record.id())) {
-            player.sendSystemMessage(Component.translatable("familytree.tool.already_selected", record.name()));
+            ServerText.send(player, Component.translatable("familytree.tool.already_selected", record.name()));
             return;
         }
         if (session.pets.size() == 1) {
             AnimalRecord first = state.get(session.pets.get(0));
             if (first != null && !first.speciesId().equals(record.speciesId())
                     && !java.util.Set.of(first.speciesId(), record.speciesId()).equals(java.util.Set.of("minecraft:horse", "minecraft:donkey"))) {
-                player.sendSystemMessage(Component.translatable("familytree.command.pair.species_mismatch"));
+                ServerText.send(player, Component.translatable("familytree.command.pair.species_mismatch"));
                 return;
             }
         }
 
         if (session.pets.size() == 2 && Genealogy.wouldCreateCycle(record.id(),
                 session.pets.get(0), session.pets.get(1), state::get)) {
-            player.sendSystemMessage(Component.translatable("familytree.command.pair.cycle"));
+            ServerText.send(player, Component.translatable("familytree.command.pair.cycle"));
             return;
         }
         if (session.pets.size() == 2 && !PetRelations.speciesMatch(state.get(session.pets.get(0)),
                 state.get(session.pets.get(1)), record)) {
-            player.sendSystemMessage(Component.translatable("familytree.command.pair.species_mismatch"));
+            ServerText.send(player, Component.translatable("familytree.command.pair.species_mismatch"));
             return;
         }
 
@@ -134,7 +135,7 @@ public final class LinkingTool {
             case 2 -> "familytree.tool.selected_parent2";
             default -> "familytree.tool.selected_child";
         };
-        player.sendSystemMessage(Component.translatable(key, record.name()));
+        ServerText.send(player, Component.translatable(key, record.name()));
         sendKnownRelations(player, state, record);
 
         if (session.pets.size() == 3) {
@@ -148,7 +149,7 @@ public final class LinkingTool {
 
     private static void startUnlink(ServerPlayer player, AnimalRecord record) {
         if (record.parentA() == null && record.parentB() == null) {
-            player.sendSystemMessage(Component.translatable("familytree.tool.no_parents", record.name()));
+            ServerText.send(player, Component.translatable("familytree.tool.no_parents", record.name()));
             SESSIONS.remove(player.getUUID());
             return;
         }
@@ -168,7 +169,7 @@ public final class LinkingTool {
                 ? Component.translatable("familytree.tool.known_parents",
                         pa != null ? pa.name() : "?", pb != null ? pb.name() : "?")
                 : Component.translatable("familytree.tool.known_parents_none");
-        player.sendSystemMessage(parents.withStyle(ChatFormatting.GRAY));
+        ServerText.send(player, parents.withStyle(ChatFormatting.GRAY));
 
         List<UUID> childIds = state.buildChildIndex().get(record.id());
         MutableComponent children;
@@ -182,7 +183,7 @@ public final class LinkingTool {
                     .collect(Collectors.joining(", "));
             children = Component.translatable("familytree.tool.known_children", names);
         }
-        player.sendSystemMessage(children.withStyle(ChatFormatting.GRAY));
+        ServerText.send(player, children.withStyle(ChatFormatting.GRAY));
     }
 
     private static void sendConfirmPrompt(ServerPlayer player, Component question) {
@@ -192,15 +193,15 @@ public final class LinkingTool {
         Component cancel = Component.translatable("familytree.tool.cancel_button").withStyle(s -> s
                 .withColor(ChatFormatting.RED).withBold(true)
                 .withClickEvent(new ClickEvent.RunCommand("/familytree cancellink")));
-        player.sendSystemMessage(question);
-        player.sendSystemMessage(Component.empty().append(confirm).append(" ").append(cancel));
+        ServerText.send(player, question);
+        ServerText.send(player, Component.empty().append(confirm).append(" ").append(cancel));
     }
 
     public static int confirm(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         Session session = player != null ? SESSIONS.remove(player.getUUID()) : null;
         if (session == null || session.expired(System.currentTimeMillis()) || session.pending == Mode.NONE) {
-            source.sendFailure(Component.translatable("familytree.tool.nothing_pending"));
+            ServerText.failure(source, Component.translatable("familytree.tool.nothing_pending"));
             return 0;
         }
 
@@ -209,11 +210,11 @@ public final class LinkingTool {
         if (session.pending == Mode.UNLINK) {
             AnimalRecord target = state.get(session.unlinkTarget);
             if (!ServerPetAccess.canManage(source, target)) {
-                source.sendFailure(Component.translatable("familytree.tool.nothing_pending"));
+                ServerText.failure(source, Component.translatable("familytree.tool.nothing_pending"));
                 return 0;
             }
             state.update(target.id(), r -> r.setParents(null, null));
-            source.sendSuccess(() -> Component.translatable("familytree.command.unpair.result", target.name()), false);
+            ServerText.success(source, () -> Component.translatable("familytree.command.unpair.result", target.name()), false);
             return 1;
         }
 
@@ -221,35 +222,35 @@ public final class LinkingTool {
         AnimalRecord parentB = state.get(session.pets.get(1));
         AnimalRecord child = state.get(session.pets.get(2));
         if (parentA == null || parentB == null || child == null) {
-            source.sendFailure(Component.translatable("familytree.tool.nothing_pending"));
+            ServerText.failure(source, Component.translatable("familytree.tool.nothing_pending"));
             return 0;
         }
         if (!ServerPetAccess.canManage(source, parentA) || !ServerPetAccess.canManage(source, parentB)
                 || !ServerPetAccess.canManage(source, child)) {
-            source.sendFailure(Component.translatable("familytree.access.denied"));
+            ServerText.failure(source, Component.translatable("familytree.access.denied"));
             return 0;
         }
         if (parentA.id().equals(parentB.id())) {
-            source.sendFailure(Component.translatable("familytree.command.pair.same_parent"));
+            ServerText.failure(source, Component.translatable("familytree.command.pair.same_parent"));
             return 0;
         }
         if (child.id().equals(parentA.id()) || child.id().equals(parentB.id())) {
-            source.sendFailure(Component.translatable("familytree.command.pair.child_matches_parent"));
+            ServerText.failure(source, Component.translatable("familytree.command.pair.child_matches_parent"));
             return 0;
         }
         if (!PetRelations.speciesMatch(parentA, parentB, child)) {
-            source.sendFailure(Component.translatable("familytree.command.pair.species_mismatch"));
+            ServerText.failure(source, Component.translatable("familytree.command.pair.species_mismatch"));
             return 0;
         }
 
         // Recheck after the confirmation delay, since another player may have edited the tree.
         if (Genealogy.wouldCreateCycle(child.id(), parentA.id(), parentB.id(), state::get)) {
-            source.sendFailure(Component.translatable("familytree.command.pair.cycle"));
+            ServerText.failure(source, Component.translatable("familytree.command.pair.cycle"));
             return 0;
         }
 
         state.update(child.id(), r -> r.setParents(parentA.id(), parentB.id()));
-        source.sendSuccess(() -> Component.translatable("familytree.command.pair.result",
+        ServerText.success(source, () -> Component.translatable("familytree.command.pair.result",
                 parentA.name(), parentB.name(), child.name()), false);
         return 1;
     }
@@ -258,10 +259,10 @@ public final class LinkingTool {
         ServerPlayer player = source.getPlayer();
         Session session = player != null ? SESSIONS.remove(player.getUUID()) : null;
         if (session == null) {
-            source.sendFailure(Component.translatable("familytree.tool.nothing_pending"));
+            ServerText.failure(source, Component.translatable("familytree.tool.nothing_pending"));
             return 0;
         }
-        source.sendSuccess(() -> Component.translatable("familytree.tool.cancelled"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.tool.cancelled"), false);
         return 1;
     }
 

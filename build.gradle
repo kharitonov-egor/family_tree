@@ -110,11 +110,13 @@ processResources {
     filesMatching('familytree.mixins.json') {
         expand 'java': "${javaVersion}"
     }
-    // 1.20.1 wolves have no variants, so the wolf variant invoker has no target.
+    // 1.20.1 wolves have no variants, so the wolf variant invoker has no target. Its server also
+    // forgets the client's language unless ClientLanguageMixin records it.
     if (mcVersion == '1.20.1') doLast {
         def file = new File(destinationDir, 'familytree.mixins.json')
         def config = new groovy.json.JsonSlurper().parse(file)
         if (!config.mixins.remove('WolfVariantInvoker')) throw new GradleException('WolfVariantInvoker is missing from familytree.mixins.json')
+        config.mixins.add('ClientLanguageMixin')
         file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
     }
 }

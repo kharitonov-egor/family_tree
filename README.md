@@ -39,7 +39,7 @@ Choose the file that matches both your Minecraft version and mod loader.
 
 Put the matching jar in `mods/`. Fabric builds use Fabric Loader 0.19.3 for testing. They also run on Quilt Loader 0.30.1 or newer with Fabric API. NeoForge and Forge builds do not need Fabric API.
 
-Install Family Tree on the server for tracking and on your client for the screens. In singleplayer, one installation does both. Use the same Family Tree version on both sides. Players without the mod can join a server that has it, but cannot open the screens.
+Install Family Tree on the server for tracking and on your client for the screens. In singleplayer, one installation does both. Use the same Family Tree version on both sides. Players without the client mod can still join and type `/familytree` to browse in chest menus. See [Players without the client mod](#players-without-the-client-mod).
 
 ## Start with the pets you already have
 
@@ -60,6 +60,26 @@ Search by pet name or species, filter living or deceased pets, and follow genera
 Death records retain the pet's name, family, death day, and cause when known. Settings let you show or hide generation, age, birth day, and horse stats. Hide a branch to focus on one part of a large family, then use **Show all** to restore it.
 
 ![The pet browser with search, status filters, and Find existing pets](docs/tracked-pets-browser.webp)
+
+## Players without the client mod
+
+On a server that runs Family Tree, a player with an unmodded client types `/familytree` and gets a chest menu instead of the screens. It lists their pets with spawn egg icons, names, age, and living or deceased status, 45 to a page. Filter by status or species, or search by name in an anvil.
+
+Click a pet to see its parents, grandparents, and children, then click any relative to move through the family. Owners and operators can also:
+
+- locate the pet, with the result in chat,
+- rename it in Family Tree through an anvil,
+- add or clear its parents with a picker and a confirmation step,
+- read its family as a written book.
+
+The menus follow the same permissions and cooldowns as the screens. They never show coordinates, and another player's pets are view-only. Every click is refused before Minecraft moves an item, so players cannot take, move, or copy anything through them, including with shift-click, number keys, dragging, or the offhand key.
+
+Players who have the client mod keep the full screens, and `/familytree menu` opens the chest menu for them too.
+
+Menu text and chat messages follow each player's Minecraft language when Family Tree has a translation, and English otherwise. Server operators can change two settings in `config/familytree-server.properties`, then restart:
+
+- `vanillaMenu=false` turns the chest menu off. `/familytree` then prints the command list.
+- `commandAliases=pets,ft` adds `/pets` and `/ft` as other names for `/familytree`. Family Tree skips an alias that another command already uses and logs a warning.
 
 ## Horse breeding stats
 
@@ -87,9 +107,13 @@ Exports include pet names, generations, horse stats, portraits where available, 
 
 Rename a stick to `familytree` in an anvil. Right-click the first parent, second parent, and child, then confirm in chat. Sneak and right-click a pet to clear its parents after confirmation. Manual links require distinct pets and reject ancestry loops. Horse and donkey parents can link to a mule.
 
-Owners and server operators can locate or edit their pets. Linking two parents requires permission for all three animals. By default, only operators can browse everyone's pets. A server can change `viewPolicy` in `config/familytree-server.properties` to `EVERYONE_ALL` or `OWN_ONLY`, then restart. Public viewing does not grant editing rights or reveal other players' pet locations.
+Owners and server operators can locate or edit their pets. Linking two parents requires permission for all three animals. By default, only operators can browse everyone's pets. A server can change `viewPolicy` in `config/familytree-server.properties` to `EVERYONE_ALL` or `OWN_ONLY`, then restart. Public viewing does not grant editing rights or reveal other players' pet locations. The same file holds the chest menu settings described under [Players without the client mod](#players-without-the-client-mod).
 
 [Command reference](docs/commands.md) includes locating, pairing, age corrections, and operator pruning.
+
+## Languages
+
+Family Tree includes English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Russian, Ukrainian, German, French, Italian, Spanish (Spain and Mexico), Brazilian Portuguese, Polish, and Turkish. Everything except English was machine-translated. If a phrase reads wrong in your language, please [open an issue](https://github.com/kharitonov-egor/family_tree/issues) or send a pull request that edits `src/main/resources/assets/familytree/lang/<language>.json`. A test checks that every language file has the same keys and format arguments as `en_us.json`.
 
 ## Upgrading to 1.2.0
 

@@ -273,7 +273,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                     pet -> portraits.computeIfAbsent(pet.speciesId() + "|" + pet.variantId(), key -> PetPortraits.read(pet)),
                     pet -> FamilyTreeClientSettings.showHorseStats() ? HorseStatsText.card(pet, records::get) : List.of(),
                     new TreeImageExporter.Legend(Component.translatable("familytree.export.legend.higher").getString(),
-                            Component.translatable("familytree.export.legend.lower").getString()));
+                            Component.translatable("familytree.export.legend.lower").getString(),
+                            Component.translatable("familytree.export.hearts").getString()));
         } catch (IllegalArgumentException tooLarge) {
             exportStatus = Component.translatable("familytree.export.too_large");
             return;

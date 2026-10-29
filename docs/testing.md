@@ -82,6 +82,20 @@ portablemc --main-dir ~/.cache/pmc start forge::1.20.1-47.4.28 --mc-dir build/re
 
 Put the release jar in each instance's `mods/`; Fabric also needs Fabric API 0.92.12+1.20.1. Use a disposable 1.20.1 world with commands allowed. Tame two summoned wolves with bones and feed them beef. Breed them, open the tree with **H**, export a PNG, rename and locate a pet, then quit through the pause menu and reopen the world to check the family. Repeat the Forge run on 47.1.0, the oldest Forge build the jar declares.
 
+## Chest menus on a vanilla client
+
+The chest menus need a real dedicated server and an unmodded client. Install the release jar on a Fabric, NeoForge, or Forge server in a disposable directory with `online-mode=false`, `server-ip=127.0.0.1`, and `difficulty=peaceful`. Keep `spawn-animals=true` on 1.21.1 and older; with `false`, those servers delete every animal each tick, including summoned pets. Start a vanilla client with portablemc, for example `portablemc --main-dir ~/.cache/pmc start 1.21.1 --mc-dir build/vanilla-client -u Tester --join-server 127.0.0.1 --join-server-port 25565`. Set `lang:` in its `options.txt` to check the server's translations.
+
+Summon owned, named wolves from the server console with the player's offline UUID as `Owner`, set `InLove:600` on two of them, and summon one inside the ground to record a suffocation. Then type `/familytree` and check:
+
+- the list, filters, search, and Find existing pets,
+- a family, moving to a parent and back,
+- Locate, Rename, Add parents with its confirmation, and the book,
+- a pet owned by someone else, which must show no Locate, Rename, or Add parents,
+- shift-click, number keys, double-click, dragging, middle-click, `Q`, `F` over an icon, and closing with an item picked up from the inventory. Compare `data get entity <player> Inventory` before and after, and check the offhand slot in the hotbar.
+
+Join the same server with a modded client as well. `/familytree` must print the command list, and **H** must open the screens.
+
 ## Release packaging
 
 After testing and committing source, run `python scripts/release_manifest.py`. It checks Minecraft metadata, Java class versions, license, icon, and development-class exclusions, then copies the tested artifacts and records hashes under `build/releases/<mod-version>/`. Publish those files with `scripts/publish_modrinth.py --manifest <path-to-manifest>`. The publisher rejects files whose hashes changed after verification.

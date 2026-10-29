@@ -61,7 +61,7 @@ class TreeImageExporterTest {
                 new HorseStatsText.Segment("11.0 \u2665", Trend.BETWEEN));
         var picture = TreeImageExporter.prepare(tree, "Comet's family", "Family Tree",
                 p -> "Gen 1", p -> "Alive", p -> null, p -> p == ember ? stats : List.of(),
-                new TreeImageExporter.Legend("higher than both parents", "lower than both parents"));
+                new TreeImageExporter.Legend("higher than both parents", "lower than both parents", "hearts"));
         assertNotNull(picture.legend());
         var foal = picture.cards().stream().filter(card -> card.name().equals("Ember")).findFirst().orElseThrow();
         assertEquals(stats, foal.stats());

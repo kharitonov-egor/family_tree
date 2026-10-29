@@ -86,7 +86,7 @@ public final class GameplayCapture {
                 throw new AssertionError("Actual puppy did not arrive over the network");
             tree = new FamilyTreeViewScreen(browser, snapshot, puppy); runner.show(client, tree);
         }
-        if (tick == 300) runner.press("Export family tree");
+        if (tick == 300) runner.press(DemoClient.tr("familytree.export.button"));
         if (tick >= 30 && tick <= 430 && tick % 4 == 2)
             runner.capture(client, String.format("gameplay-%04d.png", tick));
         if (tick == 400) runner.capture(client, "gameplay-tree.png");

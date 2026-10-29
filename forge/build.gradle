@@ -74,11 +74,13 @@ processResources {
         expand version: project.version, minecraft: mcVersion, forge: forgeMinimums[mcVersion]
     }
     filesMatching('familytree.mixins.json') { expand 'java': '17' }
-    // Forge 1.20.1 runs on SRG names, so mixins need the refmap. Its wolves also have no variants to invoke.
+    // Forge 1.20.1 runs on SRG names, so mixins need the refmap. Its wolves also have no variants to invoke,
+    // and its server forgets the client's language unless ClientLanguageMixin records it.
     doLast {
         def file = new File(destinationDir, 'familytree.mixins.json')
         def config = new groovy.json.JsonSlurper().parse(file)
         if (!config.mixins.remove('WolfVariantInvoker')) throw new GradleException('WolfVariantInvoker is missing from familytree.mixins.json')
+        config.mixins.add('ClientLanguageMixin')
         config.refmap = 'familytree.refmap.json'
         config.minVersion = '0.8'
         file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
