@@ -81,6 +81,9 @@ stonecutter.parameters {
             replace 'client.keymapping.v1.KeyMappingHelper', 'client.keybinding.v1.KeyBindingHelper'
             replace 'KeyMappingHelper.registerKeyMapping(', 'KeyBindingHelper.registerKeyBinding('
             replace 'InventoryScreen.extractEntityInInventoryFollowsMouse(', 'InventoryScreen.renderEntityInInventoryFollowsMouse('
+            replace 'net.minecraft.world.inventory.ContainerInput', 'net.minecraft.world.inventory.ClickType'
+            replace 'ContainerInput input', 'ClickType input'
+            replace 'ContainerInput.', 'ClickType.'
         }
         // 1.20.1 predates the payload codecs. Shared code keeps their names and compiles against network/backport.
         // Inactive rules run in reverse, so each replacement must never occur in source for newer targets.
@@ -102,6 +105,10 @@ stonecutter.parameters {
             replace 'client.screen instanceof', 'client.gui.screen() instanceof'
             replace 'EntityType.CAT', 'net.minecraft.world.entity.EntityTypes.CAT'
             replace 'EntityType.WOLF', 'net.minecraft.world.entity.EntityTypes.WOLF'
+            replace 'Items.BLACK_STAINED_GLASS_PANE', 'Items.STAINED_GLASS_PANE.black()'
+            replace 'Items.GRAY_DYE', 'Items.DYE.gray()'
+            replace 'Items.LIME_CONCRETE', 'Items.CONCRETE.lime()'
+            replace 'Items.RED_CONCRETE', 'Items.CONCRETE.red()'
             replace 'client.gui.setOverlayMessage(Component.translatable("familytree.not_available"), false)',
                     'client.player.sendOverlayMessage(Component.translatable("familytree.not_available"))'
         }

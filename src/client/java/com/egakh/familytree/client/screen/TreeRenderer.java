@@ -2,6 +2,7 @@ package com.egakh.familytree.client.screen;
 
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.util.DeathMessages;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -171,22 +172,8 @@ public final class TreeRenderer {
     }
 
     private static String buildDeathLine(AnimalRecord r) {
-        AnimalRecord.DeathCause cause = r.deathCause();
-        if (cause == null || (cause.attacker() == null && cause.msgId() == null) || r.deathWorldDay() == null) {
-            return Component.translatable("familytree.node.deceased").getString();
-        }
-        if (cause.attacker() != null) {
-            return Component.translatable("familytree.node.slain_by", cause.attacker(), r.deathWorldDay()).getString();
-        }
-        return Component.translatable("familytree.node.died_of", prettifyMsgId(cause.msgId()), r.deathWorldDay()).getString();
-    }
-
-    private static String prettifyMsgId(String msgId) {
-        String spaced = msgId.replace('_', ' ')
-                .replaceAll("([a-z])([A-Z])", "$1 $2")
-                .replace('.', ' ')
-                .toLowerCase(java.util.Locale.ROOT);
-        return spaced.isBlank() ? msgId : spaced;
+        Component line = r.deathWorldDay() == null ? null : DeathMessages.line(r);
+        return line == null ? Component.translatable("familytree.node.deceased").getString() : line.getString();
     }
 
     private static int drawWrapped(GuiGraphicsExtractor gfx, Font font, String text,
@@ -233,13 +220,13 @@ public final class TreeRenderer {
         boolean showBirthDay = FamilyTreeClientSettings.showBirthDay();
         boolean showAge = FamilyTreeClientSettings.showAge();
         if (showBirthDay && showAge) {
-            return "Day " + birthDay + " | " + worldAge + "d";
+            return Component.translatable("familytree.screen.age_summary", birthDay, worldAge).getString();
         }
         if (showBirthDay) {
-            return "Day " + birthDay;
+            return Component.translatable("familytree.node.born_world", birthDay).getString();
         }
         if (showAge) {
-            return worldAge + "d";
+            return Component.translatable("familytree.screen.age_days", worldAge).getString();
         }
         return "";
     }

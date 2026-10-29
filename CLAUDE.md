@@ -67,8 +67,10 @@ Commands and discovery share per-player and per-server scan cooldowns. Rate-limi
 - `client/screen/` contains browser, tree, settings, help, rename, parent editor, and pet picker. Screens use FamilyTreeScreen to adapt input and rendering APIs.
 - `client/export/` copies a tree and renders a PNG on a background task. `PetPortraits` cuts horse side profiles from the equine texture layout, which 1.20.1, 1.21.1, 1.21.11, and 26.x share. 1.20.1 wolves have one coat, so their records have no variant. Exports omit explicit player names and coordinates. User-entered pet names may still contain personal information.
 - `platform/` and `client/platform/` hold loader-independent paths and transports. Shared code has no Fabric dependency.
+- `menu/` holds the chest, anvil, and lectern menus that `/familytree` opens for clients without the mod. Their `clicked` overrides refuse every click before Minecraft moves an item, resend the player's inventory, and run the button's action after the click packet finishes. Never call the vanilla click handling there.
+- `text/` reads the mod's language files on the server. `ServerText` gives every `familytree.` key a fallback in the receiving player's language, so vanilla clients read translated text. Send chat and command output through `ServerText.send`, `success`, or `failure`. 1.20.1 records the client's language with `ClientLanguageMixin`, which only the 1.20.1 Fabric and Forge builds list.
 
-All new player-facing text uses translation keys in `assets/familytree/lang/en_us.json`. Add keys for new errors rather than raw English messages. Clear client entity previews when disconnecting.
+All new player-facing text uses translation keys in `assets/familytree/lang/en_us.json`. Add keys for new errors rather than raw English messages. Add each new key to all 15 language files; `LangParityTest` requires the same keys and format arguments everywhere. Use Minecraft's own translations, such as `entity.minecraft.wolf` or `death.attack.*`, for game nouns and death messages. Clear client entity previews when disconnecting.
 
 ## Testing and publication
 

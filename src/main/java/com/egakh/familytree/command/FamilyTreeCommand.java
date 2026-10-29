@@ -5,6 +5,12 @@ import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.data.HorseStats;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
+import com.egakh.familytree.FamilyTreeMod;
+import com.egakh.familytree.menu.Menus;
+import com.egakh.familytree.network.payloads.SnapshotPagePayload;
+import com.egakh.familytree.platform.ServerTransport;
+import com.egakh.familytree.settings.FamilyTreeServerSettings;
+import com.egakh.familytree.util.DeathMessages;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.TimeUtil;
@@ -15,13 +21,16 @@ import com.egakh.familytree.util.PetRelations;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.ClickEvent;
+import com.egakh.familytree.text.ServerText;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 
 import java.util.Comparator;
@@ -33,12 +42,9 @@ public final class FamilyTreeCommand {
     private FamilyTreeCommand() {}
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal("familytree")
-                .executes(ctx -> {
-                    ctx.getSource().sendSuccess(() ->
-                            Component.translatable("familytree.command.usage"), false);
-                    return 1;
-                })
+        LiteralCommandNode<CommandSourceStack> root = dispatcher.register(Commands.literal("familytree")
+                .executes(ctx -> runRoot(ctx.getSource()))
+                .then(Commands.literal("menu").executes(ctx -> runMenu(ctx.getSource())))
                 .then(Commands.literal("list").executes(ctx -> runList(ctx.getSource())))
                 .then(Commands.literal("pair")
                         .then(Commands.argument("parent_a", StringArgumentType.string())
@@ -91,6 +97,37 @@ public final class FamilyTreeCommand {
                                 .executes(ctx -> runInfo(ctx.getSource(),
                                         StringArgumentType.getString(ctx, "name")))))
         );
+        for (String alias : FamilyTreeServerSettings.commandAliases()) {
+            if (dispatcher.getRoot().getChild(alias) != null) {
+                FamilyTreeMod.LOGGER.warn("Family Tree skipped the command alias /{} because another command uses it", alias);
+                continue;
+            }
+            dispatcher.register(Commands.literal(alias).executes(ctx -> runRoot(ctx.getSource())).redirect(root));
+        }
+    }
+
+    /** Players without the client mod get the chest menu. Players with it are reminded of their key. */
+    private static int runRoot(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player != null && FamilyTreeServerSettings.vanillaMenu() && !ServerTransport.canSend(player, SnapshotPagePayload.TYPE))
+            return Menus.open(player);
+        ServerText.success(source, () -> Component.translatable("familytree.command.usage"), false);
+        if (player != null) ServerText.success(source, () -> Component.translatable("familytree.command.menu_hint",
+                Component.keybind("key.familytree.open_tree")), false);
+        return 1;
+    }
+
+    private static int runMenu(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            ServerText.failure(source, Component.translatable("familytree.menu.players_only"));
+            return 0;
+        }
+        if (!FamilyTreeServerSettings.vanillaMenu()) {
+            ServerText.failure(source, Component.translatable("familytree.menu.disabled"));
+            return 0;
+        }
+        return Menus.open(player);
     }
 
     private static int runList(CommandSourceStack source) {
@@ -101,15 +138,15 @@ public final class FamilyTreeCommand {
                 .toList();
 
         if (all.isEmpty()) {
-            source.sendSuccess(() -> Component.translatable("familytree.screen.empty"), false);
+            ServerText.success(source, () -> Component.translatable("familytree.screen.empty"), false);
             return 1;
         }
 
-        source.sendSuccess(() -> Component.translatable("familytree.command.list.header"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.list.header"), false);
         long currentDay = TimeUtil.currentWorldDay(source.getLevel());
         for (AnimalRecord r : all) {
-            String line = formatLine(r, currentDay);
-            source.sendSuccess(() -> Component.literal(line), false);
+            Component line = formatLine(r, currentDay);
+            ServerText.success(source, () -> line, false);
         }
         return all.size();
     }
@@ -118,39 +155,38 @@ public final class FamilyTreeCommand {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         AnimalRecord match = findUnique(state, name, source, false);
         if (match == null) {
-            source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
+            ServerText.failure(source, Component.translatable("familytree.command.info.unknown", name));
             return 0;
         }
 
         long currentDay = TimeUtil.currentWorldDay(source.getLevel());
-        source.sendSuccess(() -> Component.literal(formatLine(match, currentDay))
-                .withStyle(ChatFormatting.YELLOW), false);
+        ServerText.success(source, () -> formatLine(match, currentDay).withStyle(ChatFormatting.YELLOW), false);
 
         java.util.Map<java.util.UUID, AnimalRecord> byId = new java.util.HashMap<>();
         for (AnimalRecord r : state.all()) {
             byId.put(r.id(), r);
         }
         int generation = Genealogy.generationOf(match.id(), byId);
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.generation", generation), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.generation", generation), false);
         HorseStats stats = match.horseStats();
         if (stats != null) {
-            source.sendSuccess(() -> Component.translatable("familytree.command.info.horse_stats",
+            ServerText.success(source, () -> Component.translatable("familytree.command.info.horse_stats",
                     HorseStatUnits.Stat.SPEED.display(stats), HorseStatUnits.Stat.JUMP.display(stats),
                     HorseStatUnits.Stat.HEALTH.display(stats)), false);
-            if (stats.strength() != null) source.sendSuccess(() -> Component.translatable(
+            if (stats.strength() != null) ServerText.success(source, () -> Component.translatable(
                     "familytree.command.info.llama_strength", stats.strength(), HorseStatUnits.chestSlots(stats.strength())), false);
         }
 
         if (match.parentA() != null) {
             AnimalRecord pa = state.get(match.parentA());
             if (ServerPetAccess.canView(source, pa)) {
-                source.sendSuccess(() -> Component.literal("  parent A: " + pa.name()), false);
+                ServerText.success(source, () -> Component.translatable("familytree.command.info.parent_a", pa.name()), false);
             }
         }
         if (match.parentB() != null) {
             AnimalRecord pb = state.get(match.parentB());
             if (ServerPetAccess.canView(source, pb)) {
-                source.sendSuccess(() -> Component.literal("  parent B: " + pb.name()), false);
+                ServerText.success(source, () -> Component.translatable("familytree.command.info.parent_b", pb.name()), false);
             }
         }
         return 1;
@@ -160,12 +196,12 @@ public final class FamilyTreeCommand {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         List<AnimalRecord> matches = PetNames.matches(state.all(), name, record -> ServerPetAccess.canManage(source, record));
         if (matches.isEmpty()) {
-            source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
+            ServerText.failure(source, Component.translatable("familytree.command.info.unknown", name));
             return 0;
         }
 
         if (matches.size() > 1) {
-            source.sendSuccess(() -> Component.translatable("familytree.command.locate.multiple",
+            ServerText.success(source, () -> Component.translatable("familytree.command.locate.multiple",
                     matches.size(), name).withStyle(ChatFormatting.GRAY), false);
         }
         int located = 0;
@@ -197,7 +233,7 @@ public final class FamilyTreeCommand {
         } else {
             AnimalRecord.LastSeen seen = pet.lastSeen();
             if (seen == null) {
-                source.sendFailure(Component.translatable("familytree.command.locate.no_position", pet.name()));
+                ServerText.failure(source, Component.translatable("familytree.command.locate.no_position", pet.name()));
                 return 0;
             }
             x = seen.x();
@@ -209,7 +245,7 @@ public final class FamilyTreeCommand {
 
         if (pet.deceased()) {
             long deathDay = pet.deathWorldDay() != null ? pet.deathWorldDay() : 0;
-            source.sendSuccess(() -> Component.translatable("familytree.command.locate.deceased",
+            ServerText.success(source, () -> Component.translatable("familytree.command.locate.deceased",
                     pet.name(), deathDay), false);
         }
 
@@ -237,18 +273,18 @@ public final class FamilyTreeCommand {
                     .withStyle(ChatFormatting.GRAY));
         }
         MutableComponent line = result;
-        source.sendSuccess(() -> line, false);
+        ServerText.success(source, () -> line, false);
         return 1;
     }
 
     private static int runScan(CommandSourceStack source) {
         if (!FamilyTreePackets.allowScan(source.getServer(), source.getPlayer() == null ? null : source.getPlayer().getUUID())) {
-            source.sendFailure(Component.translatable("familytree.command.cooldown"));
+            ServerText.failure(source, Component.translatable("familytree.command.cooldown"));
             return 0;
         }
         PetLifecycleListeners.ScanResult result = PetLifecycleListeners.scanLoadedPets(source.getServer(),
                 record -> ServerPetAccess.canView(source, record));
-        source.sendSuccess(() -> Component.translatable("familytree.command.scan.result",
+        ServerText.success(source, () -> Component.translatable("familytree.command.scan.result",
                 result.imported(), result.refreshed()), false);
         return result.totalTouched();
     }
@@ -257,7 +293,7 @@ public final class FamilyTreeCommand {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         if (!backupBeforePrune(source, state)) return 0;
         int removed = state.removeMatching(AnimalRecord::deceased);
-        source.sendSuccess(() -> Component.translatable("familytree.command.prune.result", removed), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
         return removed;
     }
 
@@ -266,7 +302,7 @@ public final class FamilyTreeCommand {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         if (!backupBeforePrune(source, state)) return 0;
         int removed = state.removeMatching(record -> record.speciesId().equalsIgnoreCase(normalized));
-        source.sendSuccess(() -> Component.translatable("familytree.command.prune.result", removed), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
         return removed;
     }
 
@@ -278,19 +314,19 @@ public final class FamilyTreeCommand {
         }
 
         state.update(child.id(), record -> record.setParents(null, null));
-        source.sendSuccess(() -> Component.translatable("familytree.command.unpair.result", child.name()), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.unpair.result", child.name()), false);
         return 1;
     }
 
     private static int runInfoHelp(CommandSourceStack source) {
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.title"), false);
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.summary"), false);
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.commands"), false);
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.scan"), false);
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.pair"), false);
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.unpair"), false);
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.setage"), false);
-        source.sendSuccess(() -> Component.translatable("familytree.command.info.help.setbirth"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.title"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.summary"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.commands"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.scan"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.pair"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.unpair"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.setage"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.setbirth"), false);
         return 1;
     }
 
@@ -305,13 +341,13 @@ public final class FamilyTreeCommand {
                 ? pet.deathWorldDay()
                 : TimeUtil.currentWorldDay(source.getLevel());
         if (days > anchorDay) {
-            source.sendFailure(Component.translatable("familytree.command.setage.invalid", days, anchorDay));
+            ServerText.failure(source, Component.translatable("familytree.command.setage.invalid", days, anchorDay));
             return 0;
         }
 
         long birthDay = anchorDay - days;
         state.update(pet.id(), record -> record.setBirthWorldDay(birthDay));
-        source.sendSuccess(() -> Component.translatable("familytree.command.setage.result",
+        ServerText.success(source, () -> Component.translatable("familytree.command.setage.result",
                 pet.name(), days, birthDay), false);
         return 1;
     }
@@ -327,13 +363,13 @@ public final class FamilyTreeCommand {
                 ? pet.deathWorldDay()
                 : TimeUtil.currentWorldDay(source.getLevel());
         if (birthDay > maxDay) {
-            source.sendFailure(Component.translatable("familytree.command.setbirth.invalid", birthDay, maxDay));
+            ServerText.failure(source, Component.translatable("familytree.command.setbirth.invalid", birthDay, maxDay));
             return 0;
         }
 
         state.update(pet.id(), record -> record.setBirthWorldDay(birthDay));
         long ageDays = maxDay - birthDay;
-        source.sendSuccess(() -> Component.translatable("familytree.command.setbirth.result",
+        ServerText.success(source, () -> Component.translatable("familytree.command.setbirth.result",
                 pet.name(), birthDay, ageDays), false);
         return 1;
     }
@@ -354,32 +390,32 @@ public final class FamilyTreeCommand {
             return 0;
         }
         if (parentA.id().equals(parentB.id())) {
-            source.sendFailure(Component.translatable("familytree.command.pair.same_parent"));
+            ServerText.failure(source, Component.translatable("familytree.command.pair.same_parent"));
             return 0;
         }
         if (child.id().equals(parentA.id()) || child.id().equals(parentB.id())) {
-            source.sendFailure(Component.translatable("familytree.command.pair.child_matches_parent"));
+            ServerText.failure(source, Component.translatable("familytree.command.pair.child_matches_parent"));
             return 0;
         }
         if (!PetRelations.speciesMatch(parentA, parentB, child)) {
-            source.sendFailure(Component.translatable("familytree.command.pair.species_mismatch"));
+            ServerText.failure(source, Component.translatable("familytree.command.pair.species_mismatch"));
             return 0;
         }
 
         if (Genealogy.wouldCreateCycle(child.id(), parentA.id(), parentB.id(), state::get)) {
-            source.sendFailure(Component.translatable("familytree.command.pair.cycle"));
+            ServerText.failure(source, Component.translatable("familytree.command.pair.cycle"));
             return 0;
         }
 
         state.update(child.id(), record -> record.setParents(parentA.id(), parentB.id()));
-        source.sendSuccess(() -> Component.translatable("familytree.command.pair.result",
+        ServerText.success(source, () -> Component.translatable("familytree.command.pair.result",
                 parentA.name(), parentB.name(), child.name()), false);
         return 1;
     }
 
     private static AnimalRecord findByName(FamilyTreeState state, String name, CommandSourceStack source) {
         if (state.readOnly()) {
-            source.sendFailure(Component.translatable("familytree.command.read_only"));
+            ServerText.failure(source, Component.translatable("familytree.command.read_only"));
             return null;
         }
         return findUnique(state, name, source, true);
@@ -390,25 +426,25 @@ public final class FamilyTreeCommand {
                 ? ServerPetAccess.canManage(source, pet) : ServerPetAccess.canView(source, pet));
         if (matches.size() == 1) return matches.get(0);
         if (matches.size() > 1) {
-            source.sendFailure(Component.translatable("familytree.command.ambiguous", name));
-            for (AnimalRecord pet : matches.stream().limit(10).toList()) source.sendFailure(Component.literal(
-                    pet.name() + " | " + shortSpecies(pet.speciesId()) + " | " + pet.id()));
-        } else source.sendFailure(Component.translatable("familytree.command.info.unknown", name));
+            ServerText.failure(source, Component.translatable("familytree.command.ambiguous", name));
+            for (AnimalRecord pet : matches.stream().limit(10).toList()) ServerText.failure(source, Component.literal(pet.name() + " | ")
+                    .append(speciesName(pet.speciesId())).append(" | " + pet.id()));
+        } else ServerText.failure(source, Component.translatable("familytree.command.info.unknown", name));
         return null;
     }
 
     private static boolean backupBeforePrune(CommandSourceStack source, FamilyTreeState state) {
         if (state.readOnly()) {
-            source.sendFailure(Component.translatable("familytree.command.read_only"));
+            ServerText.failure(source, Component.translatable("familytree.command.read_only"));
             return false;
         }
         try {
             var path = state.backup(source.getServer());
-            source.sendSuccess(() -> Component.translatable("familytree.command.backup", path.getFileName().toString()), false);
+            ServerText.success(source, () -> Component.translatable("familytree.command.backup", path.getFileName().toString()), false);
             return true;
         } catch (java.io.IOException | RuntimeException failure) {
             com.egakh.familytree.FamilyTreeMod.LOGGER.error("Prune canceled because the backup failed", failure);
-            source.sendFailure(Component.translatable("familytree.command.backup_failed"));
+            ServerText.failure(source, Component.translatable("familytree.command.backup_failed"));
             return false;
         }
     }
@@ -417,25 +453,28 @@ public final class FamilyTreeCommand {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         AnimalRecord pet = state.get(id);
         if (!ServerPetAccess.canManage(source, pet)) {
-            source.sendFailure(Component.translatable("familytree.access.denied"));
+            ServerText.failure(source, Component.translatable("familytree.access.denied"));
             return 0;
         }
         return locateOne(source, state, pet);
     }
 
-    private static String formatLine(AnimalRecord r, long currentDay) {
+    private static MutableComponent formatLine(AnimalRecord r, long currentDay) {
         long worldAge = r.deceased() && r.deathWorldDay() != null
                 ? r.deathWorldDay() - r.birthWorldDay()
                 : currentDay - r.birthWorldDay();
+        Component species = speciesName(r.speciesId());
+        if (!r.deceased()) return Component.translatable("familytree.command.list.alive", r.name(), species, r.birthWorldDay(), worldAge);
+        Component death = DeathMessages.of(r);
+        return death == null ? Component.translatable("familytree.command.list.deceased", r.name(), species, worldAge)
+                : Component.translatable("familytree.command.list.deceased_cause", r.name(), species, worldAge, death);
+    }
 
-        String cause = "";
-        if (r.deceased() && r.deathCause() != null && r.deathCause().attacker() != null) {
-            cause = "; slain by " + r.deathCause().attacker();
-        }
-        String suffix = r.deceased()
-                ? " (deceased; lived " + worldAge + " world-days" + cause + ")"
-                : " - born day " + r.birthWorldDay() + " (" + worldAge + " world-days old)";
-        return "- " + r.name() + " [" + shortSpecies(r.speciesId()) + "]" + suffix;
+    private static Component speciesName(String id) {
+        int colon = id.indexOf(':');
+        String namespace = colon < 0 ? "minecraft" : id.substring(0, colon);
+        String path = colon < 0 ? id : id.substring(colon + 1);
+        return Component.translatableWithFallback("entity." + namespace + "." + path, path);
     }
 
     private static String shortSpecies(String id) {

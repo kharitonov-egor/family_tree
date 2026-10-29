@@ -25,7 +25,8 @@ public final class TreeImageExporter {
     public record Picture(String title, String footer, int width, int height, List<Card> cards, List<Line> lines,
                           Legend legend) {}
     /** Explains the stat markers in shared images. Drawn only when a card has a marker. */
-    public record Legend(String higher, String lower) {}
+    /** Legend text, plus the word that replaces ♥ when the export font has no heart. */
+    public record Legend(String higher, String lower, String hearts) {}
 
     private TreeImageExporter() {}
 
@@ -74,7 +75,8 @@ public final class TreeImageExporter {
                 g.drawLine((int) line.x1(), middle, (int) line.x2(), middle);
                 g.drawLine((int) line.x2(), middle, (int) line.x2(), (int) line.y2());
             }
-            for (Card card : picture.cards()) drawCard(g, card);
+            String hearts = picture.legend() == null ? "hearts" : picture.legend().hearts();
+            for (Card card : picture.cards()) drawCard(g, card, hearts);
             g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
             g.setColor(new Color(0xA9BAC0));
             g.drawString(fit(g, picture.footer(), picture.width() / SCALE - MARGIN * 2),
@@ -97,7 +99,7 @@ public final class TreeImageExporter {
         }
     }
 
-    private static void drawCard(Graphics2D g, Card card) {
+    private static void drawCard(Graphics2D g, Card card, String hearts) {
         int x = (int) Math.round(card.x()), y = (int) Math.round(card.y());
         g.setColor(new Color(card.deceased() ? 0x252A30 : 0x233640));
         g.fillRoundRect(x, y, TreeLayout.NODE_WIDTH, TreeLayout.NODE_HEIGHT, 12, 12);
@@ -117,20 +119,20 @@ public final class TreeImageExporter {
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         g.setColor(new Color(0xCBD6D9));
         g.drawString(fit(g, card.detail(), available), textX, y + (stats ? 47 : 53));
-        if (stats) drawStats(g, card, textX, y + 65, available);
+        if (stats) drawStats(g, card, textX, y + 65, available, hearts);
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         g.setColor(new Color(card.deceased() ? 0xD8B6AC : 0xB5D4B7));
         g.drawString(fit(g, card.status(), TreeLayout.NODE_WIDTH - 32), x + 16, y + (stats ? 99 : 87));
     }
 
     /** Wraps whole segments onto at most two rows. Triangles avoid relying on font symbol coverage. */
-    private static void drawStats(Graphics2D g, Card card, int left, int baseline, int available) {
+    private static void drawStats(Graphics2D g, Card card, int left, int baseline, int available, String hearts) {
         g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         FontMetrics metrics = g.getFontMetrics();
         int separator = metrics.stringWidth("  ");
         int x = left, row = 0;
         for (HorseStatsText.Segment segment : card.stats()) {
-            String text = displayable(g.getFont(), segment.text());
+            String text = displayable(g.getFont(), segment.text(), hearts);
             boolean marked = segment.trend() == Trend.BEATS_BOTH || segment.trend() == Trend.TRAILS_BOTH;
             int width = metrics.stringWidth(text) + (marked ? 11 : 0);
             if (x > left && x + separator + width > left + available) {
@@ -167,8 +169,8 @@ public final class TreeImageExporter {
         }
     }
 
-    private static String displayable(Font font, String text) {
-        return font.canDisplayUpTo(text) == -1 ? text : text.replace("\u2665", "hearts");
+    private static String displayable(Font font, String text, String hearts) {
+        return font.canDisplayUpTo(text) == -1 ? text : text.replace("\u2665", hearts);
     }
 
     private static String fit(Graphics2D g, String text, int width) {

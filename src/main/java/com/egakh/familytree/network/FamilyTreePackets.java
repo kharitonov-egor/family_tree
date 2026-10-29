@@ -6,10 +6,12 @@ import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.naming.PetRenaming;
 import com.egakh.familytree.network.payloads.*;
+import com.egakh.familytree.permissions.ParentLinks;
 import com.egakh.familytree.permissions.PetAccess;
 import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.platform.ServerTransport;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
+import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.TimeUtil;
 import net.minecraft.server.level.ServerPlayer;
 import java.util.List;
@@ -46,41 +48,56 @@ public final class FamilyTreePackets {
             FamilyTreeCommand.locatePet(player.createCommandSourceStack(), packet.petId());
     }
 
-    public static void rename(RenamePetRequest packet, ServerPlayer player) {
-        if (!RENAME.allow(player.getUUID())) {
-            ServerTransport.send(player, new RenamePetResult(packet.requestId(), PetRenaming.Result.BUSY.ordinal(), Optional.empty()));
-            return;
-        }
+    public record RenameOutcome(PetRenaming.Result result, AnimalRecord record) {}
+
+    /** Shared by the rename packet and the server menu. An empty name restores the original name. */
+    public static RenameOutcome applyRename(ServerPlayer player, UUID petId, String name) {
+        if (!RENAME.allow(player.getUUID())) return new RenameOutcome(PetRenaming.Result.BUSY, null);
         FamilyTreeState state = FamilyTreeState.get(player.level().getServer());
-        if (state.readOnly()) {
-            ServerTransport.send(player, new RenamePetResult(packet.requestId(), PetRenaming.Result.READ_ONLY.ordinal(), Optional.empty()));
-            return;
-        }
-        AnimalRecord record = state.get(packet.petId());
+        if (state.readOnly()) return new RenameOutcome(PetRenaming.Result.READ_ONLY, null);
+        AnimalRecord record = state.get(petId);
         PetRenaming.Result result = PetRenaming.rename(record, player.getUUID(),
-                ServerPetAccess.operator(player.createCommandSourceStack()), packet.name());
-        boolean success = result == PetRenaming.Result.SUCCESS;
-        if (success) state.setDirty();
-        ServerTransport.send(player, new RenamePetResult(packet.requestId(), result.ordinal(),
-                success ? Optional.of(record) : Optional.empty()));
+                ServerPetAccess.operator(player.createCommandSourceStack()), name);
+        if (result == PetRenaming.Result.SUCCESS) state.setDirty();
+        return new RenameOutcome(result, record);
+    }
+
+    public static void rename(RenamePetRequest packet, ServerPlayer player) {
+        RenameOutcome outcome = applyRename(player, packet.petId(), packet.name());
+        ServerTransport.send(player, new RenamePetResult(packet.requestId(), outcome.result().ordinal(),
+                outcome.result() == PetRenaming.Result.SUCCESS ? Optional.of(outcome.record()) : Optional.empty()));
+    }
+
+    /** Shared by the parent picker packet and the server menu. */
+    public static ParentLinks.Result applyLink(ServerPlayer player, UUID child, UUID parentA, UUID parentB, boolean clear) {
+        var state = FamilyTreeState.get(player.level().getServer());
+        var result = !RENAME.allow(player.getUUID()) ? ParentLinks.Result.BUSY
+                : state.readOnly() ? ParentLinks.Result.READ_ONLY
+                : ParentLinks.validate(child, parentA, parentB, clear, player.getUUID(),
+                        ServerPetAccess.operator(player.createCommandSourceStack()), state::get);
+        if (result == ParentLinks.Result.SUCCESS)
+            state.update(child, pet -> pet.setParents(clear ? null : parentA, clear ? null : parentB));
+        return result;
     }
 
     public static void link(LinkParentsRequest packet, ServerPlayer player) {
-        var state = FamilyTreeState.get(player.level().getServer());
-        var result = !RENAME.allow(player.getUUID()) ? com.egakh.familytree.permissions.ParentLinks.Result.BUSY
-                : state.readOnly() ? com.egakh.familytree.permissions.ParentLinks.Result.READ_ONLY
-                : com.egakh.familytree.permissions.ParentLinks.validate(packet.child(), packet.parentA(), packet.parentB(),
-                        packet.clear(), player.getUUID(), ServerPetAccess.operator(player.createCommandSourceStack()), state::get);
-        if (result == com.egakh.familytree.permissions.ParentLinks.Result.SUCCESS)
-            state.update(packet.child(), pet -> pet.setParents(packet.clear() ? null : packet.parentA(), packet.clear() ? null : packet.parentB()));
-        ServerTransport.send(player, new LinkParentsResult(packet.requestId(), result.ordinal()));
+        ServerTransport.send(player, new LinkParentsResult(packet.requestId(),
+                applyLink(player, packet.child(), packet.parentA(), packet.parentB(), packet.clear()).ordinal()));
+    }
+
+    public static boolean allowOpen(ServerPlayer player) {
+        return OPEN.allow(player.getUUID());
+    }
+
+    public static boolean allowLocate(ServerPlayer player) {
+        return LOCATE.allow(player.getUUID());
     }
 
     public static void sendSnapshot(ServerPlayer player, UUID requestId, boolean requestAll) {
         var world = player.level();
         FamilyTreeState state = FamilyTreeState.get(world.getServer());
         if (state.readOnly()) {
-            player.sendSystemMessage(Component.translatable("familytree.command.read_only"));
+            ServerText.send(player, Component.translatable("familytree.command.read_only"));
             reject(player, requestId);
             return;
         }
@@ -111,9 +128,11 @@ public final class FamilyTreePackets {
 
     public static void disconnect(UUID player) {
         OPEN.remove(player); DISCOVERY.remove(player); LOCATE.remove(player); RENAME.remove(player);
+        ServerText.forget(player);
     }
 
     public static void stop() {
         OPEN.clear(); DISCOVERY.clear(); LOCATE.clear(); RENAME.clear(); SERVER_SCAN.clear();
+        ServerText.clear();
     }
 }

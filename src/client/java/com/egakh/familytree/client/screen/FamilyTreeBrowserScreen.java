@@ -209,7 +209,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
             if (filter == Filter.ALIVE && r.deceased()) continue;
             if (filter == Filter.DECEASED && !r.deceased()) continue;
             if (!q.isEmpty()) {
-                String hay = (r.name() + " " + r.speciesId()).toLowerCase(Locale.ROOT);
+                String hay = (r.name() + " " + r.speciesId() + " " + speciesName(r.speciesId()).getString()).toLowerCase(Locale.ROOT);
                 if (!hay.contains(q)) continue;
             }
             filtered.add(r);
@@ -392,29 +392,29 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
             case "minecraft:wolf" -> Component.translatable("familytree.screen.species.dogs");
             case "minecraft:cat" -> Component.translatable("familytree.screen.species.cats");
             case "minecraft:parrot" -> Component.translatable("familytree.screen.species.parrots");
-            default -> Component.literal(titleCasePlural(shortSpecies(speciesId)));
+            default -> speciesName(speciesId);
         };
     }
 
-    private static String titleCasePlural(String value) {
-        if (value.isEmpty()) return value;
-        String base = value.replace('_', ' ');
-        String titled = Character.toUpperCase(base.charAt(0)) + base.substring(1);
-        if (titled.endsWith("s")) return titled;
-        return titled + "s";
+    /** The game's own entity name, so the label follows the player's language. */
+    static Component speciesName(String speciesId) {
+        int colon = speciesId.indexOf(':');
+        String namespace = colon < 0 ? "minecraft" : speciesId.substring(0, colon);
+        String path = colon < 0 ? speciesId : speciesId.substring(colon + 1);
+        return Component.translatableWithFallback("entity." + namespace + "." + path, path.replace('_', ' '));
     }
 
     private static String buildAgeSummary(long birthDay, long worldAge) {
         boolean showBirthDay = FamilyTreeClientSettings.showBirthDay();
         boolean showAge = FamilyTreeClientSettings.showAge();
         if (showBirthDay && showAge) {
-            return "Day " + birthDay + " | " + worldAge + "d";
+            return Component.translatable("familytree.screen.age_summary", birthDay, worldAge).getString();
         }
         if (showBirthDay) {
-            return "Day " + birthDay;
+            return Component.translatable("familytree.node.born_world", birthDay).getString();
         }
         if (showAge) {
-            return worldAge + "d";
+            return Component.translatable("familytree.screen.age_days", worldAge).getString();
         }
         return "";
     }
@@ -510,18 +510,12 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
     }
 
     private String buildSubtitle(AnimalRecord r) {
-        String subtitle = capitalize(shortSpecies(r.speciesId()));
+        String subtitle = speciesName(r.speciesId()).getString();
         if (FamilyTreeClientSettings.showHorseStats() && HorseStatsText.has(r)) {
             for (HorseStatsText.Segment segment : HorseStatsText.card(r, id -> null)) subtitle += "  ·  " + segment.text();
         }
         String tamedBy = buildTamedByLine(r);
         return tamedBy.isEmpty() ? subtitle : subtitle + "  ·  " + tamedBy;
-    }
-
-    private static String capitalize(String value) {
-        if (value.isEmpty()) return value;
-        String base = value.replace('_', ' ');
-        return Character.toUpperCase(base.charAt(0)) + base.substring(1);
     }
 
     private String trimToWidth(String text, int maxWidth) {
