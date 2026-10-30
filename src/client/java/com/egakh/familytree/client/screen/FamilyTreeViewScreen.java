@@ -4,6 +4,8 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import com.egakh.familytree.network.payloads.RenamePetRequest;
 import com.egakh.familytree.network.payloads.LocatePetRequest;
+import com.egakh.familytree.network.payloads.WaypointRequest;
+import com.egakh.familytree.client.integration.MapWaypoints;
 import com.egakh.familytree.client.export.TreeImageExporter;
 import com.egakh.familytree.client.export.PetPortraits;
 import com.egakh.familytree.client.export.PortraitCapture;
@@ -51,6 +53,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     private Button expandAllButton;
     private Button renameButton;
     private Button locateButton;
+    private Button waypointButton;
     private Button exportButton;
     private Button parentsButton, folderButton;
     private java.nio.file.Path exportedFile;
@@ -160,13 +163,25 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                     fitTree();
                 }).bounds(x + 238, 32, 66, 18).build());
         branchButton.setTooltip(Tooltip.create(Component.translatable("familytree.screen.tree.branch_hint")));
+        boolean maps = MapWaypoints.available();
         locateButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.locate.button"),
                 button -> {
                     if (selectedId != null) {
                         ClientTransport.send(new LocatePetRequest(selectedId));
                         this.minecraft.setScreen(null);
                     }
-                }).bounds(x, 56, 138, 18).build());
+                }).bounds(x, 56, maps ? 67 : 138, 18).build());
+        waypointButton = null;
+        if (maps) {
+            waypointButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.waypoint.button"),
+                    button -> {
+                        AnimalRecord selected = records.get(selectedId);
+                        if (selected == null) return;
+                        MapWaypoints.request(selected);
+                        this.minecraft.setScreen(null);
+                    }).bounds(x + 71, 56, 67, 18).build());
+            waypointButton.setTooltip(Tooltip.create(Component.translatable("familytree.waypoint.tooltip", MapWaypoints.targetNames())));
+        }
         exportButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.export.button"),
                 button -> exportTree()).bounds(x + 142, 56, 162, 18).build());
         exportButton.active = !exporting;
@@ -250,6 +265,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         parentsButton.active = centerButton.active && canManage && ClientTransport.canSend(com.egakh.familytree.network.payloads.LinkParentsRequest.TYPE);
         renameButton.active = centerButton.active && canManage && ClientTransport.canSend(RenamePetRequest.TYPE);
         locateButton.active = centerButton.active && canManage && ClientTransport.canSend(LocatePetRequest.TYPE);
+        if (waypointButton != null) waypointButton.active = centerButton.active && canManage
+                && (ClientTransport.canSend(WaypointRequest.TYPE) || selected.lastSeen() != null);
     }
 
     public void applyRename(AnimalRecord updated) {

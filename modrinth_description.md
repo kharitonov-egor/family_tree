@@ -54,6 +54,22 @@ Search by name, species, or variant, filter living or deceased animals, and open
 
 **Export family tree** saves a PNG under `screenshots/familytree/`. Choose **Open folder** to find it. Export includes the displayed family beyond the screen edges. Hidden branches stay hidden. A focused tree shows up to six generations in either direction; the species view includes its recorded families. Exports omit player names and coordinates, and nothing uploads automatically.
 
+## Works with Jade, WTHIT, JourneyMap, Xaero's Minimap, and Mod Menu
+
+All optional. Family Tree doesn't bundle them and runs without them.
+
+- **Jade and WTHIT.** Look at a tracked animal to see its Family Tree name, parents, and generation. Horses also show speed, jump, and health beside their parents' values. Tested with Jade on Fabric 26.3 and 1.21.8, NeoForge 1.21.1 and 1.21.4, and Forge 1.20.1, and with WTHIT on Fabric 1.21.11 and NeoForge 1.21.1.
+- **JourneyMap and Xaero's Minimap.** **Waypoint** in a pet's tree adds a waypoint at the pet in JourneyMap. With Xaero's Minimap it shares the position in chat, and Xaero's **Add** link opens its waypoint form with the pet's name and position filled in. Tested with both on Fabric 26.3 and 1.21.8, NeoForge 1.21.1 and 1.21.4, and Forge 1.20.1.
+- **Mod Menu**, and the Config button in NeoForge's and Forge's mod list, open Family Tree's settings.
+
+Tooltips and waypoints follow Family Tree's permissions. They show only pets the player could open in Family Tree, and they never reveal other players' pet coordinates.
+
+**For pack authors:** install Jade or WTHIT on the server too, so it sends family details for every animal a player looks at. The map and Mod Menu features are client-side. Settings are in `config/familytree-client.properties` on clients and `config/familytree-server.properties` on the server. WTHIT has no Minecraft 26.3 build yet.
+
+## Tell the developer what you think
+
+**Send feedback** in the Family Tree screen opens a form for a message, with an optional contact field if you'd like a reply. The form lists everything that will be sent: your message, the contact if given, the Family Tree, Minecraft, and loader versions, and the game language. Nothing is sent until you press **Send**, and Family Tree never sends anything on its own or in the background. The feedback server uses your IP address only to limit spam and leaves it out of the email.
+
 ## Choose the matching file
 
 | Minecraft | Fabric | NeoForge | Forge | Java |

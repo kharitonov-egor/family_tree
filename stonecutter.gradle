@@ -112,6 +112,7 @@ stonecutter.parameters {
         string(current.parsed >= '26.2') {
             replace 'setScreen(', 'setScreenAndShow('
             replace 'client.screen instanceof', 'client.gui.screen() instanceof'
+            replace '.getChatListener()', '.gui.chatListener()'
             replace 'EntityType.CAT', 'net.minecraft.world.entity.EntityTypes.CAT'
             replace 'EntityType.WOLF', 'net.minecraft.world.entity.EntityTypes.WOLF'
             replace 'Items.BLACK_STAINED_GLASS_PANE', 'Items.STAINED_GLASS_PANE.black()'

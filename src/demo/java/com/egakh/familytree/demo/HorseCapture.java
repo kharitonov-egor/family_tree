@@ -140,7 +140,7 @@ public final class HorseCapture {
     }
 
     // Reflection keeps this development-only runner usable across the supported game APIs.
-    private static Animal horse(ServerLevel world, String type, String name, double x, double z,
+    static Animal horse(ServerLevel world, String type, String name, double x, double z,
                                 String coat, String markings, ServerPlayer owner) throws Exception {
         Animal animal = create(world, type);
         animal.setPos(x, 101, z);
@@ -167,7 +167,7 @@ public final class HorseCapture {
         throw new IllegalArgumentException(name);
     }
 
-    private static Animal create(ServerLevel world, String name) throws Exception {
+    static Animal create(ServerLevel world, String name) throws Exception {
         Class<?> types;
         try { types = Class.forName("net.minecraft.world.entity.EntityTypes"); }
         catch (ClassNotFoundException olderVersion) { types = Class.forName("net.minecraft.world.entity.EntityType"); }

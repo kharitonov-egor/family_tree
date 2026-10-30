@@ -13,6 +13,7 @@ import com.egakh.familytree.platform.ServerTransport;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.TimeUtil;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +47,28 @@ public final class FamilyTreePackets {
     public static void locate(LocatePetRequest packet, ServerPlayer player) {
         if (LOCATE.allow(player.getUUID()))
             FamilyTreeCommand.locatePet(player.createCommandSourceStack(), packet.petId());
+    }
+
+    public static void waypoint(WaypointRequest packet, ServerPlayer player) {
+        if (!LOCATE.allow(player.getUUID())) {
+            ServerTransport.send(player, WaypointResult.failed(packet.requestId(), WaypointResult.Status.BUSY));
+            return;
+        }
+        FamilyTreeState state = FamilyTreeState.get(player.level().getServer());
+        AnimalRecord pet = state.get(packet.petId());
+        if (!ServerPetAccess.canManage(player.createCommandSourceStack(), pet)) {
+            ServerTransport.send(player, WaypointResult.failed(packet.requestId(), WaypointResult.Status.NOT_ALLOWED));
+            return;
+        }
+        FamilyTreeCommand.PetPosition position = FamilyTreeCommand.position(player.level().getServer(), state, pet);
+        if (position == null) {
+            ServerTransport.send(player, WaypointResult.failed(packet.requestId(), WaypointResult.Status.NO_POSITION));
+            return;
+        }
+        String name = pet.name().length() > 128 ? pet.name().substring(0, 128) : pet.name();
+        long packed = BlockPos.containing(position.x(), position.y(), position.z()).asLong();
+        ServerTransport.send(player, new WaypointResult(packet.requestId(), WaypointResult.Status.FOUND.ordinal(),
+                name, position.dimension(), packed));
     }
 
     public record RenameOutcome(PetRenaming.Result result, AnimalRecord record) {}

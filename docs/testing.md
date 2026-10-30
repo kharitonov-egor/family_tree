@@ -104,6 +104,28 @@ The horse runner tames two vanilla horses, feeds them golden carrots, and waits 
 
 On Linux without a free display, run the client under Xvfb: `xvfb-run -a -s "-screen 0 1600x1000x24" ./gradlew ...`. Unset `WAYLAND_DISPLAY` first so the window cannot open on a desktop session. Minecraft 26.3 opens its window through SDL; set `SDL_VIDEO_DRIVER=x11` so SDL uses Xvfb. To test GUI scale 4, set `guiScale:4` in the run directory's `options.txt`. Before trusting a run, read `DISPLAY` from the game process's `/proc/<pid>/environ` to confirm it uses the Xvfb display.
 
+## Optional integrations
+
+`-Pintegrations=<list>` adds real Jade, WTHIT, Mod Menu, JourneyMap, or Xaero's Minimap builds to a client demo run, for example `-Pintegrations=jade,journeymap,xaero,modmenu`. Fabric and NeoForge copy the jars into the run directory's `mods/` folder, as a player's game would load them; Forge adds them remapped to the run classpath. WTHIT brings its Bad Packets dependency. A mod with no build for the target is skipped with a warning. The release jars never include these mods, and every target compiles against them, or against the JourneyMap API stubs in `src/stubs`.
+
+```sh
+./gradlew :26.3:runDemo -Pdemo -Pintegrations=jade,journeymap,xaero,modmenu
+./gradlew :1.21.11:runDemo -Pdemo -Pintegrations=wthit,modmenu
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.1 -Pintegrations=jade,journeymap,xaero
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.1 -Pintegrations=wthit
+./gradlew -p forge runDemo -Pdemo -Pminecraft=1.20.1 -Pintegrations=jade,journeymap,xaero
+./gradlew :1.21.8:runDemo -Pdemo -Pintegrations=jade,journeymap,xaero,modmenu
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.4 -Pintegrations=jade,journeymap,xaero
+```
+
+Fabric warns about missing content when a world saved with a map mod opens without it. Copy a fresh disposable world before changing the mod list.
+
+The integration scene spawns three owned horses with stats, links two of them as the third's parents, and faces the child. It captures `integration-world.png` before the client opens any Family Tree screen, so tooltip lines in that image came from the server provider. It then opens the child's tree, presses **Waypoint** when a map mod is installed, and checks JourneyMap's waypoint list. With Xaero's Minimap it sends the command behind Xaero's **Add** link and captures Xaero's filled-in waypoint form in `integration-xaero-added.png`. It opens the feedback form from Getting started, then the loader's mod list and the Config button's screen, and fails if that screen isn't Family Tree's settings. `-PintegrationScene` runs the scene without any integration mods and expects no Waypoint button.
+
+To check a dedicated server with integration mods, put their jars in the smoke directory's `mods/` folder and run the smoke test on a fresh world. Fabric 26.2 passed with Jade 26.2.11, JourneyMap 6.0.10, and Xaero's Minimap 26.6.2 installed. WTHIT 20.0.0 needs a newer Fabric API than the 26.2 development runtime, so that combination wasn't run.
+
+`-PsendFeedback` also presses **Send** and records the server's reply in `demo-result.txt`. It sends a real email, so use it sparingly and only with the endpoint's rate limits in mind. Review each screenshot; the runner cannot judge tooltip layout.
+
 ## Release jars in a real 1.20.1 instance
 
 The development runs load unobfuscated classes. Check the release jars in launcher-style instances too. [portablemc](https://github.com/mindstorm38/portablemc) launches offline accounts:

@@ -31,6 +31,7 @@ import net.minecraft.network.chat.ClickEvent;
 import com.egakh.familytree.text.ServerText;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -228,37 +229,32 @@ public final class FamilyTreeCommand {
         return located;
     }
 
+    /** {@code lastSeenDay} is null when the pet is loaded and the position is live. */
+    public record PetPosition(double x, double y, double z, String dimension, Long lastSeenDay) {}
+
+    /** The live position of a loaded pet, which also refreshes its record, or else its last known position. */
+    public static PetPosition position(MinecraftServer server, FamilyTreeState state, AnimalRecord pet) {
+        for (ServerLevel level : server.getAllLevels()) {
+            Entity live = level.getEntity(pet.id());
+            if (live == null) continue;
+            PetLifecycleListeners.stampLastSeen(level, state, live);
+            return new PetPosition(live.getX(), live.getY(), live.getZ(), live.level().dimension().identifier().toString(), null);
+        }
+        AnimalRecord.LastSeen seen = pet.lastSeen();
+        return seen == null ? null : new PetPosition(seen.x(), seen.y(), seen.z(), seen.dimension(), seen.worldDay());
+    }
+
     private static int locateOne(CommandSourceStack source, FamilyTreeState state, AnimalRecord pet) {
-        double x;
-        double y;
-        double z;
-        String dimension;
-        Long lastSeenDay = null;
-        Entity live = null;
-        for (ServerLevel level : source.getServer().getAllLevels()) {
-            live = level.getEntity(pet.id());
-            if (live != null) {
-                PetLifecycleListeners.stampLastSeen(level, state, live);
-                break;
-            }
+        PetPosition position = position(source.getServer(), state, pet);
+        if (position == null) {
+            ServerText.failure(source, Component.translatable("familytree.command.locate.no_position", pet.name()));
+            return 0;
         }
-        if (live != null) {
-            x = live.getX();
-            y = live.getY();
-            z = live.getZ();
-            dimension = live.level().dimension().identifier().toString();
-        } else {
-            AnimalRecord.LastSeen seen = pet.lastSeen();
-            if (seen == null) {
-                ServerText.failure(source, Component.translatable("familytree.command.locate.no_position", pet.name()));
-                return 0;
-            }
-            x = seen.x();
-            y = seen.y();
-            z = seen.z();
-            dimension = seen.dimension();
-            lastSeenDay = seen.worldDay();
-        }
+        double x = position.x();
+        double y = position.y();
+        double z = position.z();
+        String dimension = position.dimension();
+        Long lastSeenDay = position.lastSeenDay();
 
         if (pet.deceased()) {
             long deathDay = pet.deathWorldDay() != null ? pet.deathWorldDay() : 0;

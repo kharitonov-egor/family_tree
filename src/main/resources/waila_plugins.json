@@ -1,0 +1,10 @@
+{
+  "familytree:pet_family": {
+    "entrypoints": {
+      "common": "com.egakh.familytree.integration.wthit.WthitCommonPlugin",
+      "client": "com.egakh.familytree.client.integration.wthit.WthitClientPlugin"
+    },
+    "side": "*",
+    "required": []
+  }
+}
