@@ -16,10 +16,7 @@
   "entrypoints": {
     "main": ["com.egakh.familytree.fabric.FabricEntrypoint"],
     "client": ["com.egakh.familytree.client.fabric.FabricClientEntrypoint"],
-    "jade": [
-      "com.egakh.familytree.integration.jade.JadeCommonPlugin",
-      "com.egakh.familytree.client.integration.jade.JadeClientPlugin"
-    ],
+    "jade": ["com.egakh.familytree.integration.jade.JadePlugin"],
     "journeymap": ["com.egakh.familytree.client.integration.journeymap.JourneyMapWaypoints"],
     "modmenu": ["com.egakh.familytree.client.fabric.ModMenuIntegration"]
   },

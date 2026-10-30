@@ -44,6 +44,7 @@ def main():
                 assert 'LICENSE_familytree' in names, f'{path}: missing MIT license'
                 assert 'assets/familytree/icon.png' in names, f'{path}: missing icon'
                 assert not any('/demo/' in name or '/smoke/' in name for name in names), f'{path}: development classes'
+                assert not any(name.startswith('journeymap/') for name in names), f'{path}: JourneyMap API stubs'
                 assert jar.read('LICENSE_familytree') == (ROOT / 'LICENSE').read_bytes()
                 game_versions = (ALSO_RUNS_ON.get(mc, []) if loader == 'fabric' else []) + [mc]
                 if loader == 'fabric':

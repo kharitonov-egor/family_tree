@@ -118,6 +118,8 @@ On Linux without a free display, run the client under Xvfb: `xvfb-run -a -s "-sc
 
 The integration scene spawns three owned horses with stats, links two of them as the third's parents, and faces the child. It captures `integration-world.png` before the client opens any Family Tree screen, so tooltip lines in that image came from the server provider. It then opens the child's tree, presses **Waypoint** when a map mod is installed, and checks JourneyMap's waypoint list. With Xaero's Minimap it sends the command behind Xaero's **Add** link and captures Xaero's filled-in waypoint form in `integration-xaero-added.png`. It opens the feedback form from Getting started, then the loader's mod list and the Config button's screen, and fails if that screen isn't Family Tree's settings. `-PintegrationScene` runs the scene without any integration mods and expects no Waypoint button.
 
+To check a dedicated server with integration mods, put their jars in the smoke directory's `mods/` folder and run the smoke test on a fresh world. Fabric 26.2 passed with Jade 26.2.11, JourneyMap 6.0.10, and Xaero's Minimap 26.6.2 installed. WTHIT 20.0.0 needs a newer Fabric API than the 26.2 development runtime, so that combination wasn't run.
+
 `-PsendFeedback` also presses **Send** and records the server's reply in `demo-result.txt`. It sends a real email, so use it sparingly and only with the endpoint's rate limits in mind. Review each screenshot; the runner cannot judge tooltip layout.
 
 ## Release jars in a real 1.20.1 instance
