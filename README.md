@@ -153,13 +153,13 @@ These mods are optional. Family Tree doesn't bundle them and starts without them
 
 | Mod | What Family Tree adds | Tested with |
 | --- | --- | --- |
-| [Jade](https://modrinth.com/mod/jade) | Looking at a tracked animal shows its Family Tree name, parents, generation, and horse stats beside its parents' | Fabric 26.3 with Jade 26.3.5, NeoForge 1.21.1 with Jade 15.10.6 |
-| [WTHIT](https://modrinth.com/mod/wthit) | The same tooltip lines | Fabric 1.21.11 with WTHIT 18.2.2, NeoForge 1.21.1 with WTHIT 12.10.2 |
-| [JourneyMap](https://modrinth.com/mod/journeymap) | **Waypoint** in the tree screen adds a waypoint at the pet | Fabric 26.3 with JourneyMap 6.0.10, NeoForge 1.21.1 with JourneyMap 6.0.9 |
-| [Xaero's Minimap](https://modrinth.com/mod/xaeros-minimap) | **Waypoint** shares the pet's position in chat. Xaero's **Add** link opens its waypoint form, filled in with the pet's name and position | Fabric 26.3 with Xaero's Minimap 26.6.2, NeoForge 1.21.1 with 26.6.0 |
-| [Mod Menu](https://modrinth.com/mod/modmenu) | Its Configure button opens Family Tree's settings | Fabric 26.3 with Mod Menu 21.0.0, Fabric 1.21.11 with 17.0.1 |
+| [Jade](https://modrinth.com/mod/jade) | Looking at a tracked animal shows its Family Tree name, parents, generation, and horse stats beside its parents' | Jade 26.3.5 on Fabric 26.3, 19.3.2 on Fabric 1.21.8, 15.10.6 on NeoForge 1.21.1, 17.3.0 on NeoForge 1.21.4, 11.13.3 on Forge 1.20.1 |
+| [WTHIT](https://modrinth.com/mod/wthit) | The same tooltip lines | WTHIT 18.2.2 on Fabric 1.21.11, 12.10.2 on NeoForge 1.21.1 |
+| [JourneyMap](https://modrinth.com/mod/journeymap) | **Waypoint** in the tree screen adds a waypoint at the pet | JourneyMap 6.0.10 on Fabric 26.3, 6.0.0-beta.52 on Fabric 1.21.8, 6.0.9 on NeoForge 1.21.1, 6.0.0-beta.47 on NeoForge 1.21.4, 6.0.7 on Forge 1.20.1 |
+| [Xaero's Minimap](https://modrinth.com/mod/xaeros-minimap) | **Waypoint** shares the pet's position in chat. Xaero's **Add** link opens its waypoint form, filled in with the pet's name and position | Xaero's Minimap 26.6.2 on Fabric 26.3, 26.6.0 on Fabric 1.21.8, NeoForge 1.21.1, and Forge 1.20.1, 26.5.0 on NeoForge 1.21.4 |
+| [Mod Menu](https://modrinth.com/mod/modmenu) | Its Configure button opens Family Tree's settings | Mod Menu 21.0.0 on Fabric 26.3, 17.0.1 on Fabric 1.21.11, 15.0.2 on Fabric 1.21.8 |
 
-NeoForge's and Forge's mod list Config button opens the same settings. Family Tree compiles against Jade, WTHIT, Mod Menu, and the JourneyMap API for every target where those mods exist. WTHIT has no build for Minecraft 26.3 yet.
+NeoForge's and Forge's mod list Config button opens the same settings. Family Tree compiles against Jade, WTHIT, Mod Menu, and the JourneyMap API for every target where those mods exist. WTHIT has no build for Minecraft 26.3 yet. JourneyMap's builds for 1.21.4 to 1.21.10 and 26.1.1 are 6.0.0 betas with an older API, which Family Tree also supports.
 
 Tooltips show only what the player could open in Family Tree's own screens: pets the server's `viewPolicy` hides stay hidden, and coordinates never appear. Waypoints follow the same rule as **Locate pet**, so only the pet's owner or an operator can add one.
 

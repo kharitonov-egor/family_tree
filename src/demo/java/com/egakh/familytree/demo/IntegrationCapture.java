@@ -54,20 +54,17 @@ public final class IntegrationCapture {
                 dusk = HorseCapture.horse(world, "HORSE", "Dusk", 3, 4, "BLACK", "WHITE_FIELD", player);
                 ember = HorseCapture.horse(world, "HORSE", "Ember", 0, 0, "CREAMY", "WHITE", player);
                 for (Animal horse : List.of(comet, dusk, ember)) ((Mob) horse).setNoAi(true);
-                server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "summon minecraft:sheep 8 101 0");
+                woolly = HorseCapture.create(world, "SHEEP");
+                woolly.setPos(8, 101, 0);
+                ((Mob) woolly).setNoAi(true);
+                woolly.getClass().getMethod("setColor", net.minecraft.world.item.DyeColor.class).invoke(woolly, net.minecraft.world.item.DyeColor.BLUE);
+                world.addFreshEntity(woolly);
                 server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "tp @a 0 101 -2.2 0 28");
             } catch (Exception failure) { throw new RuntimeException(failure); }
         });
         if (tick == 20) server.execute(() -> {
             var state = FamilyTreeState.get(server);
             if (state.get(ember.getUUID()) == null) throw new AssertionError("The scene's horses were not recorded");
-            var sheep = server.overworld().getEntitiesOfClass(Animal.class, new net.minecraft.world.phys.AABB(7, 100, -1, 9, 103, 1));
-            if (sheep.size() != 1) throw new AssertionError("The scene's sheep is missing");
-            woolly = sheep.get(0);
-            ((Mob) woolly).setNoAi(true);
-            try {
-                woolly.getClass().getMethod("setColor", net.minecraft.world.item.DyeColor.class).invoke(woolly, net.minecraft.world.item.DyeColor.BLUE);
-            } catch (ReflectiveOperationException failure) { throw new RuntimeException(failure); }
             state.put(new com.egakh.familytree.data.AnimalRecord(woolly.getUUID(), "minecraft:sheep", "Woolly", false, null, null,
                     1, System.currentTimeMillis(), false, null, null, client.player.getUUID(), "Tester", "blue", null, null));
             state.update(ember.getUUID(), pet -> {

@@ -13,10 +13,15 @@ def javaVersion = mcVersion.startsWith('1.') ? 21 : 25
 // Optional integrations stay compile-only. -Pintegrations=jade,journeymap adds the listed mods to development runs.
 def integrationVersions = [
         '1.21.1' : [jade: '15.10.6+neoforge', wthit: 'neo-12.10.2', badpackets: 'neo-0.8.2', journeymap: '1.21.1-6.0.9+neoforge', xaero: 'neoforge-1.21.1-26.6.0'],
+        '1.21.4' : [jade: '17.3.0+neoforge', wthit: 'neo-14.6.2', badpackets: 'neo-0.8.2', journeymap: '1.21.4-6.0.0-beta.47+neoforge', xaero: 'neoforge-1.21.4-26.5.0'],
+        '1.21.5' : [jade: '18.2.0+neoforge', wthit: 'neo-15.0.3', badpackets: 'neo-0.8.2', journeymap: '1.21.5-6.0.0-beta.52+neoforge', xaero: 'neoforge-1.21.5-26.5.0'],
+        '1.21.8' : [jade: '19.1.1+neoforge', wthit: 'neo-16.0.4', badpackets: 'neo-0.9.0', journeymap: '1.21.8-6.0.0-beta.52+neoforge', xaero: 'neoforge-1.21.8-26.6.0'],
+        '1.21.10': [jade: '20.0.5+neoforge', wthit: 'neo-17.5.2', badpackets: 'neo-0.10.2', journeymap: '1.21.10-6.0.0-beta.58+neoforge', xaero: 'neoforge-1.21.10-26.6.0'],
         '1.21.11': [jade: '21.1.7+neoforge', wthit: 'neo-18.2.2', badpackets: 'neo-0.11.2', journeymap: '1.21.11-6.0.0+neoforge', xaero: 'neoforge-1.21.11-26.6.2'],
         '26.2'   : [jade: '26.2.10+neoforge', wthit: 'neo-20.0.0', badpackets: 'neo-0.12.2', journeymap: '26.2-6.0.10+neoforge', xaero: 'neoforge-26.2-26.6.2'],
         '26.3'   : [jade: '26.3.5+neoforge', journeymap: '26.3-6.0.10+neoforge', xaero: 'neoforge-26.3-26.6.2'],
 ][mcVersion]
+if (integrationVersions == null) throw new GradleException("No integration versions mapped for Minecraft ${mcVersion}")
 version = "${sharedProperties.mod_version}+${mcVersion}-neoforge"
 layout.buildDirectory = file("build/${mcVersion}")
 group = sharedProperties.maven_group

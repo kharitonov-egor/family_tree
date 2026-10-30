@@ -114,7 +114,11 @@ On Linux without a free display, run the client under Xvfb: `xvfb-run -a -s "-sc
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.1 -Pintegrations=jade,journeymap,xaero
 ./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.1 -Pintegrations=wthit
 ./gradlew -p forge runDemo -Pdemo -Pminecraft=1.20.1 -Pintegrations=jade,journeymap,xaero
+./gradlew :1.21.8:runDemo -Pdemo -Pintegrations=jade,journeymap,xaero,modmenu
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.4 -Pintegrations=jade,journeymap,xaero
 ```
+
+Fabric warns about missing content when a world saved with a map mod opens without it. Copy a fresh disposable world before changing the mod list.
 
 The integration scene spawns three owned horses with stats, links two of them as the third's parents, and faces the child. It captures `integration-world.png` before the client opens any Family Tree screen, so tooltip lines in that image came from the server provider. It then opens the child's tree, presses **Waypoint** when a map mod is installed, and checks JourneyMap's waypoint list. With Xaero's Minimap it sends the command behind Xaero's **Add** link and captures Xaero's filled-in waypoint form in `integration-xaero-added.png`. It opens the feedback form from Getting started, then the loader's mod list and the Config button's screen, and fails if that screen isn't Family Tree's settings. `-PintegrationScene` runs the scene without any integration mods and expects no Waypoint button.
 

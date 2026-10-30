@@ -58,8 +58,8 @@ Search by name, species, or variant, filter living or deceased animals, and open
 
 All optional. Family Tree doesn't bundle them and runs without them.
 
-- **Jade and WTHIT.** Look at a tracked animal to see its Family Tree name, parents, and generation. Horses also show speed, jump, and health beside their parents' values. Tested with Jade 26.3.5 on Fabric 26.3 and 15.10.6 on NeoForge 1.21.1, and WTHIT 18.2.2 on Fabric 1.21.11 and 12.10.2 on NeoForge 1.21.1.
-- **JourneyMap and Xaero's Minimap.** **Waypoint** in a pet's tree adds a waypoint at the pet in JourneyMap. With Xaero's Minimap it shares the position in chat, and Xaero's **Add** link opens its waypoint form with the pet's name and position filled in. Tested with JourneyMap 6.0.10 and Xaero's Minimap 26.6.2 on Fabric 26.3, and JourneyMap 6.0.9 and Xaero's Minimap 26.6.0 on NeoForge 1.21.1.
+- **Jade and WTHIT.** Look at a tracked animal to see its Family Tree name, parents, and generation. Horses also show speed, jump, and health beside their parents' values. Tested with Jade on Fabric 26.3 and 1.21.8, NeoForge 1.21.1 and 1.21.4, and Forge 1.20.1, and with WTHIT on Fabric 1.21.11 and NeoForge 1.21.1.
+- **JourneyMap and Xaero's Minimap.** **Waypoint** in a pet's tree adds a waypoint at the pet in JourneyMap. With Xaero's Minimap it shares the position in chat, and Xaero's **Add** link opens its waypoint form with the pet's name and position filled in. Tested with both on Fabric 26.3 and 1.21.8, NeoForge 1.21.1 and 1.21.4, and Forge 1.20.1.
 - **Mod Menu**, and the Config button in NeoForge's and Forge's mod list, open Family Tree's settings.
 
 Tooltips and waypoints follow Family Tree's permissions. They show only pets the player could open in Family Tree, and they never reveal other players' pet coordinates.

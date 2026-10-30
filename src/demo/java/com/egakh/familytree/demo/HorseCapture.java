@@ -167,7 +167,7 @@ public final class HorseCapture {
         throw new IllegalArgumentException(name);
     }
 
-    private static Animal create(ServerLevel world, String name) throws Exception {
+    static Animal create(ServerLevel world, String name) throws Exception {
         Class<?> types;
         try { types = Class.forName("net.minecraft.world.entity.EntityTypes"); }
         catch (ClassNotFoundException olderVersion) { types = Class.forName("net.minecraft.world.entity.EntityType"); }
