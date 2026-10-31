@@ -63,12 +63,12 @@ class TreeImageExporterTest {
         var tree = TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, Map.of(clover.id(), List.of(lamb.id())));
         var plain = TreeImageExporter.prepare(tree, "Lamb", "Family Tree", p -> "", p -> "Alive", p -> null,
                 p -> List.of(), p -> false, null);
-        var marked = TreeImageExporter.prepare(tree, "Lamb",
-                "A short line above a card marks a parent that was removed from the history or isn't shown.\nFamily Tree",
+        String note = "A short line above a card marks a parent that was removed from the history or isn't shown. ".repeat(4);
+        var marked = TreeImageExporter.prepare(tree, "Lamb", note + "\nFamily Tree",
                 p -> "", p -> "Alive", p -> null, p -> List.of(), p -> false, null,
                 p -> com.egakh.familytree.util.MissingParents.hasMissingParent(p, records::get));
         assertEquals(List.of(false, true), marked.cards().stream().map(TreeImageExporter.Card::missingParent).toList());
-        assertTrue(marked.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "two extra footer lines");
+        assertTrue(marked.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "the note wraps above the footer");
         var image = TreeImageExporter.render(marked);
         assertEquals(marked.height(), image.getHeight());
     }
