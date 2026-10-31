@@ -188,27 +188,33 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
         });
     }
 
-    /** A variant group as "Coat: " and its entries, wrapped only between entries. */
+    /**
+     * A variant group as "Coat: " and its entries, wrapped only between entries. The title is a piece of its own, so it
+     * moves to its own line rather than pushing the first entry's chance onto the next one.
+     */
     private void odds(String species, VariantOdds.Group group) {
         List<MutableComponent> entries = PlanText.entries(species, group);
         if (entries.isEmpty()) return;
-        int[] widths = new int[entries.size()];
         List<MutableComponent> pieces = new ArrayList<>();
+        pieces.add(Component.translatable("familytree.plan.variant", PlanText.title(group.kind()), ""));
         for (int i = 0; i < entries.size(); i++) {
-            MutableComponent piece = i == 0 ? Component.translatable("familytree.plan.variant", PlanText.title(group.kind()), "").append(entries.get(i))
-                    : entries.get(i).copy();
+            MutableComponent piece = entries.get(i).copy();
             if (i < entries.size() - 1) piece.append(",");
             pieces.add(piece);
-            widths[i] = font.width(piece);
+        }
+        int[] widths = new int[pieces.size()], gaps = new int[pieces.size()];
+        for (int i = 0; i < pieces.size(); i++) {
+            widths[i] = font.width(pieces.get(i));
+            gaps[i] = i <= 1 ? 0 : font.width(" ");
         }
         int maxWidth = Math.max(40, contentWidth());
-        List<Integer> starts = EntryWrap.lineStarts(widths, font.width(" "), maxWidth);
+        List<Integer> starts = EntryWrap.lineStarts(widths, gaps, maxWidth);
         List<FormattedCharSequence> lines = new ArrayList<>();
         for (int s = 0; s < starts.size(); s++) {
             int end = s + 1 < starts.size() ? starts.get(s + 1) : pieces.size();
             MutableComponent line = Component.empty();
             for (int i = starts.get(s); i < end; i++) {
-                if (i > starts.get(s)) line.append(" ");
+                if (i > starts.get(s) && gaps[i] > 0) line.append(" ");
                 line.append(pieces.get(i));
             }
             lines.addAll(font.split(line, maxWidth));
