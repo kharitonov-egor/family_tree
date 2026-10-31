@@ -62,7 +62,10 @@ public final class LinkingStick implements Listener {
         LastUse use = new LastUse(entity.getUniqueId(), entity.getWorld().getFullTime());
         if (use.equals(lastUse.put(player.getUniqueId(), use))) return;
         FamilyTreeStore state = plugin.store();
-        if (state.readOnly()) return;
+        if (state.readOnly()) {
+            chat().send(player, "familytree.command.read_only");
+            return;
+        }
         if (!plugin.access().allowed(player, FamilyTreePermission.LINKING_STICK)) {
             chat().send(player, "familytree.permission.denied", FamilyTreePermission.LINKING_STICK.node());
             return;

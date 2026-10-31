@@ -63,7 +63,10 @@ public final class LinkingTool {
         LastUse use = new LastUse(entity.getUUID(), level.getGameTime());
         if (use.equals(LAST_USE.put(sp.getUUID(), use))) return InteractionResult.SUCCESS_SERVER;
         FamilyTreeState state = FamilyTreeState.get(level);
-        if (state.readOnly()) return InteractionResult.SUCCESS_SERVER;
+        if (state.readOnly()) {
+            ServerText.send(sp, Component.translatable("familytree.command.read_only"));
+            return InteractionResult.SUCCESS_SERVER;
+        }
         if (!ServerPetAccess.allowed(sp, FamilyTreePermission.LINKING_STICK)) {
             ServerText.send(sp, Component.translatable("familytree.permission.denied", FamilyTreePermission.LINKING_STICK.node()));
             return InteractionResult.SUCCESS_SERVER;

@@ -148,8 +148,9 @@ public final class BestPairsScreen extends FamilyTreeScreen {
     private Component summary() {
         if (herd == null) return Component.translatable("familytree.best.no_herd");
         if (outcome.pairs().isEmpty()) return Component.translatable("familytree.best.none");
-        return Component.translatable(outcome.trimmed() ? "familytree.best.summary_trimmed" : "familytree.best.summary",
-                outcome.pairsConsidered(), outcome.candidates());
+        if (outcome.trimmed()) return Component.translatable("familytree.best.summary_trimmed", outcome.pairsConsidered(), outcome.candidates());
+        return outcome.pairsConsidered() == 1 ? Component.translatable("familytree.best.summary_one", outcome.candidates())
+                : Component.translatable("familytree.best.summary", outcome.pairsConsidered(), outcome.candidates());
     }
 
     /** The summary wraps to two lines at most, so the list starts below it at every GUI scale. */

@@ -1,6 +1,7 @@
 package com.egakh.familytree.client.integration.jade;
 
 import com.egakh.familytree.client.integration.PetTooltip;
+import com.egakh.familytree.client.relatives.WorldRelatives;
 import com.egakh.familytree.integration.jade.JadePlugin;
 import com.egakh.familytree.util.HorseStatUnits.Stat;
 import net.minecraft.resources.Identifier;
@@ -26,6 +27,8 @@ public final class JadeTooltips {
 
     public static void register(IWailaClientRegistration registration) {
         registration.registerEntityComponent(PetFamily.INSTANCE, Animal.class);
+        // Jade's box sits where the looked-at animal's label projects, so it steps aside while relatives are shown.
+        registration.addRayTraceCallback((hit, accessor, original) -> WorldRelatives.showing() ? null : accessor);
     }
 
     /** What Jade's own Horse Stats lines show: strength for llamas, nothing for camels, and speed and jump otherwise. */
