@@ -51,6 +51,7 @@ sourceSets.main {
     java.exclude '**/fabric/**'
     resources.setSrcDirs(['../src/main/resources', 'src/main/resources'])
     resources.exclude 'fabric.mod.json'
+    resources.exclude 'data/familytree/tags/entity_type/**'
     compileClasspath += sourceSets.stubs.output
 }
 sourceSets.test {

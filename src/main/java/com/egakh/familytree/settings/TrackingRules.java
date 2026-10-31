@@ -2,12 +2,9 @@ package com.egakh.familytree.settings;
 
 import com.egakh.familytree.util.AnimalCategory;
 
-import java.util.Arrays;
-import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 /** Server choices for which animals other than pets enter the history, and how many unnamed ones it keeps. */
 public record TrackingRules(boolean farm, boolean wildlife, boolean modded, Set<String> trackedSpecies,
@@ -31,10 +28,20 @@ public record TrackingRules(boolean farm, boolean wildlife, boolean modded, Set<
         farmRecordLimit = Math.max(0, Math.min(MAX_FARM_LIMIT, farmRecordLimit));
     }
 
-    /** Ignored species also stop new pets. */
     public boolean records(String speciesId, AnimalCategory category) {
+        return records(speciesId, category, false, false);
+    }
+
+    /**
+     * The settings file wins over the {@code familytree:tracked} and {@code familytree:ignored} entity type tags,
+     * and both win over the category switches. At each level, ignored wins over tracked. Ignored species also stop
+     * new pets.
+     */
+    public boolean records(String speciesId, AnimalCategory category, boolean taggedTracked, boolean taggedIgnored) {
         if (ignoredSpecies.contains(speciesId)) return false;
-        if (category == AnimalCategory.PETS || trackedSpecies.contains(speciesId)) return true;
+        if (trackedSpecies.contains(speciesId)) return true;
+        if (taggedIgnored) return false;
+        if (taggedTracked || category == AnimalCategory.PETS) return true;
         return switch (category) {
             case FARM -> farm;
             case WILDLIFE -> wildlife;
@@ -44,12 +51,16 @@ public record TrackingRules(boolean farm, boolean wildlife, boolean modded, Set<
     }
 
     public static TrackingRules parse(Properties properties) {
+        return read(new SettingsReader(properties));
+    }
+
+    static TrackingRules read(SettingsReader reader) {
         return new TrackingRules(
-                flag(properties, FARM, DEFAULT.farm), flag(properties, WILDLIFE, DEFAULT.wildlife),
-                flag(properties, MODDED, DEFAULT.modded),
-                species(properties.getProperty(TRACKED)), species(properties.getProperty(IGNORED)),
-                number(properties.getProperty(LIMIT), DEFAULT.farmRecordLimit),
-                flag(properties, AUTO_PRUNE, DEFAULT.autoPruneFarm));
+                reader.flag(FARM, DEFAULT.farm), reader.flag(WILDLIFE, DEFAULT.wildlife),
+                reader.flag(MODDED, DEFAULT.modded),
+                reader.species(TRACKED), reader.species(IGNORED),
+                reader.number(LIMIT, DEFAULT.farmRecordLimit, 0, MAX_FARM_LIMIT),
+                reader.flag(AUTO_PRUNE, DEFAULT.autoPruneFarm));
     }
 
     public void store(Properties properties) {
@@ -60,31 +71,5 @@ public record TrackingRules(boolean farm, boolean wildlife, boolean modded, Set<
         properties.setProperty(IGNORED, String.join(",", new TreeSet<>(ignoredSpecies)));
         properties.setProperty(LIMIT, Integer.toString(farmRecordLimit));
         properties.setProperty(AUTO_PRUNE, Boolean.toString(autoPruneFarm));
-    }
-
-    private static boolean flag(Properties properties, String key, boolean fallback) {
-        String raw = properties.getProperty(key);
-        if (raw == null) return fallback;
-        String value = raw.trim().toLowerCase(Locale.ROOT);
-        return value.equals("true") || (!value.equals("false") && fallback);
-    }
-
-    private static int number(String raw, int fallback) {
-        if (raw == null) return fallback;
-        try {
-            return Integer.parseInt(raw.trim());
-        } catch (NumberFormatException invalid) {
-            return fallback;
-        }
-    }
-
-    /** Species ids without a namespace are vanilla, so {@code fox} means {@code minecraft:fox}. */
-    private static Set<String> species(String raw) {
-        if (raw == null || raw.isBlank()) return Set.of();
-        return Arrays.stream(raw.split(","))
-                .map(value -> value.trim().toLowerCase(Locale.ROOT))
-                .filter(value -> !value.isEmpty())
-                .map(value -> value.contains(":") ? value : "minecraft:" + value)
-                .collect(Collectors.toUnmodifiableSet());
     }
 }

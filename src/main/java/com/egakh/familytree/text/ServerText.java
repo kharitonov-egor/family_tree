@@ -23,6 +23,8 @@ public final class ServerText {
     private ServerText() {}
 
     public static String language(ServerPlayer player) {
+        String forced = com.egakh.familytree.settings.FamilyTreeServerSettings.language();
+        if (!forced.equals(com.egakh.familytree.settings.ServerSettings.AUTO_LANGUAGE)) return LangTables.resolve(forced);
         if (player == null) return LangTables.DEFAULT;
         //? if >=1.21 {
         return LangTables.resolve(player.clientInformation().language());

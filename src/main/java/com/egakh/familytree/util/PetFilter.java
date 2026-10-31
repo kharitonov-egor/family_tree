@@ -17,7 +17,13 @@ public final class PetFilter {
     public static boolean isTrackable(Entity entity) {
         boolean tamed = entity instanceof TamableAnimal tameable ? tameable.isTame()
                 : entity instanceof AbstractHorse horse && horse.isTamed() && ownerOf(horse) != null;
-        return tamed && FamilyTreeServerSettings.tracking().records(species(entity), AnimalCategory.PETS);
+        return tamed && records(entity, AnimalCategory.PETS);
+    }
+
+    /** Applies the settings file, then the datapack tags, then the category switches. */
+    public static boolean records(Entity entity, AnimalCategory category) {
+        return FamilyTreeServerSettings.tracking().records(species(entity), category,
+                SpeciesTags.has(entity.getType(), SpeciesTags.TRACKED), SpeciesTags.has(entity.getType(), SpeciesTags.IGNORED));
     }
 
     public static boolean isTameableSpecies(Entity entity) {
@@ -26,7 +32,7 @@ public final class PetFilter {
 
     public static boolean recordsNewAnimal(Entity entity) {
         return entity instanceof Animal && !isTameableSpecies(entity)
-                && FamilyTreeServerSettings.tracking().records(species(entity), category(entity));
+                && records(entity, category(entity));
     }
 
     public static AnimalCategory category(Entity entity) {

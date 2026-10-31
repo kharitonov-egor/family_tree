@@ -5,6 +5,7 @@ import com.egakh.familytree.command.FamilyTreeCommand;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.network.FamilyTreePackets;
+import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.platform.FamilyTreePaths;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import net.minecraft.server.level.ServerLevel;
@@ -32,6 +33,9 @@ public final class ForgeEntrypoint {
         FamilyTreePaths.configure(FMLPaths.CONFIGDIR.get());
         ForgeNetwork.register();
         IEventBus events = MinecraftForge.EVENT_BUS;
+        ForgePermissions permissions = new ForgePermissions();
+        events.addListener(permissions::register);
+        ServerPetAccess.configure(permissions);
         events.addListener((RegisterCommandsEvent event) -> FamilyTreeCommand.register(event.getDispatcher()));
         events.addListener((ServerStartingEvent event) -> FamilyTreeServerSettings.load());
         events.addListener(EventPriority.LOWEST, (EntityJoinLevelEvent event) -> {

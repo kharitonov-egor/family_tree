@@ -5,6 +5,7 @@ import com.egakh.familytree.command.FamilyTreeCommand;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.network.FamilyTreePackets;
+import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.network.payloads.*;
 import com.egakh.familytree.platform.FamilyTreePaths;
 import com.egakh.familytree.platform.ServerTransport;
@@ -32,6 +33,7 @@ import java.util.function.BiConsumer;
 public final class FabricEntrypoint implements ModInitializer {
     @Override public void onInitialize() {
         FamilyTreePaths.configure(FabricLoader.getInstance().getConfigDir());
+        if (FabricLoader.getInstance().isModLoaded(FabricPermissions.MOD_ID)) ServerPetAccess.configure(new FabricPermissions());
         //? if >=1.21 {
         ServerTransport.configure(ServerPlayNetworking::canSend, ServerPlayNetworking::send);
         PayloadTypeRegistry.clientboundPlay().register(SnapshotPagePayload.TYPE, SnapshotPagePayload.STREAM_CODEC);

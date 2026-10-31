@@ -49,11 +49,12 @@ sourceSets {
 sourceSets.main {
     java.setSrcDirs(["../versions/${mcVersion}/build/generated/stonecutter/main/java",
             "../versions/${mcVersion}/build/generated/stonecutter/client/java",
-            mcVersion in ['1.21.1', '1.21.4', '1.21.5'] ? 'src/legacy/java' : 'src/main/java' ])
+            mcVersion in ['1.21.1', '1.21.4', '1.21.5'] ? 'src/legacy/java' : 'src/main/java', 'src/shared/java' ])
     java.exclude '**/fabric/**'
     if (!integrationVersions.wthit) java.exclude '**/integration/wthit/**'
     resources.setSrcDirs(['../src/main/resources', 'src/main/resources'])
     resources.exclude 'fabric.mod.json'
+    resources.exclude 'data/familytree/tags/entity_types/**'
     if (!integrationVersions.wthit) resources.exclude 'waila_plugins.json'
     compileClasspath += sourceSets.stubs.output
 }

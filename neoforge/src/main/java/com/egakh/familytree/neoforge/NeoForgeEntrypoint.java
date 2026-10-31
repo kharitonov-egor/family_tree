@@ -5,6 +5,7 @@ import com.egakh.familytree.command.FamilyTreeCommand;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.network.FamilyTreePackets;
+import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.network.payloads.*;
 import com.egakh.familytree.platform.FamilyTreePaths;
 import com.egakh.familytree.platform.ServerTransport;
@@ -32,6 +33,9 @@ public final class NeoForgeEntrypoint {
         FamilyTreePaths.configure(FMLPaths.CONFIGDIR.get());
         ServerTransport.configure((player, type) -> player.connection.hasChannel(type), PacketDistributor::sendToPlayer);
         modBus.addListener(this::registerPackets);
+        NeoForgePermissions permissions = new NeoForgePermissions();
+        NeoForge.EVENT_BUS.addListener(permissions::register);
+        ServerPetAccess.configure(permissions);
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> FamilyTreeCommand.register(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((ServerStartingEvent event) -> FamilyTreeServerSettings.load());
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, (EntityJoinLevelEvent event) -> {

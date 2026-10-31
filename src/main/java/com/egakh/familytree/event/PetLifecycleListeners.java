@@ -44,7 +44,9 @@ public final class PetLifecycleListeners {
 
     public static void onLoad(Entity entity, ServerLevel world) {
         if (!(entity instanceof Animal)) return;
-        ensureRecord(world, FamilyTreeState.get(world), entity);
+        FamilyTreeState state = FamilyTreeState.get(world);
+        if (!FamilyTreeServerSettings.current().discoverPetsOnLoad() && !state.contains(entity.getUUID())) return;
+        ensureRecord(world, state, entity);
     }
 
     public static void onUnload(Entity entity, ServerLevel world) {
@@ -62,7 +64,7 @@ public final class PetLifecycleListeners {
         }
 
         FamilyTreeState state = FamilyTreeState.get(world);
-        if (!FamilyTreeServerSettings.tracking().records(PetFilter.species(child), AnimalCategory.PETS)) return;
+        if (!PetFilter.records(child, AnimalCategory.PETS)) return;
 
         rememberParent(world, state, parentA, breeder);
         rememberParent(world, state, parentB, breeder);
@@ -228,6 +230,7 @@ public final class PetLifecycleListeners {
         int limit = FamilyTreeServerSettings.tracking().farmRecordLimit();
         if (state.firstFarmLimitNotice(new UUID(0, 0)))
             FamilyTreeMod.LOGGER.warn("Family Tree reached farmRecordLimit={} and stopped recording new unnamed animals other than pets.", limit);
+        if (!FamilyTreeServerSettings.current().farmLimitMessage()) return;
         ServerPlayer online = player == null ? null : world.getServer().getPlayerList().getPlayer(player);
         if (online != null && state.firstFarmLimitNotice(player)) ServerText.send(online, Component.translatable(message, limit));
     }

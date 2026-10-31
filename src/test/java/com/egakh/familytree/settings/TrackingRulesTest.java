@@ -59,4 +59,17 @@ class TrackingRulesTest {
         rules.store(properties);
         assertEquals(rules, TrackingRules.parse(properties));
     }
+
+    /** taggedTracked and taggedIgnored stand for the familytree:tracked and familytree:ignored entity type tags. */
+    @Test void theSettingsFileWinsOverTagsAndTagsWinOverCategories() {
+        TrackingRules rules = new TrackingRules(false, true, true, Set.of("minecraft:bee"), Set.of("minecraft:fox"), 5_000, false);
+        assertTrue(rules.records("minecraft:sheep", FARM, true, false), "A tracked tag overrides a disabled category");
+        assertFalse(rules.records("minecraft:axolotl", WILDLIFE, false, true), "An ignored tag overrides an enabled category");
+        assertTrue(rules.records("minecraft:bee", WILDLIFE, false, true), "trackedSpecies wins over the ignored tag");
+        assertFalse(rules.records("minecraft:fox", WILDLIFE, true, false), "ignoredSpecies wins over the tracked tag");
+        assertFalse(rules.records("minecraft:cow", FARM, true, true), "A species in both tags is ignored");
+        assertFalse(rules.records("minecraft:wolf", PETS, false, true), "The ignored tag stops new pets");
+        assertTrue(rules.records("minecraft:wolf", PETS, false, false));
+        assertEquals(rules.records("minecraft:cow", FARM), rules.records("minecraft:cow", FARM, false, false));
+    }
 }
