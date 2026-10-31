@@ -291,7 +291,8 @@ public final class RelativesCapture {
             FamilyTreeClientSettings.setShowRelatives(true);
             passed.add("setting off: no highlights and no request");
         }
-        if (checkTick >= 170 && media(client, runner, checkTick - 170)) finish(client);
+        if (checkTick >= 170 && checkTick <= 395) media(client, runner, checkTick - 170);
+        if (checkTick > 395 && labelViews(client, runner, checkTick - 396)) finish(client);
     }
 
     /** About nine seconds of frames for the clip while the camera drifts sideways, then a still with the lines drawn. */
@@ -314,6 +315,101 @@ public final class RelativesCapture {
         }
         if (frame == 215) runner.capture(client, "relatives-still.png");
         return frame >= 225;
+    }
+
+    /**
+     * Stills for the label layout: a parent horse facing the camera, labels against the noon sky from the ground, and a
+     * wolf and its pup from two blocks away, where a name tag would be at its largest.
+     */
+    private boolean labelViews(Minecraft client, DemoClient runner, int frame) throws Exception {
+        MinecraftServer server = client.getSingleplayerServer();
+        UUID playerId = client.player.getUUID();
+        if (frame == 0) server.execute(() -> {
+            Mob comet = (Mob) server.overworld().getEntity(family.get("Comet"));
+            comet.teleportTo(0, 101, 16.5);
+            comet.setYRot(180);
+            comet.setYHeadRot(180);
+            comet.setYBodyRot(180);
+            wolves(server, playerId);
+        });
+        if (frame == 10) server.execute(() -> FamilyTreeState.get(server).update(family.get("Bit"),
+                record -> record.setParents(family.get("Rex"), null)));
+        if (frame >= 20 && frame < 60) {
+            hold(client, 0, 101, 12.0);
+            if (frame == 20) look(client, 0, -15);
+        }
+        if (frame == 55) {
+            expectLabel(client, "Comet", CloseRelation.PARENT);
+            runner.capture(client, "relatives-horse-facing.png");
+            passed.add("labels: a parent facing the camera");
+        }
+        if (frame >= 60 && frame < 120) {
+            hold(client, 0, 101, -6.0);
+            if (frame == 60) aim(client, "Ember");
+            if (frame == 90) look(client, client.player.getYRot(), -8);
+        }
+        if (frame == 115) {
+            expectLabel(client, "Dusk", CloseRelation.PARENT);
+            runner.capture(client, "relatives-sky.png");
+            passed.add("labels: against the noon sky from 12 to 19 blocks");
+        }
+        if (frame >= 120 && frame < 170) {
+            hold(client, 8, 101, -7.0);
+            if (frame == 120) aim(client, "Rex");
+        }
+        if (frame == 165) {
+            Entity rex = clientEntity(client, family.get("Rex"));
+            if (WorldRelatives.outlineColor(rex) != RelationStyle.FOCUS) throw new AssertionError("Rex is not the animal looked at");
+            expectLabel(client, "Bit", CloseRelation.CHILD);
+            runner.capture(client, "relatives-wolf-2-blocks.png");
+            passed.add("labels: a wolf and its pup two blocks away");
+        }
+        return frame >= 170;
+    }
+
+    private void wolves(MinecraftServer server, UUID playerId) {
+        ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+        var world = server.overworld();
+        for (String place : List.of("8 101 -5", "9.4 101 -4.6"))
+            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "summon minecraft:wolf " + place);
+        List<net.minecraft.world.entity.TamableAnimal> wolves = new ArrayList<>(world.getEntitiesOfClass(net.minecraft.world.entity.TamableAnimal.class,
+                new net.minecraft.world.phys.AABB(6, 99, -7, 12, 104, -3)));
+        if (wolves.size() != 2) throw new AssertionError("Expected two wolves, found " + wolves.size());
+        wolves.sort(java.util.Comparator.comparingDouble(Entity::getX));
+        String[] names = {"Rex", "Bit"};
+        for (int i = 0; i < 2; i++) {
+            var wolf = wolves.get(i);
+            wolf.setNoAi(true);
+            wolf.setYRot(180);
+            wolf.setYHeadRot(180);
+            wolf.setYBodyRot(180);
+            if (i == 1) wolf.setAge(-24000);
+            wolf.tame(player);
+            wolf.setCustomName(Component.literal(names[i]));
+            wolf.setCustomNameVisible(false);
+            family.put(names[i], wolf.getUUID());
+        }
+    }
+
+    private void hold(Minecraft client, double x, double y, double z) {
+        client.player.getAbilities().flying = true;
+        client.player.setPos(x, y, z);
+        client.player.setDeltaMovement(0, 0, 0);
+    }
+
+    private void look(Minecraft client, float yaw, float pitch) {
+        client.player.setYRot(yaw);
+        client.player.setXRot(pitch);
+        client.player.yRotO = yaw;
+        client.player.xRotO = pitch;
+    }
+
+    private void expectLabel(Minecraft client, String name, CloseRelation relation) {
+        Entity entity = clientEntity(client, family.get(name));
+        Component label = entity == null ? null : WorldRelatives.label(entity);
+        if (label == null || !label.getString().contains(name)
+                || !label.getString().contains(Component.translatable(relation.translationKey()).getString()))
+            throw new AssertionError(name + " has the label '" + (label == null ? null : label.getString()) + "'");
     }
 
     private void ease(Minecraft client, String name, float amount) {

@@ -38,7 +38,6 @@ import java.util.UUID;
  */
 public final class WorldRelatives {
     public static final double LABEL_RANGE_SQ = 64.0 * 64.0;
-    public static final float LABEL_LIFT = 0.35F;
     private static final double PICK_RANGE = 48.0;
     private static final double LINE_RANGE = 48.0;
     private static final double LINE_STEP = 0.3;
