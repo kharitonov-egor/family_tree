@@ -21,9 +21,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class UnreadableSaveTest {
     @TempDir Path world;
 
+    /**
+     * Cuts the file just after the gzip header. A cut deeper in builds a crash report, which needs SharedConstants,
+     * and NeoForge 1.21.10 and newer can't load that class outside FML. The real-server runs cover cuts mid-file.
+     */
+    private static byte[] truncate(byte[] file) {
+        return Arrays.copyOf(file, 12);
+    }
+
     @Test void aTruncatedSaveLocksTheFreshStateAndKeepsTheOriginalBytes() throws IOException {
         Path saved = world.resolve("data/familytree.dat");
-        byte[] truncated = Arrays.copyOf(history(saved, 3), 40);
+        byte[] truncated = truncate(history(saved, 3));
         Files.write(saved, truncated);
 
         FamilyTreeState fresh = new FamilyTreeState();
@@ -62,7 +70,7 @@ class UnreadableSaveTest {
         Path saved = world.resolve("dimensions/minecraft/overworld/data/familytree/familytree.dat");
         Path legacy = world.resolve("data/familytree.dat");
         byte[] whole = history(legacy, 4);
-        Files.write(legacy, Arrays.copyOf(whole, whole.length / 2));
+        Files.write(legacy, truncate(whole));
 
         FamilyTreeState fresh = new FamilyTreeState();
         fresh.setDirty();
