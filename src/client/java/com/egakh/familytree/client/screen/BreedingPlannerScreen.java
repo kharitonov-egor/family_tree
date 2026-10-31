@@ -90,9 +90,13 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
                 : Component.translatable("familytree.parents.choose", number, pet.name());
     }
 
+    /** Counts living animals per species once, so large farms don't compare every pair. */
     private void pickFirst() {
+        Map<String, Integer> living = new HashMap<>();
+        for (AnimalRecord pet : snapshot.records()) if (usable(pet)) living.merge(pet.speciesId(), 1, Integer::sum);
         List<AnimalRecord> candidates = snapshot.records().stream().filter(BreedingPlannerScreen::usable)
-                .filter(pet -> snapshot.records().stream().anyMatch(other -> mates(pet, other))).toList();
+                .filter(pet -> living.entrySet().stream().anyMatch(other -> BreedingPair.canBreed(pet.speciesId(), other.getKey())
+                        && other.getValue() > (other.getKey().equals(pet.speciesId()) ? 1 : 0))).toList();
         minecraft.setScreen(new PetPickerScreen(this, candidates, chosen -> {
             firstId = chosen;
             if (!mates(records.get(firstId), records.get(secondId))) secondId = null;

@@ -45,6 +45,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     private Kinship kinship;
     private UUID compareId;
     private Set<UUID> relationPath = Set.of();
+    /** The comparison's sentences, worked out when the comparison changes rather than every frame. */
+    private List<Component> relationText = List.of();
     private Button planButton;
 
     private final Map<UUID, AnimalRecord> records = new HashMap<>();
@@ -161,6 +163,17 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                 && records.containsKey(compareId) && records.containsKey(selectedId);
         if (!comparing) compareId = null;
         relationPath = comparing ? kinship.path(selectedId, compareId) : Set.of();
+        relationText = List.of();
+        if (!comparing) return;
+        AnimalRecord a = records.get(selectedId), b = records.get(compareId);
+        List<Component> text = new ArrayList<>();
+        text.add(KinshipText.describe(kinship.relation(a.id(), b.id()), a.name(), b.name()));
+        if (BreedingPair.canBreed(a.speciesId(), b.speciesId())) {
+            text.add(KinshipText.inbreeding(kinship.foalInbreeding(a.id(), b.id())));
+            if (!a.deceased() && !b.deceased()) text.add(Component.translatable("familytree.kin.plan_hint"));
+        }
+        text.add(Component.translatable("familytree.kin.compare_hint"));
+        relationText = text;
     }
 
     @Override
@@ -335,6 +348,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
             record.setTreeName(updated.treeName());
         }
         if (parent instanceof FamilyTreeViewScreen previous) previous.applyRename(updated);
+        updateRelation();
         if (centerButton != null) updateControls();
     }
 
@@ -478,17 +492,10 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
 
     /** The relationship between the selected card and the Shift-clicked one, wrapped to the panel width. */
     private List<net.minecraft.util.FormattedCharSequence> relationLines() {
-        AnimalRecord a = records.get(selectedId), b = records.get(compareId);
-        if (a == null || b == null || tree == null) return List.of();
+        if (relationText.isEmpty() || tree == null) return List.of();
         int width = Math.max(80, Math.min(this.width - 28, 420));
         List<net.minecraft.util.FormattedCharSequence> lines = new ArrayList<>();
-        lines.addAll(this.font.split(KinshipText.describe(kinship.relation(a.id(), b.id()), a.name(), b.name()), width));
-        if (BreedingPair.canBreed(a.speciesId(), b.speciesId())) {
-            lines.addAll(this.font.split(KinshipText.inbreeding(kinship.foalInbreeding(a.id(), b.id())), width));
-            if (!a.deceased() && !b.deceased())
-                lines.addAll(this.font.split(Component.translatable("familytree.kin.plan_hint"), width));
-        }
-        lines.addAll(this.font.split(Component.translatable("familytree.kin.compare_hint"), width));
+        for (Component text : relationText) lines.addAll(this.font.split(text, width));
         return lines;
     }
 
