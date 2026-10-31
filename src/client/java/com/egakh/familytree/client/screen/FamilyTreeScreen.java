@@ -1,5 +1,6 @@
 package com.egakh.familytree.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -15,6 +16,9 @@ public abstract class FamilyTreeScreen extends Screen {
     protected void onMouseRelease(int button) {}
     protected boolean onMouseDrag(double x, double y, int button, double dx, double dy) { return false; }
     protected boolean onKeyPress(int key) { return false; }
+
+    // Minecraft 26.3 numbers mouse buttons from 1 as SDL does; older versions number them from 0.
+    protected static boolean isLeftButton(int button) { return button == InputConstants.MOUSE_BUTTON_LEFT; }
 
     protected void renderWidgets(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         //? if >=1.21.6 {
@@ -47,7 +51,7 @@ public abstract class FamilyTreeScreen extends Screen {
     private double lastClickX, lastClickY;
     @Override public boolean mouseClicked(double x, double y, int button) {
         long now = System.nanoTime();
-        boolean doubleClick = button == 0 && now - lastClick < 250_000_000L
+        boolean doubleClick = isLeftButton(button) && now - lastClick < 250_000_000L
                 && Math.abs(x - lastClickX) < 4 && Math.abs(y - lastClickY) < 4;
         lastClick = now;
         lastClickX = x;

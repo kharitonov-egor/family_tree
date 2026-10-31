@@ -551,7 +551,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
 
     @Override
     protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
-        if (button != 0 || !inCanvas(mouseX, mouseY)) return false;
+        if (!isLeftButton(button) || !inCanvas(mouseX, mouseY)) return false;
         TreeLayout.Node hit = inStatsPanel(mouseX, mouseY) ? null : findNodeAt(mouseX, mouseY);
         if (hit != null) {
             boolean openTree = doubleClick && hit.id.equals(selectedId);
@@ -570,7 +570,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
 
     @Override
     protected void onMouseRelease(int button) {
-        if (button == 0) dragging = false;
+        if (isLeftButton(button)) dragging = false;
     }
 
     @Override

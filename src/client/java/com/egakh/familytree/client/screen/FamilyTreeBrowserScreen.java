@@ -286,7 +286,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
 
     @Override
     protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
-        if (button != 0) return false;
+        if (!isLeftButton(button)) return false;
         if (snapshot == null) return false;
 
 
