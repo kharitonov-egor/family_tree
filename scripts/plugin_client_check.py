@@ -39,6 +39,7 @@ class Session:
         self.log_path = self.run / 'server.log'
         self.client_log = self.run / 'client.log'
         self.results = []
+        self.chat_offset = 0
         self.server = None
         self.client = None
         self.top = 0
@@ -122,11 +123,20 @@ class Session:
                               capture_output=True, text=True).stdout.strip()
 
     def window(self):
-        ids = self.xdo('search', '--name', 'Minecraft').split()
-        return ids[-1] if ids else ''
+        """The game window. 26.x clients name it only in UTF-8 and map a hidden utility window over the screen's middle."""
+        tree = subprocess.run(['xwininfo', '-root', '-children'], env={**os.environ, 'DISPLAY': self.args.display},
+                              capture_output=True, text=True).stdout
+        best, area = '', 0
+        for match in re.finditer(r'(0x[0-9a-f]+) "(Minecraft[^"]*)".*?(\d+)x(\d+)\+', tree):
+            size = int(match.group(3)) * int(match.group(4))
+            if 'Hidden' not in match.group(2) and size > area:
+                best, area = match.group(1), size
+        return best
 
     def focus(self):
-        self.xdo('windowfocus', '--sync', self.window())
+        window = self.window()
+        if window:
+            self.xdo('windowfocus', '--sync', window)
 
     def key(self, *keys):
         self.focus()
@@ -192,6 +202,39 @@ class Session:
         self.shots.mkdir(parents=True, exist_ok=True)
         subprocess.run(['import', '-window', 'root', str(self.shots / f'{name}.png')],
                        env={**os.environ, 'DISPLAY': self.args.display})
+
+    def enter_text(self, text, shot=None):
+        """Types into the anvil, or into chat when the server asked for chat (Spigot before 1.21 has no anvil API)."""
+        time.sleep(0.8)
+        if 'in chat' in self.client_log.read_text(errors='replace')[self.chat_offset:]:
+            self.chat_offset = len(self.client_log.read_text(errors='replace'))
+            if shot:
+                self.shot(shot)
+            self.chat(text)
+            time.sleep(1.0)
+            return
+        self.click(*self.anvil('field'))
+        self.key('ctrl+a', 'BackSpace')
+        self.type(text)
+        if shot:
+            self.shot(shot)
+        self.click(*self.anvil(2))
+
+    def same_slot(self, shot, reference, slot):
+        """Compares two slots of a chest screenshot. An empty button slot shows the same pane as the reference."""
+        crops = []
+        for index, target in enumerate((reference, slot)):
+            x, y = self.point(*self.chest(target))
+            crop = self.shots / f'{shot}-slot{index}.png'
+            subprocess.run(['convert', str(self.shots / f'{shot}.png'), '-crop', f'28x28+{x - 14}+{y - 14}', '+repage', str(crop)])
+            crops.append(str(crop))
+        result = subprocess.run(['compare', '-metric', 'AE', *crops, 'null:'], capture_output=True, text=True)
+        for crop in crops:
+            Path(crop).unlink(missing_ok=True)
+        try:
+            return float(result.stderr.split()[0]) < 20
+        except (IndexError, ValueError):
+            return False
 
     def look(self, x, z, pitch=30):
         self.console(f'tp Tester {x} -60 {z - 2} 0 {pitch}')
@@ -321,20 +364,17 @@ def main():
         before = s.inventory()
         s.chat('/familytree')
         s.shot('menu-browser')
+        s.chat_offset = len(s.client_log.read_text(errors='replace'))
         s.slot(50)
-        s.click(*s.anvil('field'))
-        s.key('ctrl+a', 'BackSpace')
-        s.type('Woolly')
-        s.shot('menu-search')
-        s.click(*s.anvil(2))
+        s.enter_text('Woolly', 'menu-search')
         s.slot(0)
+        s.move(20, 20)
         s.shot('menu-family')
+        s.check("the owner's family view has Locate, Rename, and Add parents",
+                not any(s.same_slot('menu-family', 45, slot) for slot in (47, 48, 50)))
+        s.chat_offset = len(s.client_log.read_text(errors='replace'))
         s.slot(48)
-        s.click(*s.anvil('field'))
-        s.key('ctrl+a', 'BackSpace')
-        s.type('Woolly Prime')
-        s.shot('menu-rename')
-        s.click(*s.anvil(2))
+        s.enter_text('Woolly Prime', 'menu-rename')
         info = s.ask('familytree info Woolly Prime')
         s.check('the anvil renames the sheep in Family Tree', 'Woolly Prime' in info and 'No record' not in info, info[-300:])
         s.slot(50)
@@ -381,6 +421,10 @@ def main():
         # Someone else's pet.
         s.console('summon wolf 5.5 -60 -9.5 {Owner:[I;1,2,3,4]}')
         s.console('familytree scan')
+        s.console('save-all')
+        time.sleep(3)
+        stranger = [record for record in read_records(s.history_file()) if record.get('owner') == [1, 2, 3, 4]]
+        name = stranger[0]['name'] if stranger else 'missing'
         s.console('deop Tester')
         config = s.server_dir / 'plugins' / 'FamilyTree' / 'config.yml'
         config.write_text(re.sub(r'(?m)^viewPolicy: .*$', 'viewPolicy: EVERYONE_ALL', config.read_text()))
@@ -388,21 +432,21 @@ def main():
         s.check('reload applies viewPolicy', 'Reloaded' in reply, reply[-200:])
         s.chat('/familytree')
         s.shot('nonowner-browser')
+        s.chat_offset = len(s.client_log.read_text(errors='replace'))
+        s.slot(50)
+        s.enter_text(name)
+        s.slot(0)
+        s.move(20, 20)
+        s.shot('nonowner-family')
+        s.check("a non-owner's family view has no Locate, Rename, or Add parents",
+                all(s.same_slot('nonowner-family', 45, slot) for slot in (47, 48, 50)))
         s.key('Escape')
-        s.console('save-all')
-        time.sleep(3)
-        stranger = [record for record in read_records(s.history_file()) if record.get('owner') == [1, 2, 3, 4]]
-        name = stranger[0]['name'] if stranger else 'missing'
         s.chat(f'/familytree locate {name}')
         s.chat(f'/familytree pair Fluffy Puff "{name}"')
         s.chat('/familytree prune deceased')
         client = s.client_log.read_text(errors='replace')
-        s.check("a non-owner can't locate or edit someone else's pet",
+        s.check("a non-owner can't locate or edit someone else's pet by command",
                 client.count(f"No record for '{name}'") >= 2 and 'familytree.prune' in client, client[-500:])
-        s.chat('/familytree')
-        s.chat('/familytree menu')
-        s.shot('nonowner-menu')
-        s.key('Escape')
 
         # Restart.
         s.console('save-all')
