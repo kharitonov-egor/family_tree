@@ -81,6 +81,16 @@ The gallery was rebuilt from `docs/media.json`: 15 items led by the four-generat
 
 CurseForge's description can't be edited through the upload API, and its site blocks automated browsers. To update it by hand, paste `docs/curseforge-description.md` into the Markdown editor, or `docs/curseforge-description.html` into the WYSIWYG one. Its images load from GitHub, with GIFs for animations. Then upload the gallery items in `docs/media.json` with their captions, and remove the 1.1.0 images.
 
+## 1.4.0 publication
+
+On October 31, 2026, commit `930a89e` was tagged `v1.4.0`. The [GitHub release](https://github.com/kharitonov-egor/family_tree/releases/tag/v1.4.0) has 21 jars, their source jars, and the manifest: eleven Fabric, eight NeoForge, one Forge, and the Paper plugin. Modrinth had 1,266 downloads and 11 followers just before.
+
+The release adds the breeding planner, the relatives key, the Paper, Purpur, and Spigot plugin, permission nodes, and commented server settings. Before it shipped, a play-test and a code review by two models found 55 problems. Nine fix PRs (#14 to #22) addressed them, each read by a second model before merging. A final play-test on every loader found no release blockers, and #24 fixed its five smaller findings.
+
+Modrinth has 21 matching versions, checked by version ID for hash, loaders, game versions, and status. The eleven Fabric versions also list Quilt, after a Quilt Loader 0.30.1 server started with each jar without errors. The plugin version lists Paper, Purpur, and Spigot for ten game versions. NeoForge 26.3 stays beta. The page body describes 1.4.0, and the gallery has 27 items, including the planner, relatives, and plugin images. For several minutes after the update, Modrinth's public API still served the 1.3.0 body. An authenticated request showed the new one.
+
+CurseForge received the twenty mod files through the upload API, file IDs 9388183 to 9388214, with Quilt on the Fabric files. They go public after CurseForge's review. The plugin isn't on CurseForge, which lists Bukkit plugins in a separate project. The project description there still needs `docs/curseforge-description.md` pasted by hand.
+
 ## Measurement decisions
 
 At 30 days, compare the actual download rate with the remaining target. The audit's 180-day deadline requires roughly 53 additional downloads a day from the baseline. If the rate stays below that, broader distribution is still needed. More code alone cannot establish that the target will be reached.
