@@ -144,8 +144,8 @@ public final class FamilyTreeCommand {
             String allowed = UsageLine.filter(usage, sub -> mayRun(source, sub));
             ServerText.success(source, () -> Component.literal(allowed), false);
         }
-        if (clientMod) ServerText.success(source, () -> Component.translatable("familytree.command.menu_hint",
-                Component.keybind("key.familytree.open_tree")), false);
+        if (clientMod) ServerText.success(source, () -> Component.translatable(mayRun(source, "menu")
+                ? "familytree.command.menu_hint" : "familytree.command.key_hint", Component.keybind("key.familytree.open_tree")), false);
         if (ServerPetAccess.allowed(source, FamilyTreePermission.RELOAD) || ServerPetAccess.allowed(source, FamilyTreePermission.SETTINGS))
             ServerText.success(source, () -> Component.translatable("familytree.command.admin_usage"), false);
         return 1;

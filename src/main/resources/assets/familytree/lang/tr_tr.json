@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "Saldırgan",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <ad>|pair <ebeveynA> <ebeveynB> <yavru>|unpair <yavru>|breed <a> <b>|setage <ad> <gün_sayısı>|setbirth <ad> <gün>|prune <deceased|farm|species <id>>|info [ad]>",
   "familytree.command.menu_hint": "Family Tree'yi açmak için %s tuşuna basın veya sandık menüsü için /familytree menu komutunu kullanın.",
+  "familytree.command.key_hint": "Family Tree'yi açmak için %s tuşuna basın.",
   "familytree.command.list.header": "İzlenen hayvanlar:",
   "familytree.command.list.more": "...ve %s tane daha. Aramak için Family Tree ekranını aç.",
   "familytree.command.list.alive": "- %s [%s] - %s. günde doğdu (%s oyun günlük)",

@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "Agresivo",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <nombre>|pair <progenitorA> <progenitorB> <hijo>|unpair <hijo>|breed <a> <b>|setage <nombre> <días>|setbirth <nombre> <día>|prune <deceased|farm|species <id>>|info [nombre]>",
   "familytree.command.menu_hint": "Presiona %s para abrir Family Tree o usa /familytree menu para ver el menú de cofre.",
+  "familytree.command.key_hint": "Presiona %s para abrir Family Tree.",
   "familytree.command.list.header": "Animales registrados:",
   "familytree.command.list.more": "...y %s más. Abre la pantalla de Family Tree para buscarlos.",
   "familytree.command.list.alive": "- %s [%s] - nació el día %s (edad: %s días de juego)",

@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "Agresywny",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <imię>|pair <rodzicA> <rodzicB> <potomek>|unpair <potomek>|breed <a> <b>|setage <imię> <dni>|setbirth <imię> <dzień>|prune <deceased|farm|species <id>>|info [imię]>",
   "familytree.command.menu_hint": "Naciśnij %s, aby otworzyć Family Tree, lub użyj /familytree menu, aby otworzyć menu w skrzyni.",
+  "familytree.command.key_hint": "Naciśnij %s, aby otworzyć Family Tree.",
   "familytree.command.list.header": "Śledzone zwierzęta:",
   "familytree.command.list.more": "...i jeszcze %s. Otwórz ekran Family Tree, aby je wyszukać.",
   "familytree.command.list.alive": "- %s [%s] - ur. w dniu %s (wiek w dniach gry: %s)",

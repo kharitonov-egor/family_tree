@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "好斗",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <名称>|pair <亲代A> <亲代B> <子代>|unpair <子代>|breed <a> <b>|setage <名称> <天数>|setbirth <名称> <游戏日>|prune <deceased|farm|species <id>>|info [名称]>",
   "familytree.command.menu_hint": "按%s打开Family Tree，或使用/familytree menu打开箱子菜单。",
+  "familytree.command.key_hint": "按%s打开Family Tree。",
   "familytree.command.list.header": "已记录的动物：",
   "familytree.command.list.more": "……还有%s只。打开Family Tree界面来搜索它们。",
   "familytree.command.list.alive": "- %s [%s] - 生于第%s天（年龄：%s个游戏日）",

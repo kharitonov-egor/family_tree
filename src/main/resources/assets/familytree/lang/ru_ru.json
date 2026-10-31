@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "Агрессивный",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <имя>|pair <родитель_A> <родитель_B> <потомок>|unpair <потомок>|breed <a> <b>|setage <имя> <дни>|setbirth <имя> <день>|prune <deceased|farm|species <id>>|info [имя]>",
   "familytree.command.menu_hint": "Нажмите %s, чтобы открыть Family Tree, или введите /familytree menu, чтобы открыть меню в виде сундука.",
+  "familytree.command.key_hint": "Нажмите %s, чтобы открыть Family Tree.",
   "familytree.command.list.header": "Отслеживаемые животные:",
   "familytree.command.list.more": "...и ещё %s. Откройте экран Family Tree, чтобы найти их.",
   "familytree.command.list.alive": "- %s [%s] - рождение: день %s (возраст в игровых днях: %s)",

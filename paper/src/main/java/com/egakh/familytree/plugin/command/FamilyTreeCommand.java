@@ -231,7 +231,8 @@ public final class FamilyTreeCommand implements TabExecutor {
         }
         String usage = Messages.template(chat().language(sender), "familytree.command.usage");
         if (usage != null) chat().send(sender, Text.literal(UsageLine.filter(usage, sub -> mayRunFromUsage(sender, sub))));
-        if (clientMod) chat().send(sender, "familytree.command.menu_hint", Text.keybind("key.familytree.open_tree"));
+        if (clientMod) chat().send(sender, mayRunFromUsage(sender, "menu") ? "familytree.command.menu_hint" : "familytree.command.key_hint",
+                Text.keybind("key.familytree.open_tree"));
         if (access().allowed(sender, FamilyTreePermission.RELOAD) || access().allowed(sender, FamilyTreePermission.SETTINGS))
             chat().send(sender, "familytree.command.admin_usage");
     }

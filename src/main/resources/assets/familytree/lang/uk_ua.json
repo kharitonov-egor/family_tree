@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "Агресивна",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <ім’я>|pair <предок_A> <предок_B> <нащадок>|unpair <нащадок>|breed <a> <b>|setage <ім’я> <дні>|setbirth <ім’я> <день>|prune <deceased|farm|species <id>>|info [ім’я]>",
   "familytree.command.menu_hint": "Натисніть %s, щоб відкрити Family Tree, або введіть /familytree menu, щоб відкрити меню у вигляді скрині.",
+  "familytree.command.key_hint": "Натисніть %s, щоб відкрити Family Tree.",
   "familytree.command.list.header": "Відстежувані тварини:",
   "familytree.command.list.more": "...і ще %s. Відкрийте екран Family Tree, щоб знайти їх.",
   "familytree.command.list.alive": "- %s [%s] - народження: день %s (вік в ігрових днях: %s)",

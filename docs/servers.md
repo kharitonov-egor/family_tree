@@ -128,6 +128,7 @@ Alice, an operator with the client mod, and Bob, on an unmodded client, look at 
 | Fabric 26.3, Loader 0.19.3, Fabric API 0.165.0 | vanilla 26.3 | LuckPerms 5.5.85 | Passed the node grant and deny checks |
 | NeoForge 1.21.1, 21.1.252 | NeoForge with Family Tree, vanilla 1.21.1 | spark 1.10.124, Lithium 0.15.4, FerriteCore 7.0.3, ModernFix 5.27.27, Chunky 1.4.23, C2ME 0.4.0-alpha.0.124, No Chat Reports 2.9.1, Clumps 19.0.0.1 | Passed. LuckPerms and ServerCore could not run, as described below. |
 | NeoForge 1.21.11, 21.11.48 | NeoForge with Family Tree, vanilla 1.21.11 | LuckPerms 5.5.21, spark 1.10.170 | Passed |
+| NeoForge 26.3, 26.3.0.100 | NeoForge with Family Tree, vanilla 26.3 | LuckPerms 5.5.87 | Passed the node grant and deny checks |
 | Forge 1.20.1, 47.4.28, Java 17 | Forge with Family Tree, vanilla 1.20.1 | LuckPerms 5.4.102, spark 1.10.53, Canary 0.3.3, FerriteCore 6.0.1, ModernFix 5.27.91, Chunky 1.3.146, ServerCore 1.5.2, No Chat Reports 2.2.3, Clumps 12.0.0.4 | Passed |
 
 Every full run on Fabric 1.21.11, NeoForge 1.21.1, and Forge 1.20.1 checked:
@@ -145,7 +146,7 @@ Some checks ran on fewer loaders:
 - After `op`, the operator located and relinked another player's pet by command, on Fabric 1.21.11 and NeoForge 1.21.1.
 - `viewPolicy=EVERYONE_ALL` applied with `/familytree reload` while players were online, on Fabric 1.21.11 and NeoForge 1.21.1. A 60-second scan cooldown applied the same way on Fabric.
 - The linking stick added a wild cow and selected it, on Fabric 1.21.11 and on Forge 1.20.1's item names.
-- LuckPerms on Fabric 1.21.11, NeoForge 1.21.11, and Forge 1.20.1: denying `familytree.menu` and `familytree.parents` for one player, and granting `familytree.prune` and `familytree.others.view` to a player who isn't an operator. Fabric 1.21.11 also denied `familytree.rename` and `familytree.linkingstick`, and Rename and Add parents disappeared from that player's chest menu. NeoForge 1.21.11 refused a rename from the modded screen with `familytree.rename` denied. Fabric 26.3 granted `familytree.prune` and denied `familytree.locate`.
+- LuckPerms on Fabric 1.21.11, NeoForge 1.21.11, and Forge 1.20.1: denying `familytree.menu` and `familytree.parents` for one player, and granting `familytree.prune` and `familytree.others.view` to a player who isn't an operator. Fabric 1.21.11 also denied `familytree.rename` and `familytree.linkingstick`, and Rename and Add parents disappeared from that player's chest menu. NeoForge 1.21.11 refused a rename from the modded screen with `familytree.rename` denied. Fabric 26.3 granted `familytree.prune` and denied `familytree.locate`. NeoForge 26.3 denied `familytree.locate`, `familytree.menu`, and `familytree.rename` and granted `familytree.others.view` and `familytree.prune` to a player who isn't an operator, without a relog; an unset node fell back to the operator default.
 
 ### Known problems with other mods
 

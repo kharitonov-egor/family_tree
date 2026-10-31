@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "공격적",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <이름>|pair <부모A> <부모B> <자식>|unpair <자식>|breed <a> <b>|setage <이름> <일수>|setbirth <이름> <날짜>|prune <deceased|farm|species <id>>|info [이름]>",
   "familytree.command.menu_hint": "%s 키를 눌러 Family Tree를 열거나, /familytree menu를 입력해 상자 메뉴를 여세요.",
+  "familytree.command.key_hint": "%s 키를 눌러 Family Tree를 여세요.",
   "familytree.command.list.header": "기록 중인 동물:",
   "familytree.command.list.more": "...외 %s마리. Family Tree 화면에서 검색하세요.",
   "familytree.command.list.alive": "- %s [%s] - %s일차 출생 (나이: 게임 내 %s일)",

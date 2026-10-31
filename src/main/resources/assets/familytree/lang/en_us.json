@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "Aggressive",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <name>|pair <parentA> <parentB> <child>|unpair <child>|breed <a> <b>|setage <name> <days>|setbirth <name> <day>|prune <deceased|farm|species <id>>|info [name]>",
   "familytree.command.menu_hint": "Press %s to open Family Tree, or use /familytree menu for the chest menu.",
+  "familytree.command.key_hint": "Press %s to open Family Tree.",
   "familytree.command.list.header": "Tracked animals:",
   "familytree.command.list.more": "...and %s more. Open the Family Tree screen to search them.",
   "familytree.command.list.alive": "- %s [%s] - born day %s (%s world-days old)",

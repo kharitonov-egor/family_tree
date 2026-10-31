@@ -149,6 +149,7 @@
   "familytree.variant.panda.aggressive": "攻撃的",
   "familytree.command.usage": "/familytree <menu|list|scan|locate <名前>|pair <親A> <親B> <子>|unpair <子>|breed <a> <b>|setage <名前> <日数>|setbirth <名前> <日>|prune <deceased|farm|species <id>>|info [名前]>",
   "familytree.command.menu_hint": "%sでFamily Treeを開くか、/familytree menuでチェストメニューを開きます。",
+  "familytree.command.key_hint": "%sでFamily Treeを開きます。",
   "familytree.command.list.header": "記録中の動物：",
   "familytree.command.list.more": "...ほか%s匹。Family Treeの画面で検索してください。",
   "familytree.command.list.alive": "- %s [%s] - %s日目生まれ（生後%s日）",
