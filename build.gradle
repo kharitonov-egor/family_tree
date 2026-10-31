@@ -67,6 +67,10 @@ def javaVersion = mcVersion == '1.20.1' ? 17 : obfuscated ? 21 : 25
 
 // Optional integrations. Jade, WTHIT, and Mod Menu are compile-only; JourneyMap compiles against src/stubs.
 // Xaero's Minimap needs no API. -Pintegrations=jade,journeymap adds the listed mods to development runs.
+// fabric-permissions-api stays compile-only. LuckPerms and other permission mods bundle it.
+def permissionsApiVersion = ['1.20.1': '0.3.1', '1.21.1': '0.3.3', '1.21.4': '0.3.3', '1.21.5': '0.3.3', '1.21.8': '0.4.1',
+        '1.21.10': '0.5.0', '1.21.11': '0.6.1'][mcVersion] ?: '0.7.0'
+
 def integrationVersions = [
         '1.20.1' : [jade: '11.13.3+fabric', wthit: 'fabric-8.21.1', badpackets: 'fabric-0.4.3', modmenu: '7.2.2',
                     journeymap: '1.20.1-6.0.7+fabric', xaero: 'fabric-1.20.1-26.6.0'],
@@ -148,6 +152,7 @@ dependencies {
     add(integrationCompile, "maven.modrinth:jade:${integrationVersions.jade}") { transitive = false }
     add(integrationCompile, "com.terraformersmc:modmenu:${integrationVersions.modmenu}") { transitive = false }
     if (integrationVersions.wthit) add(integrationCompile, "maven.modrinth:wthit:${integrationVersions.wthit}") { transitive = false }
+    add(integrationCompile, "me.lucko:fabric-permissions-api:${permissionsApiVersion}") { transitive = false }
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -175,6 +180,9 @@ configurations { integrationMods { transitive = false } }
     else dependencies.add('integrationMods', coordinates)
     if (name == 'wthit' && coordinates != null) dependencies.add('integrationMods', "maven.modrinth:badpackets:${integrationVersions.badpackets}")
 }
+
+// Minecraft 1.21 renamed the entity_types tag folder to entity_type.
+processResources.exclude(mcVersion == '1.20.1' ? 'data/familytree/tags/entity_type/**' : 'data/familytree/tags/entity_types/**')
 
 // WTHIT has no build for every target. Without it, its plugin classes and plugin list stay out of the jar.
 if (!integrationVersions.wthit) {

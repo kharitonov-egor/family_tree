@@ -18,6 +18,7 @@ import com.egakh.familytree.util.DeathMessages;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.TimeUtil;
+import com.egakh.familytree.permissions.FamilyTreePermission;
 import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.network.FamilyTreePackets;
 import com.egakh.familytree.util.PetNames;
@@ -44,16 +45,16 @@ import java.util.List;
 import java.util.Locale;
 
 public final class FamilyTreeCommand {
-    private static final int LIST_LIMIT = 100;
-
     private FamilyTreeCommand() {}
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         LiteralCommandNode<CommandSourceStack> root = dispatcher.register(Commands.literal("familytree")
+                .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.USE))
                 .executes(ctx -> runRoot(ctx.getSource()))
                 .then(Commands.literal("menu").executes(ctx -> runMenu(ctx.getSource())))
                 .then(Commands.literal("list").executes(ctx -> runList(ctx.getSource())))
                 .then(Commands.literal("pair")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.PARENTS))
                         .then(Commands.argument("parent_a", StringArgumentType.string())
                                 .then(Commands.argument("parent_b", StringArgumentType.string())
                                         .then(Commands.argument("child", StringArgumentType.string())
@@ -64,11 +65,13 @@ public final class FamilyTreeCommand {
                                                         StringArgumentType.getString(ctx, "child")
                                                 ))))))
                 .then(Commands.literal("unpair")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.PARENTS))
                         .then(Commands.argument("child", StringArgumentType.string())
                                 .executes(ctx -> runUnpair(
                                         ctx.getSource(),
                                         StringArgumentType.getString(ctx, "child")))))
                 .then(Commands.literal("setage")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.AGE))
                         .then(Commands.argument("name", StringArgumentType.string())
                                 .then(Commands.argument("days", LongArgumentType.longArg(0))
                                         .executes(ctx -> runSetAge(
@@ -76,6 +79,7 @@ public final class FamilyTreeCommand {
                                                 StringArgumentType.getString(ctx, "name"),
                                                 LongArgumentType.getLong(ctx, "days"))))))
                 .then(Commands.literal("setbirth")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.AGE))
                         .then(Commands.argument("name", StringArgumentType.string())
                                 .then(Commands.argument("day", LongArgumentType.longArg(0))
                                         .executes(ctx -> runSetBirthDay(
@@ -83,15 +87,18 @@ public final class FamilyTreeCommand {
                                                 StringArgumentType.getString(ctx, "name"),
                                                 LongArgumentType.getLong(ctx, "day"))))))
                 .then(Commands.literal("locate")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.LOCATE))
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(ctx -> runLocate(
                                         ctx.getSource(),
                                         StringArgumentType.getString(ctx, "name")))))
-                .then(Commands.literal("scan").executes(ctx -> runScan(ctx.getSource())))
+                .then(Commands.literal("scan")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.SCAN))
+                        .executes(ctx -> runScan(ctx.getSource())))
                 .then(Commands.literal("confirmlink").executes(ctx -> LinkingTool.confirm(ctx.getSource())))
                 .then(Commands.literal("cancellink").executes(ctx -> LinkingTool.cancel(ctx.getSource())))
                 .then(Commands.literal("prune")
-                        .requires(ServerPetAccess::operator)
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.PRUNE))
                         .then(Commands.literal("deceased")
                                 .executes(ctx -> runPruneDeceased(ctx.getSource())))
                         .then(Commands.literal("farm")
@@ -102,11 +109,19 @@ public final class FamilyTreeCommand {
                                                 ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "species_id"))))))
                 .then(Commands.literal("breed")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.BREED))
                         .then(Commands.argument("first", StringArgumentType.string())
                                 .then(Commands.argument("second", StringArgumentType.string())
                                         .executes(ctx -> runBreed(ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "first"),
                                                 StringArgumentType.getString(ctx, "second"))))))
+                .then(Commands.literal("reload")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.RELOAD))
+                        .executes(ctx -> SettingsCommands.reload(ctx.getSource())))
+                .then(Commands.literal("settings")
+                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.SETTINGS))
+                        .executes(ctx -> SettingsCommands.show(ctx.getSource(), false))
+                        .then(Commands.literal("all").executes(ctx -> SettingsCommands.show(ctx.getSource(), true))))
                 .then(Commands.literal("info").executes(ctx -> runInfoHelp(ctx.getSource()))
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(ctx -> runInfo(ctx.getSource(),
@@ -117,18 +132,24 @@ public final class FamilyTreeCommand {
                 FamilyTreeMod.LOGGER.warn("Family Tree skipped the command alias /{} because another command uses it", alias);
                 continue;
             }
-            dispatcher.register(Commands.literal(alias).executes(ctx -> runRoot(ctx.getSource())).redirect(root));
+            dispatcher.register(Commands.literal(alias)
+                    .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.USE))
+                    .executes(ctx -> runRoot(ctx.getSource())).redirect(root));
         }
     }
 
     /** Players without the client mod get the chest menu. Players with it are reminded of their key. */
     private static int runRoot(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
-        if (player != null && FamilyTreeServerSettings.vanillaMenu() && !ServerTransport.canSend(player, SnapshotPagePayload.TYPE))
+        boolean clientMod = player != null && ServerTransport.canSend(player, SnapshotPagePayload.TYPE);
+        if (player != null && !clientMod && FamilyTreeServerSettings.vanillaMenu()
+                && ServerPetAccess.allowed(source, FamilyTreePermission.MENU))
             return Menus.open(player);
         ServerText.success(source, () -> Component.translatable("familytree.command.usage"), false);
-        if (player != null) ServerText.success(source, () -> Component.translatable("familytree.command.menu_hint",
+        if (clientMod) ServerText.success(source, () -> Component.translatable("familytree.command.menu_hint",
                 Component.keybind("key.familytree.open_tree")), false);
+        if (ServerPetAccess.allowed(source, FamilyTreePermission.RELOAD) || ServerPetAccess.allowed(source, FamilyTreePermission.SETTINGS))
+            ServerText.success(source, () -> Component.translatable("familytree.command.admin_usage"), false);
         return 1;
     }
 
@@ -140,6 +161,10 @@ public final class FamilyTreeCommand {
         }
         if (!FamilyTreeServerSettings.vanillaMenu()) {
             ServerText.failure(source, Component.translatable("familytree.menu.disabled"));
+            return 0;
+        }
+        if (!ServerPetAccess.allowed(source, FamilyTreePermission.MENU)) {
+            ServerText.failure(source, Component.translatable("familytree.permission.denied", FamilyTreePermission.MENU.node()));
             return 0;
         }
         return Menus.open(player);
@@ -159,12 +184,13 @@ public final class FamilyTreeCommand {
 
         ServerText.success(source, () -> Component.translatable("familytree.command.list.header"), false);
         long currentDay = TimeUtil.currentWorldDay(source.getLevel());
-        for (AnimalRecord r : all.subList(0, Math.min(LIST_LIMIT, all.size()))) {
+        int limit = FamilyTreeServerSettings.current().listLimit();
+        for (AnimalRecord r : all.subList(0, Math.min(limit, all.size()))) {
             Component line = formatLine(r, currentDay);
             ServerText.success(source, () -> line, false);
         }
-        if (all.size() > LIST_LIMIT) ServerText.success(source, () -> Component.translatable("familytree.command.list.more",
-                all.size() - LIST_LIMIT).withStyle(ChatFormatting.GRAY), false);
+        if (all.size() > limit) ServerText.success(source, () -> Component.translatable("familytree.command.list.more",
+                all.size() - limit).withStyle(ChatFormatting.GRAY), false);
         return all.size();
     }
 
@@ -289,7 +315,7 @@ public final class FamilyTreeCommand {
         int by = (int) Math.round(y);
         int bz = (int) Math.round(z);
         MutableComponent coords = Component.literal(bx + ", " + by + ", " + bz);
-        if (ServerPetAccess.operator(source)) {
+        if (FamilyTreeServerSettings.current().locateTeleportLink() && ServerPetAccess.operator(source)) {
             String tp = "/execute in " + dimension + " run tp @s " + bx + " " + by + " " + bz;
             coords = coords.withStyle(s -> s
                     .withColor(ChatFormatting.AQUA)
@@ -497,6 +523,10 @@ public final class FamilyTreeCommand {
     public static int locatePet(CommandSourceStack source, java.util.UUID id) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         AnimalRecord pet = state.get(id);
+        if (!ServerPetAccess.allowed(source, FamilyTreePermission.LOCATE)) {
+            ServerText.failure(source, Component.translatable("familytree.permission.denied", FamilyTreePermission.LOCATE.node()));
+            return 0;
+        }
         if (!ServerPetAccess.canManage(source, pet)) {
             ServerText.failure(source, Component.translatable("familytree.access.denied"));
             return 0;

@@ -3,7 +3,8 @@ package com.egakh.familytree.integration;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.permissions.PetAccess;
-import com.egakh.familytree.settings.FamilyTreeServerSettings;
+import com.egakh.familytree.permissions.FamilyTreePermission;
+import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.util.Genealogy;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -36,8 +37,8 @@ public record PetInsight(AnimalRecord pet, AnimalRecord parentA, AnimalRecord pa
     /** Looks up a pet for this player with the same view rules as the Family Tree browser. */
     public static PetInsight forViewer(ServerPlayer viewer, UUID petId) {
         FamilyTreeState state = FamilyTreeState.get(viewer.level().getServer());
-        if (state.readOnly()) return null;
-        boolean viewAll = FamilyTreeServerSettings.mayViewAll(viewer);
+        if (state.readOnly() || !ServerPetAccess.allowed(viewer, FamilyTreePermission.USE)) return null;
+        boolean viewAll = ServerPetAccess.viewAll(viewer);
         return of(petId, id -> {
             AnimalRecord record = state.get(id);
             return PetAccess.canView(record, viewer.getUUID(), viewAll) ? record : null;

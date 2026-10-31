@@ -10,10 +10,10 @@ import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.naming.PetRenaming;
 import com.egakh.familytree.network.FamilyTreePackets;
 import com.egakh.familytree.network.SnapshotPages;
+import com.egakh.familytree.permissions.FamilyTreePermission;
 import com.egakh.familytree.permissions.ParentLinks;
 import com.egakh.familytree.permissions.PetAccess;
 import com.egakh.familytree.permissions.ServerPetAccess;
-import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.AnimalCategory;
 import com.egakh.familytree.util.DeathMessages;
@@ -70,6 +70,7 @@ final class MenuSession {
     private boolean viewingAll;
     private boolean canViewAll;
     private boolean operator;
+    private boolean mayScan, mayLocate, mayRename, mayEditParents, mayPlan;
     private Filter filter = Filter.ALL;
     private String species;
     private String query = "";
@@ -107,8 +108,13 @@ final class MenuSession {
     }
 
     private void refreshAccess() {
-        canViewAll = FamilyTreeServerSettings.mayViewAll(player);
-        operator = ServerPetAccess.operator(player.createCommandSourceStack());
+        canViewAll = ServerPetAccess.viewAll(player);
+        operator = ServerPetAccess.manageAll(player.createCommandSourceStack());
+        mayScan = ServerPetAccess.allowed(player, FamilyTreePermission.SCAN);
+        mayLocate = ServerPetAccess.allowed(player, FamilyTreePermission.LOCATE);
+        mayRename = ServerPetAccess.allowed(player, FamilyTreePermission.RENAME);
+        mayEditParents = ServerPetAccess.allowed(player, FamilyTreePermission.PARENTS);
+        mayPlan = ServerPetAccess.allowed(player, FamilyTreePermission.BREED);
     }
 
     private boolean viewAll() {
@@ -220,7 +226,7 @@ final class MenuSession {
                     "familytree.menu.help"), null);
             menu.put(RIGHT_CENTER, button(Items.OAK_SIGN, query.isEmpty() ? text("familytree.screen.search")
                     : text("familytree.menu.search.current", query), hint("familytree.menu.search.hint")), this::openSearch);
-            menu.put(RIGHT_INNER, button(Items.COMPASS, text("familytree.discover.button"),
+            if (mayScan) menu.put(RIGHT_INNER, button(Items.COMPASS, text("familytree.discover.button"),
                     hint("familytree.menu.discover.hint")), this::discover);
             menu.put(CLOSE, closeButton(), player::closeContainer);
             menu.fill(MenuItems.filler(), PAGE_SIZE, LockedChestMenu.SIZE);
@@ -251,7 +257,8 @@ final class MenuSession {
 
     private void discover() {
         var server = player.level().getServer();
-        if (!FamilyTreePackets.allowScan(server, player.getUUID())) notice("familytree.command.cooldown");
+        if (!mayScan) notice("familytree.permission.denied", FamilyTreePermission.SCAN.node());
+        else if (!FamilyTreePackets.allowScan(server, player.getUUID())) notice("familytree.command.cooldown");
         else {
             UUID me = player.getUUID();
             boolean all = canViewAll;
@@ -316,7 +323,7 @@ final class MenuSession {
             for (int side = 0; side < 2; side++) {
                 AnimalRecord parent = view(parents[side]);
                 putRelative(menu, parentSlots[side], parent, petId, "familytree.menu.role.parent",
-                        "familytree.menu.parent_unknown", manage);
+                        "familytree.menu.parent_unknown", manage && mayEditParents);
                 for (int i = 0; i < 2; i++) {
                     AnimalRecord grandparent = parent == null ? null : view(i == 0 ? parent.parentA() : parent.parentB());
                     if (parent != null) putRelative(menu, GRANDPARENTS[side][i], grandparent, petId,
@@ -332,20 +339,18 @@ final class MenuSession {
             if (shownPage < pages - 1) menu.put(NEXT, button(Items.ARROW, text("familytree.menu.children.next"),
                     pageLine(shownPage + 2, pages)), () -> { childPage++; showFamily(petId); });
             menu.put(LEFT, button(Items.ARROW, text("familytree.screen.back"), List.of()), this::back);
-            if (manage) {
-                menu.put(LEFT_INNER, button(Items.RECOVERY_COMPASS, text("familytree.locate.button"),
-                        hint("familytree.menu.locate.hint")), () -> locate(petId));
-                menu.put(LEFT_CENTER, button(Items.NAME_TAG, text("familytree.rename.button"),
-                        wrappedLore("familytree.rename.hint")), () -> openRename(petId));
-                menu.put(RIGHT_CENTER, button(Items.LEAD, text("familytree.parents.button"),
-                        wrappedLore("familytree.parents.hint")), () -> { pickerPage = 0; showPicker(petId, null); });
-            }
+            if (manage && mayLocate) menu.put(LEFT_INNER, button(Items.RECOVERY_COMPASS, text("familytree.locate.button"),
+                    hint("familytree.menu.locate.hint")), () -> locate(petId));
+            if (manage && mayRename) menu.put(LEFT_CENTER, button(Items.NAME_TAG, text("familytree.rename.button"),
+                    wrappedLore("familytree.rename.hint")), () -> openRename(petId));
+            if (manage && mayEditParents) menu.put(RIGHT_CENTER, button(Items.LEAD, text("familytree.parents.button"),
+                    wrappedLore("familytree.parents.hint")), () -> { pickerPage = 0; showPicker(petId, null); });
             menu.put(INFO, infoButton(kids.isEmpty() ? text("familytree.menu.children.none")
                     : text("familytree.menu.children.count", kids.size()), kids.size() > CHILD_SLOTS
                     ? pageLine(shownPage + 1, pages) : List.of(), manage ? null : "familytree.menu.view_only"), null);
             menu.put(RIGHT_INNER, button(Items.BOOK, text("familytree.menu.book"), hint("familytree.menu.book.hint")),
                     () -> openBook(petId));
-            if (!mates(pet).isEmpty()) menu.put(PLAN, button(Items.GOLDEN_CARROT, text("familytree.menu.plan"),
+            if (mayPlan && !mates(pet).isEmpty()) menu.put(PLAN, button(Items.GOLDEN_CARROT, text("familytree.menu.plan"),
                     wrappedLore("familytree.menu.plan.hint")), () -> { pickerPage = 0; showMates(petId); });
             menu.put(CLOSE, closeButton(), player::closeContainer);
             menu.fill(MenuItems.filler(), PAGE_SIZE, LockedChestMenu.SIZE);
@@ -387,7 +392,7 @@ final class MenuSession {
 
     private void openRename(UUID petId) {
         AnimalRecord pet = view(petId);
-        if (pet == null || !manageable(pet)) {
+        if (pet == null || !mayRename || !manageable(pet)) {
             notice("familytree.rename.not_allowed");
             showFamily(petId);
             return;
@@ -454,7 +459,7 @@ final class MenuSession {
         refreshAccess();
         AnimalRecord pet = view(petId);
         List<AnimalRecord> candidates = mates(pet);
-        if (pet == null) {
+        if (pet == null || !mayPlan) {
             showBrowser();
             return;
         }
@@ -485,7 +490,7 @@ final class MenuSession {
     /** Kinship uses only animals this player may view, as the screens do. */
     private void openPlan(UUID petId, UUID mateId) {
         AnimalRecord pet = view(petId), mate = view(mateId);
-        if (pet == null || mate == null) {
+        if (pet == null || mate == null || !mayPlan) {
             showBrowser();
             return;
         }
@@ -505,7 +510,7 @@ final class MenuSession {
         refreshAccess();
         AnimalRecord child = view(childId);
         AnimalRecord first = view(firstParent);
-        if (child == null || !manageable(child) || firstParent != null && first == null) {
+        if (child == null || !mayEditParents || !manageable(child) || firstParent != null && first == null) {
             notice("familytree.parents.failed");
             showFamily(childId);
             return;

@@ -6,11 +6,13 @@ import com.egakh.familytree.data.FamilyTreeState;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.naming.PetRenaming;
 import com.egakh.familytree.network.payloads.*;
+import com.egakh.familytree.permissions.FamilyTreePermission;
 import com.egakh.familytree.permissions.ParentLinks;
 import com.egakh.familytree.permissions.PetAccess;
 import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.platform.ServerTransport;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
+import com.egakh.familytree.settings.ServerSettings;
 import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.TimeUtil;
 import net.minecraft.core.BlockPos;
@@ -23,19 +25,34 @@ import net.minecraft.network.chat.Component;
 
 /** Both loaders dispatch these handlers on the server thread. */
 public final class FamilyTreePackets {
-    private static final RequestLimiter<UUID> OPEN = new RequestLimiter<>(500_000_000L, System::nanoTime);
-    private static final RequestLimiter<UUID> DISCOVERY = new RequestLimiter<>(2_000_000_000L, System::nanoTime);
-    private static final RequestLimiter<UUID> LOCATE = new RequestLimiter<>(250_000_000L, System::nanoTime);
-    private static final RequestLimiter<UUID> RENAME = new RequestLimiter<>(250_000_000L, System::nanoTime);
-    private static final RequestLimiter<MinecraftServer> SERVER_SCAN = new RequestLimiter<>(2_000_000_000L, System::nanoTime);
+    private static final RequestLimiter<UUID> OPEN = limiter(cooldowns -> cooldowns.open());
+    private static final RequestLimiter<UUID> DISCOVERY = limiter(cooldowns -> cooldowns.scan());
+    private static final RequestLimiter<UUID> LOCATE = limiter(cooldowns -> cooldowns.locate());
+    private static final RequestLimiter<UUID> RENAME = limiter(cooldowns -> cooldowns.edit());
+    private static final RequestLimiter<MinecraftServer> SERVER_SCAN = limiter(cooldowns -> cooldowns.serverScan());
     private FamilyTreePackets() {}
 
+    private static <K> RequestLimiter<K> limiter(java.util.function.ToIntFunction<ServerSettings.Cooldowns> millis) {
+        return new RequestLimiter<>(() -> millis.applyAsInt(FamilyTreeServerSettings.current().cooldowns()) * 1_000_000L, System::nanoTime);
+    }
+
+    private static boolean denied(ServerPlayer player, FamilyTreePermission permission) {
+        if (ServerPetAccess.allowed(player, permission)) return false;
+        ServerText.send(player, Component.translatable("familytree.permission.denied", permission.node()));
+        return true;
+    }
+
     public static void open(OpenFamilyTreeRequest packet, ServerPlayer player) {
-        if (OPEN.allow(player.getUUID())) sendSnapshot(player, packet.requestId(), packet.requestAll());
+        if (denied(player, FamilyTreePermission.USE)) reject(player, packet.requestId());
+        else if (OPEN.allow(player.getUUID())) sendSnapshot(player, packet.requestId(), packet.requestAll());
         else reject(player, packet.requestId());
     }
 
     public static void discover(DiscoverPetsRequest packet, ServerPlayer player) {
+        if (denied(player, FamilyTreePermission.USE) || denied(player, FamilyTreePermission.SCAN)) {
+            reject(player, packet.requestId());
+            return;
+        }
         if (!allowScan(player.level().getServer(), player.getUUID())) {
             reject(player, packet.requestId());
             return;
@@ -56,7 +73,7 @@ public final class FamilyTreePackets {
         }
         FamilyTreeState state = FamilyTreeState.get(player.level().getServer());
         AnimalRecord pet = state.get(packet.petId());
-        if (!ServerPetAccess.canManage(player.createCommandSourceStack(), pet)) {
+        if (denied(player, FamilyTreePermission.LOCATE) || !ServerPetAccess.canManage(player.createCommandSourceStack(), pet)) {
             ServerTransport.send(player, WaypointResult.failed(packet.requestId(), WaypointResult.Status.NOT_ALLOWED));
             return;
         }
@@ -79,13 +96,18 @@ public final class FamilyTreePackets {
         FamilyTreeState state = FamilyTreeState.get(player.level().getServer());
         if (state.readOnly()) return new RenameOutcome(PetRenaming.Result.READ_ONLY, null);
         AnimalRecord record = state.get(petId);
+        if (!ServerPetAccess.allowed(player, FamilyTreePermission.RENAME)) return new RenameOutcome(PetRenaming.Result.NOT_ALLOWED, record);
         PetRenaming.Result result = PetRenaming.rename(record, player.getUUID(),
-                ServerPetAccess.operator(player.createCommandSourceStack()), name);
+                ServerPetAccess.manageAll(player.createCommandSourceStack()), name);
         if (result == PetRenaming.Result.SUCCESS) state.recordEdited();
         return new RenameOutcome(result, record);
     }
 
     public static void rename(RenamePetRequest packet, ServerPlayer player) {
+        if (denied(player, FamilyTreePermission.RENAME)) {
+            ServerTransport.send(player, new RenamePetResult(packet.requestId(), PetRenaming.Result.NOT_ALLOWED.ordinal(), Optional.empty()));
+            return;
+        }
         RenameOutcome outcome = applyRename(player, packet.petId(), packet.name());
         ServerTransport.send(player, new RenamePetResult(packet.requestId(), outcome.result().ordinal(),
                 outcome.result() == PetRenaming.Result.SUCCESS ? Optional.of(outcome.record()) : Optional.empty()));
@@ -96,14 +118,19 @@ public final class FamilyTreePackets {
         var state = FamilyTreeState.get(player.level().getServer());
         var result = !RENAME.allow(player.getUUID()) ? ParentLinks.Result.BUSY
                 : state.readOnly() ? ParentLinks.Result.READ_ONLY
+                : !ServerPetAccess.allowed(player, FamilyTreePermission.PARENTS) ? ParentLinks.Result.NOT_ALLOWED
                 : ParentLinks.validate(child, parentA, parentB, clear, player.getUUID(),
-                        ServerPetAccess.operator(player.createCommandSourceStack()), state::get);
+                        ServerPetAccess.manageAll(player.createCommandSourceStack()), state::get);
         if (result == ParentLinks.Result.SUCCESS)
             state.update(child, pet -> pet.setParents(clear ? null : parentA, clear ? null : parentB));
         return result;
     }
 
     public static void link(LinkParentsRequest packet, ServerPlayer player) {
+        if (denied(player, FamilyTreePermission.PARENTS)) {
+            ServerTransport.send(player, new LinkParentsResult(packet.requestId(), ParentLinks.Result.NOT_ALLOWED.ordinal()));
+            return;
+        }
         ServerTransport.send(player, new LinkParentsResult(packet.requestId(),
                 applyLink(player, packet.child(), packet.parentA(), packet.parentB(), packet.clear()).ordinal()));
     }
@@ -124,9 +151,9 @@ public final class FamilyTreePackets {
             reject(player, requestId);
             return;
         }
-        boolean mayViewAll = FamilyTreeServerSettings.mayViewAll(player);
+        boolean mayViewAll = ServerPetAccess.viewAll(player);
         boolean viewingAll = mayViewAll && requestAll;
-        boolean operator = ServerPetAccess.operator(player.createCommandSourceStack());
+        boolean operator = ServerPetAccess.manageAll(player.createCommandSourceStack());
         List<AnimalRecord> visible = state.all().stream()
                 .filter(record -> PetAccess.canView(record, player.getUUID(), viewingAll))
                 .sorted(java.util.Comparator.comparing(AnimalRecord::id))

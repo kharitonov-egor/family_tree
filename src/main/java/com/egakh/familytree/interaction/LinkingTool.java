@@ -6,6 +6,7 @@ import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.util.PetFilter;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.PetRelations;
+import com.egakh.familytree.permissions.FamilyTreePermission;
 import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import net.minecraft.ChatFormatting;
@@ -38,9 +39,13 @@ import java.util.stream.Collectors;
 
 public final class LinkingTool {
 
-    private static final String TOOL_NAME = "familytree";
-    private static final long EXPIRE_MILLIS = 2 * 60 * 1000L;
     private static final Map<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
+    private static final Map<UUID, LastUse> LAST_USE = new ConcurrentHashMap<>();
+
+    /**
+     * A client without Family Tree sends two interaction packets for one click, and Fabric's callback sees both.
+     */
+    private record LastUse(UUID entity, long tick) {}
 
     private LinkingTool() {}
 
@@ -54,8 +59,14 @@ public final class LinkingTool {
             return InteractionResult.PASS;
         }
 
+        LastUse use = new LastUse(entity.getUUID(), level.getGameTime());
+        if (use.equals(LAST_USE.put(sp.getUUID(), use))) return InteractionResult.SUCCESS_SERVER;
         FamilyTreeState state = FamilyTreeState.get(level);
         if (state.readOnly()) return InteractionResult.SUCCESS_SERVER;
+        if (!ServerPetAccess.allowed(sp, FamilyTreePermission.LINKING_STICK)) {
+            ServerText.send(sp, Component.translatable("familytree.permission.denied", FamilyTreePermission.LINKING_STICK.node()));
+            return InteractionResult.SUCCESS_SERVER;
+        }
         if (!PetFilter.isTrackable(entity) && !state.contains(entity.getUUID())) {
             if (PetFilter.isTameableSpecies(entity)) {
                 ServerText.send(sp, Component.translatable(PetFilter.isUnclaimedMount(entity)
@@ -81,6 +92,10 @@ public final class LinkingTool {
             ServerText.send(sp, Component.translatable("familytree.access.denied"));
             return InteractionResult.SUCCESS_SERVER;
         }
+        if (!ServerPetAccess.allowed(sp, FamilyTreePermission.PARENTS)) {
+            ServerText.send(sp, Component.translatable("familytree.permission.denied", FamilyTreePermission.PARENTS.node()));
+            return InteractionResult.SUCCESS_SERVER;
+        }
 
         if (entity instanceof LivingEntity living) {
             living.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, false, false));
@@ -95,13 +110,13 @@ public final class LinkingTool {
     }
 
     private static boolean isLinkingTool(ItemStack stack) {
-        if (!stack.is(Items.STICK)) return false;
+        if (!FamilyTreeServerSettings.current().linkingStick() || !stack.is(Items.STICK)) return false;
         //? if >=1.21 {
         Component customName = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
         //?} else {
         /*Component customName = stack.hasCustomHoverName() ? stack.getHoverName() : null;
         *///?}
-        return customName != null && customName.getString().trim().equalsIgnoreCase(TOOL_NAME);
+        return customName != null && customName.getString().trim().equalsIgnoreCase(FamilyTreeServerSettings.current().linkingStickName().trim());
     }
 
     private static void advanceSelection(ServerPlayer player, FamilyTreeState state, AnimalRecord record) {
@@ -219,6 +234,10 @@ public final class LinkingTool {
 
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         if (state.readOnly()) return 0;
+        if (!ServerPetAccess.allowed(source, FamilyTreePermission.PARENTS)) {
+            ServerText.failure(source, Component.translatable("familytree.permission.denied", FamilyTreePermission.PARENTS.node()));
+            return 0;
+        }
         if (session.pending == Mode.UNLINK) {
             AnimalRecord target = state.get(session.unlinkTarget);
             if (!ServerPetAccess.canManage(source, target)) {
@@ -279,8 +298,8 @@ public final class LinkingTool {
     }
 
     private enum Mode { NONE, LINK, UNLINK }
-    public static void disconnect(UUID player) { SESSIONS.remove(player); }
-    public static void stop() { SESSIONS.clear(); }
+    public static void disconnect(UUID player) { SESSIONS.remove(player); LAST_USE.remove(player); }
+    public static void stop() { SESSIONS.clear(); LAST_USE.clear(); }
 
     private static final class Session {
         final List<UUID> pets = new ArrayList<>();
@@ -289,7 +308,7 @@ public final class LinkingTool {
         long lastTouchedMillis = System.currentTimeMillis();
 
         boolean expired(long now) {
-            return now - lastTouchedMillis > EXPIRE_MILLIS;
+            return now - lastTouchedMillis > FamilyTreeServerSettings.current().linkingSelectionSeconds() * 1000L;
         }
     }
 }
