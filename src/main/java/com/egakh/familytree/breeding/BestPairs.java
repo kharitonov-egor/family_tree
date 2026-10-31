@@ -61,6 +61,22 @@ public final class BestPairs {
         return individual(pet, options.rank(), options.herd()) != null;
     }
 
+    /** The herd's ranks that can score at least one pair. Every saved stat is optional, so a herd may lack some. */
+    public static List<Rank> rankable(List<AnimalRecord> animals, Options options) {
+        List<Rank> ranks = new ArrayList<>();
+        for (Rank rank : options.herd().ranks()) {
+            Options ranked = new Options(options.herd(), rank, options.relatives(), options.owners(), options.viewer());
+            long members = 0, horses = 0;
+            for (AnimalRecord pet : animals) {
+                if (!usable(pet, ranked)) continue;
+                members++;
+                if (BreedingPair.HORSE.equals(pet.speciesId())) horses++;
+            }
+            if (options.herd() == Herd.MULE ? horses > 0 && members > horses : members >= 2) ranks.add(rank);
+        }
+        return ranks;
+    }
+
     public static Outcome rank(List<AnimalRecord> animals, Options options, Kinship kinship, int limit) {
         List<AnimalRecord> candidates = new ArrayList<>();
         for (AnimalRecord pet : animals) if (usable(pet, options)) candidates.add(pet);

@@ -59,25 +59,25 @@ public final class BestPairsScreen extends FamilyTreeScreen {
         FoalCheck foals = new FoalCheck(minecraft, snapshot.currentWorldDay());
         adults = snapshot.records().stream().filter(pet -> !pet.deceased() && !foals.mayBeFoal(pet)).toList();
         herds.clear();
-        for (Herd candidate : Herd.values()) if (pairsPossible(candidate)) herds.add(candidate);
+        for (Herd candidate : Herd.values()) if (!BestPairs.rankable(adults, options(candidate, rank)).isEmpty()) herds.add(candidate);
         if (!herds.contains(herd)) herd = herds.isEmpty() ? null : herds.get(0);
-        if (herd != null && !herd.ranks().contains(rank)) rank = Rank.OVERALL;
+        List<Rank> ranks = herd == null ? List.of() : BestPairs.rankable(adults, options(herd, rank));
+        if (!ranks.isEmpty() && !ranks.contains(rank)) rank = ranks.get(0);
         int rowWidth = Math.min(width - 16, 440), x = (width - rowWidth) / 2, half = (rowWidth - 4) / 2;
         addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"), button -> onClose())
                 .bounds(8, 8, 60, 18).build());
+        List<String> foal = herd == null ? List.of() : List.of(herd.foalSpecies);
         Button herdButton = addRenderableWidget(Button.builder(Component.translatable("familytree.best.herd",
-                herd == null ? Component.literal("?") : PlanText.speciesName(herd.foalSpecies)), button -> {
+                PlanText.baby(foal), PlanText.foal(foal)), button -> {
             herd = herds.get((herds.indexOf(herd) + 1) % herds.size());
-            if (!herd.ranks().contains(rank)) rank = Rank.OVERALL;
             reopen();
         }).bounds(x, 32, half, 18).build());
         herdButton.active = herds.size() > 1;
         Button rankButton = addRenderableWidget(Button.builder(Component.translatable("familytree.best.rank", rankName(rank)), button -> {
-            List<Rank> ranks = herd.ranks();
             rank = ranks.get((ranks.indexOf(rank) + 1) % ranks.size());
             reopen();
         }).bounds(x + half + 4, 32, rowWidth - half - 4, 18).build());
-        rankButton.active = herd != null;
+        rankButton.active = ranks.size() > 1;
         rankButton.setTooltip(Tooltip.create(Component.translatable("familytree.best.rank.hint")));
         Button relativesButton = addRenderableWidget(Button.builder(Component.translatable(
                 "familytree.best.relatives." + relatives.name().toLowerCase(Locale.ROOT)), button -> {
@@ -98,13 +98,6 @@ public final class BestPairsScreen extends FamilyTreeScreen {
         scroll = 0;
         clearWidgets();
         init();
-    }
-
-    private boolean pairsPossible(Herd candidate) {
-        long horses = adults.stream().filter(pet -> BestPairs.usable(pet, options(candidate, Rank.OVERALL))
-                && pet.speciesId().equals(com.egakh.familytree.breeding.BreedingPair.HORSE)).count();
-        long members = adults.stream().filter(pet -> BestPairs.usable(pet, options(candidate, Rank.OVERALL))).count();
-        return candidate == Herd.MULE ? horses > 0 && members - horses > 0 : members >= 2;
     }
 
     private BestPairs.Options options(Herd candidate, Rank chosen) {

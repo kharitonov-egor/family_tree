@@ -15,6 +15,9 @@ public final class BreedingPair {
             "minecraft:parrot", "minecraft:camel_husk", "minecraft:zombie_nautilus");
     /** {@code setOffspringAttributes} runs for these foals; camels get the fixed camel attributes instead. */
     private static final Set<String> INHERITS_STATS = Set.of(HORSE, DONKEY, MULE, LLAMA, TRADER_LLAMA);
+    private static final Set<String> NAMED_BABIES = Set.of("horse", "donkey", "mule", "llama", "trader_llama", "camel", "cow",
+            "mooshroom", "sheep", "pig", "chicken", "rabbit", "goat", "wolf", "cat", "ocelot", "fox", "panda", "armadillo",
+            "turtle", "frog", "sniffer", "hoglin");
 
     private BreedingPair() {}
 
@@ -36,6 +39,13 @@ public final class BreedingPair {
         if (pair(a, b, HORSE, DONKEY)) return List.of(MULE);
         if (pair(a, b, LLAMA, TRADER_LLAMA)) return List.of(LLAMA, TRADER_LLAMA);
         return List.of(a);
+    }
+
+    /** The translation key of the word for a baby of the first species, such as lamb or calf, or a neutral word. */
+    public static String babyKey(List<String> foalSpecies) {
+        String species = foalSpecies.isEmpty() ? "" : foalSpecies.get(0);
+        String path = species.startsWith("minecraft:") ? species.substring("minecraft:".length()) : "";
+        return "familytree.baby." + (NAMED_BABIES.contains(path) ? path : "other");
     }
 
     public static boolean inheritsStats(String foalSpecies) {

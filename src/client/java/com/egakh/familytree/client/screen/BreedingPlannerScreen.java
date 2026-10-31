@@ -14,6 +14,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.ArrayList;
@@ -138,17 +139,17 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
             return;
         }
         if (!plan.canBreed) paragraph(Component.translatable("familytree.planner.cannot_breed", PetNames.isolate(first.name()), PetNames.isolate(second.name())), ERROR);
-        else paragraph(Component.translatable("familytree.planner.foal", PlanText.foal(plan.foalSpecies)), TEXT);
+        else paragraph(Component.translatable("familytree.planner.foal", PlanText.baby(plan.foalSpecies), PlanText.foal(plan.foalSpecies)), TEXT);
         for (AnimalRecord pet : List.of(first, second))
             if (foals.mayBeFoal(pet)) paragraph(Component.translatable("familytree.planner.maybe_foal", PetNames.isolate(pet.name())), WARNING);
         paragraph(KinshipText.describe(plan.relation, PetNames.isolate(first.name()), PetNames.isolate(second.name())), TEXT);
         if (plan.canBreed) {
-            paragraph(KinshipText.inbreeding(plan.inbreeding), TEXT);
+            paragraph(KinshipText.inbreeding(PlanText.baby(plan.foalSpecies), plan.inbreeding), TEXT);
             paragraph(Component.translatable("familytree.planner.inbreeding.note"), MUTED);
         }
         gap();
         if (!plan.stats.isEmpty()) {
-            heading(Component.translatable("familytree.planner.stats"));
+            heading(Component.translatable("familytree.planner.stats", PlanText.baby(plan.foalSpecies)));
             statTable(plan.stats);
             paragraph(Component.translatable("familytree.planner.stats.hint"), MUTED);
             gap();
@@ -158,7 +159,7 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
         VariantOdds.Result variants = plan.variants;
         if (!variants.groups().isEmpty() || variants.note() != VariantOdds.Note.NONE) {
             heading(Component.translatable("familytree.planner.variants"));
-            for (VariantOdds.Group group : variants.groups()) paragraph(PlanText.group(plan.foalSpecies.get(0), group), TEXT);
+            for (VariantOdds.Group group : variants.groups()) odds(plan.foalSpecies.get(0), group);
             Component note = PlanText.note(variants.note());
             if (note != null) paragraph(note, MUTED);
         }
@@ -183,6 +184,40 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
             public int height() { return lines.size() * lineHeight; }
             public void draw(GuiGraphicsExtractor gfx, int x, int y, int width) {
                 for (int i = 0; i < lines.size(); i++) gfx.text(font, lines.get(i), x, y + i * lineHeight, color);
+            }
+        });
+    }
+
+    /** A variant group as "Coat: " and its entries, wrapped only between entries. */
+    private void odds(String species, VariantOdds.Group group) {
+        List<MutableComponent> entries = PlanText.entries(species, group);
+        if (entries.isEmpty()) return;
+        int[] widths = new int[entries.size()];
+        List<MutableComponent> pieces = new ArrayList<>();
+        for (int i = 0; i < entries.size(); i++) {
+            MutableComponent piece = i == 0 ? Component.translatable("familytree.plan.variant", PlanText.title(group.kind()), "").append(entries.get(i))
+                    : entries.get(i).copy();
+            if (i < entries.size() - 1) piece.append(",");
+            pieces.add(piece);
+            widths[i] = font.width(piece);
+        }
+        int maxWidth = Math.max(40, contentWidth());
+        List<Integer> starts = EntryWrap.lineStarts(widths, font.width(" "), maxWidth);
+        List<FormattedCharSequence> lines = new ArrayList<>();
+        for (int s = 0; s < starts.size(); s++) {
+            int end = s + 1 < starts.size() ? starts.get(s + 1) : pieces.size();
+            MutableComponent line = Component.empty();
+            for (int i = starts.get(s); i < end; i++) {
+                if (i > starts.get(s)) line.append(" ");
+                line.append(pieces.get(i));
+            }
+            lines.addAll(font.split(line, maxWidth));
+        }
+        int lineHeight = font.lineHeight + 2;
+        blocks.add(new Block() {
+            public int height() { return lines.size() * lineHeight; }
+            public void draw(GuiGraphicsExtractor gfx, int x, int y, int width) {
+                for (int i = 0; i < lines.size(); i++) gfx.text(font, lines.get(i), x, y + i * lineHeight, TEXT);
             }
         });
     }

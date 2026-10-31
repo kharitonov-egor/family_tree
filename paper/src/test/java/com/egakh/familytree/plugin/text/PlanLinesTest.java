@@ -35,6 +35,18 @@ class PlanLinesTest {
         assertTrue(plain.stream().filter(line -> line.startsWith("  ")).count() >= 3, "muted lines are indented");
     }
 
+    @Test void callsTheBabyALambForSheep() {
+        UUID ewe = new UUID(0, 5), ram = new UUID(0, 6);
+        Map<UUID, AnimalRecord> all = Map.of(
+                ewe, new AnimalRecord(ewe, "minecraft:sheep", "Ewe", false, null, null, 1, 2, false, null, null, null, null, "white", null, null),
+                ram, new AnimalRecord(ram, "minecraft:sheep", "Ram", false, null, null, 1, 2, false, null, null, null, null, "black", null, null));
+        List<String> plain = PlanLines.chat("en_us", new BreedingPlan(all.get(ewe), all.get(ram), new Kinship(all))).stream()
+                .map(line -> line.plain(VanillaLang::english)).toList();
+        assertTrue(plain.contains("Lamb: Sheep"), plain.toString());
+        assertTrue(plain.contains("Lamb's inbreeding coefficient: 0%"), plain.toString());
+        assertTrue(plain.stream().noneMatch(line -> line.toLowerCase(java.util.Locale.ROOT).contains("foal")), plain.toString());
+    }
+
     @Test void percentagesKeepThreeSignificantDigits() {
         assertEquals("12.5%", PlanLines.percent(0.125));
         assertEquals("0.0833%", PlanLines.percent(1 / 1200.0));

@@ -55,8 +55,8 @@ public final class KinshipText {
                 : Component.translatable("familytree.kin.removed.n", kind, removed);
     }
 
-    public static MutableComponent inbreeding(double coefficient) {
-        return Component.translatable("familytree.planner.inbreeding", percent(coefficient));
+    public static MutableComponent inbreeding(Component baby, double coefficient) {
+        return Component.translatable("familytree.planner.inbreeding", baby, percent(coefficient));
     }
 
     /** Percentages keep three significant digits, so 1/8 reads 12.5% and 1/1,200 reads 0.0833%. */

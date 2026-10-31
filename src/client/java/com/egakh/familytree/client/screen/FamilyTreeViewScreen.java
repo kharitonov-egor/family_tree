@@ -15,6 +15,7 @@ import com.egakh.familytree.client.FamilyTreeClient;
 import com.egakh.familytree.client.platform.ClientTransport;
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.breeding.BreedingPair;
+import com.egakh.familytree.breeding.PlanText;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.util.KinshipText;
@@ -209,7 +210,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         List<Component> hints = new ArrayList<>();
         text.add(KinshipText.describe(kinship.relation(a.id(), b.id()), PetNames.isolate(a.name()), PetNames.isolate(b.name())));
         if (BreedingPair.canBreed(a.speciesId(), b.speciesId())) {
-            text.add(KinshipText.inbreeding(kinship.foalInbreeding(a.id(), b.id())));
+            text.add(KinshipText.inbreeding(PlanText.baby(BreedingPair.foalSpecies(a.speciesId(), b.speciesId())),
+                    kinship.foalInbreeding(a.id(), b.id())));
             if (!a.deceased() && !b.deceased()) hints.add(Component.translatable("familytree.kin.plan_hint"));
         }
         hints.add(Component.translatable("familytree.kin.compare_hint"));
