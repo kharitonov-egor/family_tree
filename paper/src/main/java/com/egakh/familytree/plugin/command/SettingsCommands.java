@@ -31,19 +31,16 @@ final class SettingsCommands {
             plugin.chat().fail(sender, "familytree.reload.read_failed", FILE);
             return;
         }
-        List<SettingProblem> shown = new ArrayList<>(problems);
         plugin.command().registerAliases(plugin.settings().commandAliases());
         plugin.bridge().update();
-        if (plugin.command().aliasesChangedSinceStartup())
-            shown.add(new SettingProblem("commandAliases", "familytree.config.restart", "commandAliases"));
         plugin.chat().send(sender, "familytree.reload.done", FILE);
-        if (shown.isEmpty()) plugin.chat().send(sender, plugin.chat().tr(sender, "familytree.reload.no_problems").color(Text.Color.GREEN));
-        else {
-            plugin.chat().send(sender, plugin.chat().tr(sender, "familytree.reload.problems", shown.size()).color(Text.Color.GOLD));
-            for (SettingProblem problem : shown)
-                plugin.chat().send(sender, Text.literal("- ").append(plugin.chat().tr(sender, problem.message(), problem.arguments()))
-                        .color(Text.Color.YELLOW));
-        }
+        plugin.chat().send(sender, plugin.chat().tr(sender, SettingProblem.summaryKey(problems.size()), problems.size())
+                .color(problems.isEmpty() ? Text.Color.GREEN : Text.Color.GOLD));
+        for (SettingProblem problem : problems)
+            plugin.chat().send(sender, Text.literal("- ").append(plugin.chat().tr(sender, problem.message(), problem.arguments()))
+                    .color(Text.Color.YELLOW));
+        if (plugin.command().aliasesChangedSinceStartup())
+            plugin.chat().send(sender, plugin.chat().tr(sender, "familytree.config.restart", "commandAliases").color(Text.Color.GRAY));
         for (Player player : Bukkit.getOnlinePlayers()) player.updateCommands();
     }
 

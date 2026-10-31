@@ -21,7 +21,7 @@ Family Tree checks these nodes through fabric-permissions-api on Fabric and thro
 | `familytree.use` | everyone | `/familytree`, `list`, `info`, the Family Tree screens, and Jade and WTHIT tooltips |
 | `familytree.menu` | everyone | The chest menu: `/familytree` without the client mod, and `/familytree menu` |
 | `familytree.scan` | everyone | `/familytree scan`, and **Find existing pets** in the screens and the chest menu |
-| `familytree.locate` | everyone, or operators with `ownersCanLocate=false` | `/familytree locate`, **Locate pet**, map waypoints |
+| `familytree.locate` | everyone, or operators with `ownersCanLocate=false` | `/familytree locate`, **Locate pet**, map waypoints, and the last known positions the screens receive |
 | `familytree.rename` | everyone, or operators with `ownersCanRename=false` | Tree names from the screens and the chest menu |
 | `familytree.parents` | everyone, or operators with `ownersCanEditParents=false` | `pair`, `unpair`, **Add parents**, and confirming links with the linking stick |
 | `familytree.age` | everyone, or operators with `ownersCanSetAge=false` | `setage`, `setbirth` |
@@ -34,7 +34,7 @@ Family Tree checks these nodes through fabric-permissions-api on Fabric and thro
 | `familytree.reload` | operators | `/familytree reload` |
 | `familytree.settings` | operators | `/familytree settings` |
 
-A player who owns a pet needs only the action's node to act on it. Acting on someone else's pet needs the action's node and `familytree.others.manage`. Browsing never grants editing or coordinates. Commands a player's nodes deny disappear from their tab completion; `/familytree reload` resends the command list to everyone online.
+A player who owns a pet needs only the action's node to act on it. Acting on someone else's pet needs the action's node and `familytree.others.manage`. Browsing never grants editing or coordinates. A player whose nodes deny a subcommand still sees it in tab completion, and running it names the missing node. Two exceptions hide commands instead: denying `familytree.use` removes `/familytree` from the player's commands, and denying `familytree.prune` removes `prune`. `/familytree reload` resends the command list to everyone online. The usage line `/familytree` prints lists only the subcommands the player may run.
 
 With LuckPerms, for example:
 
@@ -71,13 +71,13 @@ When a value can't be used, Family Tree uses the default, or the nearest allowed
 | `openCooldownMillis` | `500` | 0 to 60000 | Per player: opening the screens or chest menu |
 | `scanCooldownMillis` | `2000` | 0 to 60000 | Per player: `/familytree scan` and **Find existing pets** |
 | `serverScanCooldownMillis` | `2000` | 0 to 60000 | Shared by all players: time between any two scans |
-| `locateCooldownMillis` | `250` | 0 to 60000 | Per player: Locate and waypoints |
-| `editCooldownMillis` | `250` | 0 to 60000 | Per player: renames and parent edits |
+| `locateCooldownMillis` | `250` | 0 to 60000 | Per player: `/familytree locate`, **Locate pet**, and waypoints |
+| `editCooldownMillis` | `250` | 0 to 60000 | Per player: renames, parent and age edits by command or screen, and confirming the linking stick |
 | `relativesCooldownMillis` | `200` | 0 to 60000 | Per player: the relatives key and **Show relatives nearby** |
 | `linkingStick` | `true` | `true`, `false` | `false` turns the linking stick off |
 | `linkingStickName` | `familytree` | 1 to 50 characters | The anvil name that makes a stick the linking stick, ignoring case |
 | `linkingSelectionSeconds` | `120` | 10 to 3600 | How long the linking stick keeps a selection |
-| `serverLanguage` | `auto` | `auto` or a language code | `auto` uses each player's language for chat and chest menus. A code such as `en_us` uses one language for everyone. |
+| `serverLanguage` | `auto` | `auto` or a language code | `auto` uses each player's language for chat and chest menus. A code such as `en_us` uses one language for everyone, with or without the client mod. Minecraft's own words, such as species names and death messages, stay in each player's language, and the client mod's screens follow the player's language. |
 | `farmLimitMessage` | `true` | `true`, `false` | Whether a breeder hears once when `farmRecordLimit` stops recording |
 | `locateTeleportLink` | `true` | `true`, `false` | Whether operators can click Locate's coordinates to fill in a teleport command |
 | `discoverPetsOnLoad` | `true` | `true`, `false` | Whether tamed pets missing from the history join it when their chunk loads |
@@ -89,7 +89,7 @@ When a value can't be used, Family Tree uses the default, or the nearest allowed
 | `farmRecordLimit` | `5000` | 0 to 50000 | Unnamed animals other than pets the history keeps |
 | `autoPruneFarmRecords` | `false` | `true`, `false` | Back up, then delete the oldest deceased unnamed animals other than pets at the limit |
 
-Every cooldown accepts 0, which turns it off. The server-wide scan cooldown protects busy servers, so keep it unless scans are rare.
+Locate and edit commands from the console or a command block have no cooldown. Every cooldown accepts 0, which turns it off. The server-wide scan cooldown protects busy servers, so keep it unless scans are rare.
 
 ## Datapack tags
 
@@ -128,6 +128,7 @@ Alice, an operator with the client mod, and Bob, on an unmodded client, look at 
 | Fabric 26.3, Loader 0.19.3, Fabric API 0.165.0 | vanilla 26.3 | LuckPerms 5.5.85 | Passed the node grant and deny checks |
 | NeoForge 1.21.1, 21.1.252 | NeoForge with Family Tree, vanilla 1.21.1 | spark 1.10.124, Lithium 0.15.4, FerriteCore 7.0.3, ModernFix 5.27.27, Chunky 1.4.23, C2ME 0.4.0-alpha.0.124, No Chat Reports 2.9.1, Clumps 19.0.0.1 | Passed. LuckPerms and ServerCore could not run, as described below. |
 | NeoForge 1.21.11, 21.11.48 | NeoForge with Family Tree, vanilla 1.21.11 | LuckPerms 5.5.21, spark 1.10.170 | Passed |
+| NeoForge 26.3, 26.3.0.100 | NeoForge with Family Tree, vanilla 26.3 | LuckPerms 5.5.87 | Passed the node grant and deny checks |
 | Forge 1.20.1, 47.4.28, Java 17 | Forge with Family Tree, vanilla 1.20.1 | LuckPerms 5.4.102, spark 1.10.53, Canary 0.3.3, FerriteCore 6.0.1, ModernFix 5.27.91, Chunky 1.3.146, ServerCore 1.5.2, No Chat Reports 2.2.3, Clumps 12.0.0.4 | Passed |
 
 Every full run on Fabric 1.21.11, NeoForge 1.21.1, and Forge 1.20.1 checked:
@@ -145,7 +146,7 @@ Some checks ran on fewer loaders:
 - After `op`, the operator located and relinked another player's pet by command, on Fabric 1.21.11 and NeoForge 1.21.1.
 - `viewPolicy=EVERYONE_ALL` applied with `/familytree reload` while players were online, on Fabric 1.21.11 and NeoForge 1.21.1. A 60-second scan cooldown applied the same way on Fabric.
 - The linking stick added a wild cow and selected it, on Fabric 1.21.11 and on Forge 1.20.1's item names.
-- LuckPerms on Fabric 1.21.11, NeoForge 1.21.11, and Forge 1.20.1: denying `familytree.menu` and `familytree.parents` for one player, and granting `familytree.prune` and `familytree.others.view` to a player who isn't an operator. Fabric 1.21.11 also denied `familytree.rename` and `familytree.linkingstick`, and Rename and Add parents disappeared from that player's chest menu. NeoForge 1.21.11 refused a rename from the modded screen with `familytree.rename` denied. Fabric 26.3 granted `familytree.prune` and denied `familytree.locate`.
+- LuckPerms on Fabric 1.21.11, NeoForge 1.21.11, and Forge 1.20.1: denying `familytree.menu` and `familytree.parents` for one player, and granting `familytree.prune` and `familytree.others.view` to a player who isn't an operator. Fabric 1.21.11 also denied `familytree.rename` and `familytree.linkingstick`, and Rename and Add parents disappeared from that player's chest menu. NeoForge 1.21.11 refused a rename from the modded screen with `familytree.rename` denied. Fabric 26.3 granted `familytree.prune` and denied `familytree.locate`. NeoForge 26.3 denied `familytree.locate`, `familytree.menu`, and `familytree.rename` and granted `familytree.others.view` and `familytree.prune` to a player who isn't an operator, without a relog; an unset node fell back to the operator default.
 
 ### Known problems with other mods
 

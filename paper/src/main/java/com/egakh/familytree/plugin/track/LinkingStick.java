@@ -210,6 +210,11 @@ public final class LinkingStick implements Listener {
             chat().fail(sender, "familytree.permission.denied", FamilyTreePermission.PARENTS.node());
             return false;
         }
+        if (!plugin.cooldowns().edit(player.getUniqueId())) {
+            sessions.put(player.getUniqueId(), session);
+            chat().fail(sender, "familytree.command.cooldown");
+            return false;
+        }
         if (session.pending == Mode.UNLINK) {
             AnimalRecord target = state.get(session.unlinkTarget);
             if (!plugin.access().canManage(sender, target)) {

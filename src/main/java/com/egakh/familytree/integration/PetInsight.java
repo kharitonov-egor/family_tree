@@ -64,7 +64,7 @@ public record PetInsight(AnimalRecord pet, AnimalRecord parentA, AnimalRecord pa
     }
 
     private static AnimalRecord withoutPosition(AnimalRecord record) {
-        return record == null ? null : PetAccess.forViewer(record, null, false);
+        return record == null ? null : PetAccess.forViewer(record, null, false, false);
     }
 
     private static Map<UUID, AnimalRecord> lineage(AnimalRecord pet, Function<UUID, AnimalRecord> visible) {

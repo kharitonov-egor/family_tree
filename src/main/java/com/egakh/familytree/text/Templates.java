@@ -1,4 +1,4 @@
-package com.egakh.familytree.plugin.text;
+package com.egakh.familytree.text;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,13 +6,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Minecraft's translation format: {@code %s} takes the next argument, {@code %2$s} a numbered one, {@code %%} is a percent sign. */
-final class Templates {
+public final class Templates {
     private static final Pattern FORMAT = Pattern.compile("%(?:(\\d+)\\$)?([A-Za-z%]|$)");
 
     private Templates() {}
 
     /** Splits a template into strings and the arguments placed between them. A malformed template stays literal. */
-    static List<Object> split(String template, List<?> args) {
+    public static List<Object> split(String template, List<?> args) {
         List<Object> parts = new ArrayList<>();
         Matcher matcher = FORMAT.matcher(template);
         int next = 0;

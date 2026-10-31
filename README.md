@@ -98,7 +98,7 @@ Menu text and chat messages follow each player's Minecraft language when Family 
 
 - `vanillaMenu=false` turns the chest menu off. `/familytree` then prints the command list.
 - `commandAliases=pets,ft` adds `/pets` and `/ft` as other names for `/familytree` after `/reload` or a restart. Family Tree skips an alias that another command already uses and logs a warning.
-- `serverLanguage=en_us` answers every player in one language instead of their own.
+- `serverLanguage=en_us` answers every player in one language instead of their own, including players with the client mod. Minecraft's own words, such as species names, stay in each player's language.
 
 ## Horse breeding stats
 

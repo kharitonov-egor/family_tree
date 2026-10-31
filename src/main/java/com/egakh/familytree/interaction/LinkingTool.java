@@ -6,6 +6,7 @@ import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.util.PetFilter;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.PetRelations;
+import com.egakh.familytree.network.FamilyTreePackets;
 import com.egakh.familytree.permissions.FamilyTreePermission;
 import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
@@ -236,6 +237,11 @@ public final class LinkingTool {
         if (state.readOnly()) return 0;
         if (!ServerPetAccess.allowed(source, FamilyTreePermission.PARENTS)) {
             ServerText.failure(source, Component.translatable("familytree.permission.denied", FamilyTreePermission.PARENTS.node()));
+            return 0;
+        }
+        if (!FamilyTreePackets.allowEdit(player)) {
+            SESSIONS.put(player.getUUID(), session);
+            ServerText.failure(source, Component.translatable("familytree.command.cooldown"));
             return 0;
         }
         if (session.pending == Mode.UNLINK) {

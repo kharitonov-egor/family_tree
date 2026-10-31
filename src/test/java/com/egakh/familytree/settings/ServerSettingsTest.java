@@ -176,4 +176,11 @@ class ServerSettingsTest {
         assertEquals("Árbol : genealógico #1", settings.linkingStickName());
         assertEquals(settings, ServerSettings.parse(load(rewrite(text))).settings());
     }
+
+    @Test
+    void reloadCountsOnlyProblemsAndSaysOneProblemInTheSingular() {
+        assertEquals("familytree.reload.no_problems", SettingProblem.summaryKey(0));
+        assertEquals("familytree.reload.one_problem", SettingProblem.summaryKey(1));
+        assertEquals("familytree.reload.problems", SettingProblem.summaryKey(2));
+    }
 }

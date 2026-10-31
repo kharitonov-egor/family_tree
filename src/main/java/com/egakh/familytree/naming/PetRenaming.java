@@ -8,8 +8,17 @@ import java.util.UUID;
 public final class PetRenaming {
     public static final int MAX_NAME_LENGTH = 64;
 
+    /** Sent as its ordinal in {@code rename_result_v3}, so new values go at the end. */
     public enum Result {
-        SUCCESS, NOT_FOUND, NOT_ALLOWED, INVALID_NAME, READ_ONLY, BUSY
+        SUCCESS, NOT_FOUND, NOT_ALLOWED, INVALID_NAME, READ_ONLY, BUSY, NO_PERMISSION;
+
+        /**
+         * The value to send a client. NO_PERMISSION, for a denied {@code familytree.rename}, arrived with 1.4.0;
+         * older clients would call it a failed save, so they get NOT_ALLOWED as 1.3.0 sent.
+         */
+        public int wireStatus(boolean clientKnowsNoPermission) {
+            return this == NO_PERMISSION && !clientKnowsNoPermission ? NOT_ALLOWED.ordinal() : ordinal();
+        }
     }
 
     private PetRenaming() {}

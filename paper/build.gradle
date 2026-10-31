@@ -48,6 +48,8 @@ def sharedJava = [
         'settings/SettingsReader.java',
         'settings/TrackingRules.java',
         'text/LangTables.java',
+        'text/Templates.java',
+        'text/UsageLine.java',
         'util/AnimalCategory.java',
         'util/CloseRelation.java',
         'util/Genealogy.java',

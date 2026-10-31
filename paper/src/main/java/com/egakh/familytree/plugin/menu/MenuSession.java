@@ -475,6 +475,7 @@ final class MenuSession {
             }
             case NOT_FOUND -> notice("familytree.rename.not_found");
             case NOT_ALLOWED -> notice("familytree.rename.not_allowed");
+            case NO_PERMISSION -> notice("familytree.permission.denied", FamilyTreePermission.RENAME.node());
             case INVALID_NAME -> notice("familytree.rename.invalid");
             case READ_ONLY -> notice("familytree.command.read_only");
             case BUSY -> notice("familytree.menu.wait");

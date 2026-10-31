@@ -1,5 +1,6 @@
 package com.egakh.familytree.plugin.text;
 
+import com.egakh.familytree.text.Templates;
 import com.egakh.familytree.text.LangTables;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;

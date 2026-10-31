@@ -173,7 +173,7 @@ public final class FarmCapture {
             NbtIo.writeCompressed(tag, compressed);
             start = System.nanoTime();
             List<AnimalRecord> visible = state.all().stream().filter(pet -> PetAccess.canView(pet, player, true))
-                    .sorted(java.util.Comparator.comparing(AnimalRecord::id)).map(pet -> PetAccess.forViewer(pet, player, true)).toList();
+                    .sorted(java.util.Comparator.comparing(AnimalRecord::id)).map(pet -> PetAccess.forViewer(pet, player, true, true)).toList();
             var pages = SnapshotPages.split(UUID.randomUUID(), visible, 1, 1, true, true, true);
             long split = System.nanoTime() - start;
             long bytes = 0;

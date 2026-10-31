@@ -30,21 +30,19 @@ final class SettingsCommands {
         }
         ServerText.success(source, () -> Component.translatable("familytree.reload.done", file), true);
         List<SettingProblem> problems = result.problems();
-        if (problems.isEmpty()) {
-            ServerText.success(source, () -> Component.translatable("familytree.reload.no_problems").withStyle(ChatFormatting.GREEN), false);
-        } else {
-            ServerText.success(source, () -> Component.translatable("familytree.reload.problems", problems.size())
-                    .withStyle(ChatFormatting.GOLD), false);
-            for (SettingProblem problem : problems) {
-                MutableComponent line = Component.literal("- ").append(Component.translatable(problem.message(), problem.arguments()));
-                ServerText.success(source, () -> line.withStyle(ChatFormatting.YELLOW), false);
-            }
+        ServerText.success(source, () -> Component.translatable(SettingProblem.summaryKey(problems.size()), problems.size())
+                .withStyle(problems.isEmpty() ? ChatFormatting.GREEN : ChatFormatting.GOLD), false);
+        for (SettingProblem problem : problems) {
+            MutableComponent line = Component.literal("- ").append(Component.translatable(problem.message(), problem.arguments()));
+            ServerText.success(source, () -> line.withStyle(ChatFormatting.YELLOW), false);
         }
+        for (SettingProblem note : result.notes())
+            ServerText.success(source, () -> Component.translatable(note.message(), note.arguments()).withStyle(ChatFormatting.GRAY), false);
         resendCommands(source.getServer());
         return problems.isEmpty() ? 1 : 0;
     }
 
-    /** Players see commands their nodes now allow, or stop seeing ones they no longer may use. */
+    /** The command tree still hides /familytree from players denied familytree.use, and prune from those denied it. */
     private static void resendCommands(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) server.getCommands().sendCommands(player);
     }

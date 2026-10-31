@@ -1,5 +1,6 @@
 package com.egakh.familytree.plugin.text;
 
+import com.egakh.familytree.text.Templates;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;

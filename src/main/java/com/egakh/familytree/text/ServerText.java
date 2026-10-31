@@ -14,7 +14,8 @@ import java.util.function.Supplier;
 
 /**
  * Gives Family Tree's translatable text a fallback in the receiving player's language. Clients with the mod
- * use their own language files; vanilla clients show the fallback the server resolved.
+ * use their own language files; vanilla clients show the fallback the server resolved. When {@code serverLanguage}
+ * names a language, Family Tree's text is sent already resolved, so clients with the mod show that language too.
  */
 public final class ServerText {
     private static final String PREFIX = FamilyTreeMod.MOD_ID + ".";
@@ -79,21 +80,35 @@ public final class ServerText {
 
     /** Copies the component, adding fallbacks to every Family Tree key, including keys nested in arguments. */
     public static MutableComponent localize(String language, Component component) {
+        boolean forced = !com.egakh.familytree.settings.FamilyTreeServerSettings.language()
+                .equals(com.egakh.familytree.settings.ServerSettings.AUTO_LANGUAGE);
+        return localize(language, component, forced);
+    }
+
+    /** With {@code resolve}, Family Tree's keys become literal text, while Minecraft's own keys stay translatable. */
+    static MutableComponent localize(String language, Component component, boolean resolve) {
         MutableComponent copy;
         if (component.getContents() instanceof TranslatableContents translatable) {
             Object[] args = translatable.getArgs().clone();
             for (int i = 0; i < args.length; i++) {
-                if (args[i] instanceof Component nested) args[i] = localize(language, nested);
+                if (args[i] instanceof Component nested) args[i] = localize(language, nested, resolve);
             }
+            String key = translatable.getKey();
+            String template = key.startsWith(PREFIX) ? LangTables.template(language, key) : null;
             String fallback = translatable.getFallback();
-            if (fallback == null && translatable.getKey().startsWith(PREFIX)) fallback = LangTables.template(language, translatable.getKey());
-            copy = fallback == null ? Component.translatable(translatable.getKey(), args)
-                    : Component.translatableWithFallback(translatable.getKey(), fallback, args);
+            if (resolve && template != null) {
+                copy = Component.empty();
+                for (Object part : Templates.split(template, java.util.Arrays.asList(args)))
+                    copy.append(part instanceof Component text ? text : Component.literal(String.valueOf(part)));
+            } else {
+                if (fallback == null) fallback = template;
+                copy = fallback == null ? Component.translatable(key, args) : Component.translatableWithFallback(key, fallback, args);
+            }
         } else {
             copy = component.plainCopy();
         }
         copy.setStyle(component.getStyle());
-        for (Component sibling : component.getSiblings()) copy.append(localize(language, sibling));
+        for (Component sibling : component.getSiblings()) copy.append(localize(language, sibling, resolve));
         return copy;
     }
 }
