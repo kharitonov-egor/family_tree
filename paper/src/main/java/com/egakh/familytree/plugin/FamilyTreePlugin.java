@@ -16,6 +16,7 @@ import com.egakh.familytree.settings.SettingProblem;
 import com.egakh.familytree.text.LangTables;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -56,7 +57,9 @@ public final class FamilyTreePlugin extends JavaPlugin implements Listener {
         reloadSettings();
         renderer = TextRenderer.detect(getLogger());
         access = new Access(this::settings);
-        chat = new Chat(renderer, this::settings);
+        chat = new Chat(renderer, this::settings,
+                sender -> bridge != null && sender instanceof Player player && bridge.hasClientMod(player)
+                        && com.egakh.familytree.plugin.network.Payloads.hidesIsolates(player.getListeningPluginChannels()));
         cooldowns = new Cooldowns(this::settings);
         writer = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "Family Tree save");

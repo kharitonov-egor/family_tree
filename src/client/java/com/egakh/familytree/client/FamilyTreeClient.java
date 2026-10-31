@@ -11,6 +11,7 @@ import com.egakh.familytree.network.payloads.OpenFamilyTreeRequest;
 import com.egakh.familytree.network.payloads.RenamePetResult;
 import com.egakh.familytree.naming.PetRenaming;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import com.egakh.familytree.network.payloads.SnapshotPagePayload;
 import com.egakh.familytree.network.payloads.DiscoverPetsRequest;
@@ -30,6 +31,7 @@ public final class FamilyTreeClient {
     private static int requestTicks;
     private static boolean pending;
     private static volatile Map<UUID, AnimalRecord> latestRecords = Map.of();
+    private static Screen returnScreen;
     public void initialize() { FamilyTreeClientSettings.load(); }
 
     public static void receive(FamilyTreeSnapshotPayload packet) {
@@ -96,6 +98,7 @@ public final class FamilyTreeClient {
             pending = false;
             ASSEMBLER.clear();
             latestRecords = Map.of();
+            returnScreen = null;
             MapWaypoints.clear();
         } else if (pending && ++requestTicks >= 200) {
             pending = false;
@@ -112,16 +115,41 @@ public final class FamilyTreeClient {
             *///?}
             FamilyTreeClientSettings.markWelcomeShown();
         }
+        // Opening Family Tree another way replaces the tree that Locate pet left for the key.
+        if (returnScreen != null && client.screen instanceof com.egakh.familytree.client.screen.FamilyTreeScreen open
+                && open != returnScreen) returnScreen = null;
         while (FamilyTreeKeybinds.OPEN_TREE.consumeClick()) {
             if (client.level == null || client.player == null) continue;
             if (!ClientTransport.canSend(OpenFamilyTreeRequest.TYPE)) {
                 client.gui.setOverlayMessage(Component.translatable("familytree.not_available"), false);
                 continue;
             }
+            if (returnScreen != null) {
+                Screen previous = returnScreen;
+                returnScreen = null;
+                client.setScreen(previous);
+                continue;
+            }
             client.setScreen(new FamilyTreeBrowserScreen());
             requestSnapshot(true);
         }
         WorldRelatives.tick(client);
+    }
+
+    /** The next press of the open-tree key reopens this screen instead of the browser. */
+    public static void returnLater(Screen screen) {
+        returnScreen = screen;
+    }
+
+    public static void showReturnHint(Minecraft client) {
+        if (client.player == null) return;
+        Component hint = Component.translatable("familytree.screen.tree.return_hint",
+                FamilyTreeKeybinds.OPEN_TREE.getTranslatedKeyMessage());
+        //? if >=26.2 {
+        /*client.player.sendOverlayMessage(hint);
+        *///?} else {
+        client.gui.setOverlayMessage(hint, false);
+        //?}
     }
 
     public static void requestSnapshot(boolean requestAll) {

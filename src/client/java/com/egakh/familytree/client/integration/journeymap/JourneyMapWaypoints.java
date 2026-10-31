@@ -2,6 +2,7 @@ package com.egakh.familytree.client.integration.journeymap;
 
 import com.egakh.familytree.FamilyTreeMod;
 import com.egakh.familytree.client.integration.MapWaypoints;
+import com.egakh.familytree.util.PetNames;
 import journeymap.api.v2.client.IClientAPI;
 import journeymap.api.v2.client.IClientPlugin;
 import journeymap.api.v2.common.JourneyMapPlugin;
@@ -45,6 +46,6 @@ public final class JourneyMapWaypoints implements IClientPlugin, MapWaypoints.Ta
             waypoint = WaypointFactory.createClientWaypoint(FamilyTreeMod.MOD_ID, position, petName, key, true);
         }
         api.addWaypoint(FamilyTreeMod.MOD_ID, waypoint);
-        MapWaypoints.tell(Component.translatable("familytree.waypoint.added", name(), petName, MapWaypoints.coordinates(position)));
+        MapWaypoints.tell(Component.translatable("familytree.waypoint.added", name(), PetNames.isolate(petName), MapWaypoints.coordinates(position)));
     }
 }

@@ -5,19 +5,24 @@ import com.egakh.familytree.plugin.text.Text;
 import com.egakh.familytree.plugin.text.TextRenderer;
 import com.egakh.familytree.settings.ServerSettings;
 import com.egakh.familytree.text.LangTables;
+import com.egakh.familytree.util.PetNames;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /** Sends Family Tree's messages in each player's Minecraft language, or the one {@code serverLanguage} sets. */
 public final class Chat {
     private final TextRenderer renderer;
     private final Supplier<ServerSettings> settings;
+    private final Predicate<CommandSender> isolates;
 
-    public Chat(TextRenderer renderer, Supplier<ServerSettings> settings) {
+    /** {@code isolates} picks the players whose client draws bidi isolates as nothing. */
+    public Chat(TextRenderer renderer, Supplier<ServerSettings> settings, Predicate<CommandSender> isolates) {
         this.renderer = renderer;
         this.settings = settings;
+        this.isolates = isolates;
     }
 
     public TextRenderer renderer() {
@@ -30,7 +35,12 @@ public final class Chat {
         return sender instanceof Player player ? LangTables.resolve(player.getLocale()) : LangTables.DEFAULT;
     }
 
+    /** A right-to-left pet name can't reverse the sentence for players with the mod. */
     public Text tr(CommandSender sender, String key, Object... args) {
+        if (isolates.test(sender)) {
+            args = args.clone();
+            for (int i = 0; i < args.length; i++) if (args[i] instanceof String text) args[i] = PetNames.isolate(text);
+        }
         return Messages.tr(language(sender), key, args);
     }
 

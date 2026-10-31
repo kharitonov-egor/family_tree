@@ -1,6 +1,8 @@
 package com.egakh.familytree.util;
 
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.text.LangTables;
+import com.ibm.icu.text.Bidi;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -80,5 +82,41 @@ class PetNamesTest {
         assertEquals("'Rex\"", PetNames.unquote("'Rex\""));
         assertEquals("\"", PetNames.unquote("\""));
         assertEquals("", PetNames.unquote("\"\""));
+    }
+
+    private static final String ARABIC = "كلب سعيد";
+
+    @Test
+    void onlyNamesThatCouldReorderASentenceGetIsolated() {
+        assertEquals("Rex", PetNames.isolate("Rex"));
+        assertEquals("小白 🐶 Ünïcødé", PetNames.isolate("小白 🐶 Ünïcødé"));
+        assertEquals("\u2068" + ARABIC + "\u2069", PetNames.isolate(ARABIC));
+        assertEquals("\u2068Rex\u202E\u2069", PetNames.isolate("Rex\u202E"), "An unclosed override must not leak into the sentence");
+        assertNull(PetNames.isolate(null));
+    }
+
+    @Test
+    void controlsInsideANameCannotCloseItsIsolate() {
+        assertEquals("\u2068" + ARABIC + "\u2069", PetNames.isolate("\u2069" + ARABIC));
+        assertEquals("\u2068Rex\u2067" + ARABIC + "\u2069\u2069", PetNames.isolate("Rex\u2067" + ARABIC));
+
+        String template = LangTables.template("en_us", "familytree.kin.parent");
+        Bidi bidi = new Bidi(String.format(template, PetNames.isolate("\u2069" + ARABIC), "Cocoa"), Bidi.LEVEL_DEFAULT_LTR);
+        assertEquals(0, bidi.getParaLevel());
+        assertTrue(bidi.writeReordered(Bidi.DO_MIRRORING | Bidi.REMOVE_BIDI_CONTROLS).endsWith(" is Cocoa's parent."));
+    }
+
+    /** Minecraft orders text with ICU, where the first strong letter decides a line's direction. */
+    @Test
+    void anIsolatedRightToLeftNameKeepsTheKinshipSentenceLeftToRight() {
+        String template = LangTables.template("en_us", "familytree.kin.parent");
+
+        Bidi broken = new Bidi(String.format(template, ARABIC, "Cocoa"), Bidi.LEVEL_DEFAULT_LTR);
+        assertEquals(1, broken.getParaLevel(), "Without isolates the Arabic name turns the sentence right to left");
+        assertFalse(broken.writeReordered(Bidi.DO_MIRRORING).endsWith("parent."));
+
+        Bidi fixed = new Bidi(String.format(template, PetNames.isolate(ARABIC), "Cocoa"), Bidi.LEVEL_DEFAULT_LTR);
+        assertEquals(0, fixed.getParaLevel());
+        assertTrue(fixed.writeReordered(Bidi.DO_MIRRORING | Bidi.REMOVE_BIDI_CONTROLS).endsWith(" is Cocoa's parent."));
     }
 }

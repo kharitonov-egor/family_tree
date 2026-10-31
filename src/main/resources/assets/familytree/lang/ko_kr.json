@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "%s / %s번째 결과. Enter를 누르면 다음으로 이동합니다.",
   "familytree.screen.tree.show_older": "이전 세대가 숨겨져 있습니다. 클릭하면 6세대를 더 표시합니다.",
   "familytree.screen.tree.show_younger": "이후 세대가 숨겨져 있습니다. 클릭하면 6세대를 더 표시합니다.",
+  "familytree.screen.tree.return_hint": "%s 키를 누르면 가계도로 돌아갑니다",
   "familytree.rename.button": "이름 변경",
   "familytree.rename.title": "Family Tree에서 이름 변경",
   "familytree.rename.hint": "Family Tree 안의 이름만 바뀝니다. 세계에 있는 동물의 이름은 그대로입니다.",

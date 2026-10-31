@@ -7,6 +7,7 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.integration.PetInsight;
 import com.egakh.familytree.util.HorseStatUnits.Stat;
 import com.egakh.familytree.util.VariantText;
+import com.egakh.familytree.util.PetNames;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -31,7 +32,7 @@ public final class PetTooltip {
     public static List<Component> lines(PetInsight insight, Set<Stat> shownElsewhere) {
         AnimalRecord pet = insight.pet();
         List<Component> lines = new ArrayList<>();
-        lines.add(Component.translatable("familytree.tooltip.name", pet.name()).withStyle(ChatFormatting.GREEN));
+        lines.add(Component.translatable("familytree.tooltip.name", PetNames.isolate(pet.name())).withStyle(ChatFormatting.GREEN));
         lines.add(parents(insight).withStyle(ChatFormatting.GRAY));
         if (FamilyTreeClientSettings.showGeneration() && insight.generation() > 0)
             lines.add(Component.translatable("familytree.tooltip.generation", insight.generation()).withStyle(ChatFormatting.GRAY));
@@ -62,6 +63,6 @@ public final class PetTooltip {
         if (a == null && b == null) return Component.translatable("familytree.tooltip.parents_unknown");
         Component unknown = Component.translatable("familytree.tooltip.parent_unknown");
         return Component.translatable("familytree.tooltip.parents",
-                a == null ? unknown : Component.literal(a.name()), b == null ? unknown : Component.literal(b.name()));
+                a == null ? unknown : Component.literal(PetNames.isolate(a.name())), b == null ? unknown : Component.literal(PetNames.isolate(b.name())));
     }
 }

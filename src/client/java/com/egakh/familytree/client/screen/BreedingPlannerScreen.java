@@ -9,6 +9,7 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.util.KinshipText;
+import com.egakh.familytree.util.PetNames;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -93,7 +94,7 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
     private Component parentLabel(int number, UUID id) {
         AnimalRecord pet = records.get(id);
         return pet == null ? Component.translatable("familytree.planner.choose", number)
-                : Component.translatable("familytree.parents.choose", number, pet.name());
+                : Component.translatable("familytree.parents.choose", number, PetNames.isolate(pet.name()));
     }
 
     /** Counts living animals per species once, so large farms don't compare every pair. */
@@ -132,15 +133,15 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
         AnimalRecord first = records.get(firstId), second = records.get(secondId);
         plan = first != null && second != null ? new BreedingPlan(first, second, kinship) : null;
         if (plan == null) {
-            paragraph(Component.translatable(first == null ? "familytree.planner.empty" : "familytree.planner.pick_mate", first == null ? "" : first.name()), MUTED);
+            paragraph(Component.translatable(first == null ? "familytree.planner.empty" : "familytree.planner.pick_mate", first == null ? "" : PetNames.isolate(first.name())), MUTED);
             contentHeight = measure();
             return;
         }
-        if (!plan.canBreed) paragraph(Component.translatable("familytree.planner.cannot_breed", first.name(), second.name()), ERROR);
+        if (!plan.canBreed) paragraph(Component.translatable("familytree.planner.cannot_breed", PetNames.isolate(first.name()), PetNames.isolate(second.name())), ERROR);
         else paragraph(Component.translatable("familytree.planner.foal", PlanText.foal(plan.foalSpecies)), TEXT);
         for (AnimalRecord pet : List.of(first, second))
-            if (foals.mayBeFoal(pet)) paragraph(Component.translatable("familytree.planner.maybe_foal", pet.name()), WARNING);
-        paragraph(KinshipText.describe(plan.relation, first.name(), second.name()), TEXT);
+            if (foals.mayBeFoal(pet)) paragraph(Component.translatable("familytree.planner.maybe_foal", PetNames.isolate(pet.name())), WARNING);
+        paragraph(KinshipText.describe(plan.relation, PetNames.isolate(first.name()), PetNames.isolate(second.name())), TEXT);
         if (plan.canBreed) {
             paragraph(KinshipText.inbreeding(plan.inbreeding), TEXT);
             paragraph(Component.translatable("familytree.planner.inbreeding.note"), MUTED);
@@ -152,7 +153,7 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
             paragraph(Component.translatable("familytree.planner.stats.hint"), MUTED);
             gap();
         }
-        for (AnimalRecord pet : plan.missingStats) paragraph(Component.translatable("familytree.planner.stats.unknown", pet.name()), MUTED);
+        for (AnimalRecord pet : plan.missingStats) paragraph(Component.translatable("familytree.planner.stats.unknown", PetNames.isolate(pet.name())), MUTED);
         if (plan.fixedStats) paragraph(Component.translatable("familytree.planner.stats.camel"), MUTED);
         VariantOdds.Result variants = plan.variants;
         if (!variants.groups().isEmpty() || variants.note() != VariantOdds.Note.NONE) {
@@ -176,7 +177,7 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
     }
 
     private void paragraph(Component text, int color) {
-        List<FormattedCharSequence> lines = font.split(text, Math.max(40, contentWidth()));
+        List<FormattedCharSequence> lines = BidiLines.split(font, text, Math.max(40, contentWidth()));
         int lineHeight = font.lineHeight + 2;
         blocks.add(new Block() {
             public int height() { return lines.size() * lineHeight; }

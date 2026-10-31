@@ -8,6 +8,7 @@ import com.egakh.familytree.client.FamilyTreeClient;
 import com.egakh.familytree.client.platform.ClientTransport;
 import com.egakh.familytree.permissions.PetAccess;
 import com.egakh.familytree.permissions.ParentLinks;
+import com.egakh.familytree.util.PetNames;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
@@ -26,7 +27,7 @@ public final class ParentLinksScreen extends FamilyTreeScreen {
     private Component error = Component.empty();
 
     public ParentLinksScreen(FamilyTreeViewScreen parent, FamilyTreeSnapshotPayload snapshot, AnimalRecord child) {
-        super(Component.translatable("familytree.parents.title", child.name()));
+        super(Component.translatable("familytree.parents.title", PetNames.isolate(child.name())));
         this.parent = parent; this.snapshot = snapshot; this.child = child;
         a = child.parentA(); b = child.parentB();
         snapshot.records().forEach(pet -> records.put(pet.id(), pet));
@@ -48,7 +49,7 @@ public final class ParentLinksScreen extends FamilyTreeScreen {
 
     private Component label(UUID id, int number) {
         AnimalRecord pet = records.get(id);
-        return Component.translatable("familytree.parents.choose", number, pet == null ? "?" : pet.name());
+        return Component.translatable("familytree.parents.choose", number, pet == null ? "?" : PetNames.isolate(pet.name()));
     }
 
     private void choose(boolean first) {
@@ -76,7 +77,7 @@ public final class ParentLinksScreen extends FamilyTreeScreen {
             minecraft.setScreen(new net.minecraft.client.gui.screens.ConfirmScreen(confirmed -> {
                 minecraft.setScreen(this);
                 if (confirmed) send(true);
-            }, Component.translatable("familytree.parents.clear_confirm", child.name()), Component.translatable("familytree.parents.clear_hint")));
+            }, Component.translatable("familytree.parents.clear_confirm", PetNames.isolate(child.name())), Component.translatable("familytree.parents.clear_hint")));
         } else send(false);
     }
 

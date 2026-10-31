@@ -8,7 +8,51 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 public final class PetNames {
+    public static final char FIRST_STRONG_ISOLATE = '\u2068';
+    public static final char POP_DIRECTIONAL_ISOLATE = '\u2069';
+
     private PetNames() {}
+
+    /**
+     * Wraps a name that holds right-to-left text or bidi controls in a first-strong isolate, so a sentence keeps
+     * its own direction around it. Other names come back unchanged. Only clients with the mod draw the isolate
+     * marks as nothing; vanilla fonts show them as boxes.
+     */
+    public static String isolate(String name) {
+        if (name == null || !needsIsolate(name)) return name;
+        return FIRST_STRONG_ISOLATE + balanced(name) + POP_DIRECTIONAL_ISOLATE;
+    }
+
+    /**
+     * Drops pops the name never opened and closes the isolates it leaves open, so the name can't end the wrapper
+     * early. The closing pop also ends any embedding or override still open inside it.
+     */
+    static String balanced(String name) {
+        StringBuilder out = new StringBuilder(name.length() + 2);
+        int open = 0;
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (c == '\u2066' || c == '\u2067' || c == FIRST_STRONG_ISOLATE) open++;
+            else if (c == POP_DIRECTIONAL_ISOLATE) {
+                if (open == 0) continue;
+                open--;
+            }
+            out.append(c);
+        }
+        return out.append(String.valueOf(POP_DIRECTIONAL_ISOLATE).repeat(open)).toString();
+    }
+
+    public static boolean needsIsolate(String text) {
+        return text.codePoints().anyMatch(codePoint -> switch (Character.getDirectionality(codePoint)) {
+            case Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC,
+                 Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING, Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE,
+                 Character.DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING, Character.DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE,
+                 Character.DIRECTIONALITY_POP_DIRECTIONAL_FORMAT, Character.DIRECTIONALITY_LEFT_TO_RIGHT_ISOLATE,
+                 Character.DIRECTIONALITY_RIGHT_TO_LEFT_ISOLATE, Character.DIRECTIONALITY_FIRST_STRONG_ISOLATE,
+                 Character.DIRECTIONALITY_POP_DIRECTIONAL_ISOLATE -> true;
+            default -> false;
+        });
+    }
 
     public static List<AnimalRecord> matches(Collection<AnimalRecord> records, String name,
                                               Predicate<AnimalRecord> allowed) {

@@ -12,6 +12,7 @@ import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import com.egakh.familytree.util.HorseStatUnits.Stat;
 import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.util.KinshipText;
+import com.egakh.familytree.util.PetNames;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -194,7 +195,7 @@ public final class BestPairsScreen extends FamilyTreeScreen {
                 boolean hover = mouseX >= x && mouseX < x + rowWidth && mouseY >= top && mouseY < top + ROW_HEIGHT - 2
                         && mouseY >= listTop && mouseY < listBottom();
                 gfx.fill(x, top, x + rowWidth, top + ROW_HEIGHT - 2, hover ? 0xFF2A3440 : 0xFF202830);
-                String name = Component.translatable("familytree.best.row", i + 1, pair.first().name(), pair.second().name()).getString();
+                String name = Component.translatable("familytree.best.row", i + 1, PetNames.isolate(pair.first().name()), PetNames.isolate(pair.second().name())).getString();
                 gfx.text(font, font.plainSubstrByWidth(name, rowWidth - 8), x + 4, top + 3, TEXT);
                 String line = String.join("  ·  ", details.get(i));
                 gfx.text(font, font.plainSubstrByWidth(line, rowWidth - 8), x + 4, top + 3 + font.lineHeight + 1,

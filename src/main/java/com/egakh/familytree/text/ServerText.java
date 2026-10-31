@@ -1,16 +1,21 @@
 package com.egakh.familytree.text;
 
 import com.egakh.familytree.FamilyTreeMod;
+import com.egakh.familytree.network.payloads.RelativesResult;
+import com.egakh.familytree.platform.ServerTransport;
+import com.egakh.familytree.util.PetNames;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -95,15 +100,32 @@ public final class ServerText {
     }
 
     public static void success(CommandSourceStack source, Supplier<Component> message, boolean broadcast) {
-        source.sendSuccess(() -> localize(language(source), message.get()), broadcast);
+        source.sendSuccess(() -> localize(language(source), message.get(), forced(), isolates(source.getPlayer())), broadcast);
     }
 
     public static void failure(CommandSourceStack source, Component message) {
-        source.sendFailure(localize(language(source), message));
+        source.sendFailure(localize(language(source), message, forced(), isolates(source.getPlayer())));
     }
 
     public static void send(ServerPlayer player, Component message) {
-        player.sendSystemMessage(localize(language(player), message));
+        player.sendSystemMessage(localize(language(player), message, forced(), isolates(player)));
+    }
+
+    private static boolean isolates(ServerPlayer player) {
+        return player != null && hidesIsolates(type -> ServerTransport.canSend(player, type));
+    }
+
+    /**
+     * Vanilla fonts, and Family Tree before 1.4.0, draw bidi isolates as boxes. 1.4.0 added both the font that hides
+     * them and the relatives channel, so a client listening on that channel draws them as nothing.
+     */
+    static boolean hidesIsolates(Predicate<CustomPacketPayload.Type<?>> listens) {
+        return listens.test(RelativesResult.TYPE);
+    }
+
+    private static boolean forced() {
+        return !com.egakh.familytree.settings.FamilyTreeServerSettings.language()
+                .equals(com.egakh.familytree.settings.ServerSettings.AUTO_LANGUAGE);
     }
 
     /**
@@ -111,18 +133,25 @@ public final class ServerText {
      * arguments. The language file wins over a fallback the code supplied, which is usually English.
      */
     public static MutableComponent localize(String language, Component component) {
-        boolean forced = !com.egakh.familytree.settings.FamilyTreeServerSettings.language()
-                .equals(com.egakh.familytree.settings.ServerSettings.AUTO_LANGUAGE);
-        return localize(language, component, forced);
+        return localize(language, component, forced());
     }
 
     /** With {@code resolve}, Family Tree's keys become literal text, while Minecraft's own keys stay translatable. */
     static MutableComponent localize(String language, Component component, boolean resolve) {
+        return localize(language, component, resolve, false);
+    }
+
+    /**
+     * With {@code isolate}, text arguments that hold right-to-left text are wrapped in bidi isolates, so a pet's
+     * Arabic or Hebrew name can't reverse the sentence it sits in.
+     */
+    static MutableComponent localize(String language, Component component, boolean resolve, boolean isolate) {
         MutableComponent copy;
         if (component.getContents() instanceof TranslatableContents translatable) {
             Object[] args = translatable.getArgs().clone();
             for (int i = 0; i < args.length; i++) {
-                if (args[i] instanceof Component nested) args[i] = localize(language, nested, resolve);
+                if (args[i] instanceof Component nested) args[i] = localize(language, nested, resolve, isolate);
+                else if (isolate && args[i] instanceof String text) args[i] = PetNames.isolate(text);
             }
             String key = translatable.getKey();
             String template = key.startsWith(PREFIX) ? LangTables.template(language, key) : null;
@@ -138,7 +167,7 @@ public final class ServerText {
             copy = component.plainCopy();
         }
         copy.setStyle(component.getStyle());
-        for (Component sibling : component.getSiblings()) copy.append(localize(language, sibling, resolve));
+        for (Component sibling : component.getSiblings()) copy.append(localize(language, sibling, resolve, isolate));
         return copy;
     }
 }

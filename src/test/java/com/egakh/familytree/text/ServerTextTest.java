@@ -1,5 +1,7 @@
 package com.egakh.familytree.text;
 
+import com.egakh.familytree.network.payloads.RelativesResult;
+import com.egakh.familytree.network.payloads.SnapshotPagePayload;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -11,6 +13,32 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ServerTextTest {
+    private static final String ARABIC = "كلب";
+
+    @Test
+    void rightToLeftNamesAreIsolatedOnlyForClientsWhoseFontHidesTheMarks() {
+        Component death = Component.translatable("death.attack.cactus", ARABIC);
+        Component line = Component.translatable("familytree.command.list.deceased_cause", ARABIC, "Wolf", 3, death);
+
+        MutableComponent modded = ServerText.localize("en_us", line, false, true);
+        Object[] args = ((TranslatableContents) modded.getContents()).getArgs();
+        assertEquals("\u2068" + ARABIC + "\u2069", args[0]);
+        assertEquals("Wolf", args[1]);
+        assertEquals(3, args[2]);
+        Object[] nested = ((TranslatableContents) ((Component) args[3]).getContents()).getArgs();
+        assertEquals("\u2068" + ARABIC + "\u2069", nested[0]);
+
+        Object[] vanilla = ((TranslatableContents) ServerText.localize("en_us", line).getContents()).getArgs();
+        assertEquals(ARABIC, vanilla[0]);
+        assertNotNull(((TranslatableContents) modded.getContents()).getFallback(), "Vanilla clients still get the English fallback");
+    }
+
+    @Test
+    void familyTree130ClientsShareTheSnapshotChannelButLackTheFontThatHidesIsolates() {
+        assertFalse(ServerText.hidesIsolates(type -> type == SnapshotPagePayload.TYPE));
+        assertTrue(ServerText.hidesIsolates(type -> type == SnapshotPagePayload.TYPE || type == RelativesResult.TYPE));
+    }
+
     private static Component locate() {
         return Component.translatable("familytree.command.locate.result", "Rex", Component.literal("1, 2, 3"),
                 Component.translatable("familytree.dimension.overworld"));
