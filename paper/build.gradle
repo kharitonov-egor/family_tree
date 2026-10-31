@@ -52,6 +52,7 @@ def sharedJava = [
         'text/UsageLine.java',
         'util/AnimalCategory.java',
         'util/CloseRelation.java',
+        'util/DeathMessageKeys.java',
         'util/Genealogy.java',
         'util/HorseStatUnits.java',
         'util/Kinship.java',
