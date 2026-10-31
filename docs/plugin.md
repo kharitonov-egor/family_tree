@@ -100,7 +100,7 @@ The plugin has the mod's commands with the same arguments, names, and messages: 
 
 ## Permissions
 
-The plugin checks the mod's `familytree.*` nodes through Bukkit's permission API, which LuckPerms provides. [Family Tree on servers](servers.md#permission-nodes) lists them with their defaults. `familytree.relatives` covers a feature the plugin doesn't have yet, so it has no effect there.
+The plugin checks the mod's `familytree.*` nodes through Bukkit's permission API, which LuckPerms provides. [Family Tree on servers](servers.md#permission-nodes) lists them with their defaults.
 
 A node no permission plugin sets falls back to the default its settings give it, as in the mod. With LuckPerms 5.5.71 on Paper 26.3, a non-operator got the chest menu with no nodes set, got the command list instead once `familytree.menu` was false, lost Rename under `ownersCanRename: false` and got it back when LuckPerms granted `familytree.rename`, and could prune once granted `familytree.prune`. That is why `plugin.yml` declares every node with `default: false`: Bukkit and LuckPerms treat a `plugin.yml` default as a set node, which would override settings such as `ownersCanRename=false` and `viewPolicy`. An operator is a player with op, and the console counts as one.
 
@@ -110,25 +110,27 @@ A node no permission plugin sets falls back to the default its settings give it,
 
 Two differences:
 
-- `operatorLevel` doesn't apply. Bukkit tells plugins whether a player is an operator, not at which level. `relativesCooldownMillis` has no effect yet, for the same reason as `familytree.relatives`.
+- `operatorLevel` doesn't apply. Bukkit tells plugins whether a player is an operator, not at which level.
 - `clientMod`, `true` by default, exists only in the plugin. `false` sends players with the client mod to the chest menu like everyone else. The change applies to players who join after a reload.
 
 Datapack tags work as in the mod: a datapack can add species to the `familytree:tracked` and `familytree:ignored` entity type tags.
 
 ## Players with the client mod
 
-The plugin registers the mod's network channels and answers with the bytes the mod's server would send, so a player with the client mod gets its screens: the browser on **H**, trees, rename, Add parents, Locate, **Find existing pets**, and map waypoints. `/familytree` prints the command list for them, and `/familytree menu` still opens the chest menu. A test checks every payload the plugin writes against the expected bytes in the mod's own `WireFormatTest`.
+The plugin registers the mod's network channels and answers with the bytes the mod's server would send, so a player with the client mod gets its screens and keys: the browser on **H**, trees, rename, Add parents, Locate, **Find existing pets**, map waypoints, and the relatives key. `/familytree` prints the command list for them, and `/familytree menu` still opens the chest menu. A test checks every payload the plugin writes against the expected bytes in the mod's own `WireFormatTest`.
 
 ![Family Tree 1.3.0's Fabric client showing a foal's tree on a Paper server with the plugin](media/plugin-client-mod.webp)
 
 Use the client mod release that matches the plugin's version. Family Tree 1.3.0's Fabric client for 26.3 joined a Paper 26.3 server with the plugin and used the browser, the tree, rename, Locate, and Find existing pets. Add parents and waypoints from the mod's screens use the same code and checks as the chest menu and Locate, but weren't tried from a modded client, and no map mod was installed.
+
+The plugin finds players with the client mod from the channels their client announces when it joins. Family Tree 1.4.0's Fabric client for 1.20.1, 1.21.11, and 26.3, its NeoForge client for 1.21.1 and 26.3, and its Forge client for 1.20.1 each joined a plugin server, showed the welcome message, got the key hint from `/familytree`, and lit an animal's relatives with the relatives key. The relatives key follows the mod's rules: the `familytree.relatives` node, `relativesCooldownMillis`, the 64-block range, and `viewPolicy`. A pet the player can't open stays unlit, and so do animals related only through it.
 
 ## Differences from the mod
 
 - **Item text on Spigot.** Spigot can't put translatable text on items, so species names, wool colors, and death messages in Spigot's chest menus are in English. Family Tree's own words still follow each player's language, and so does chat everywhere. Paper shows all of it in the player's language.
 - **Text entry on older Spigot.** Paper, and Spigot from 1.21, open an anvil for search and rename. Spigot 1.20.1 has no API for an anvil that reads typed text, so players type the name in chat instead, `-` to clear it or `cancel` to stop.
 - **Frogs and sniffers on Spigot.** Paper reports when frogs and sniffers breed, and the plugin records both parents for the player, as the mod does. Spigot reports nothing for them, so on Spigot they need a name tag or the linking stick.
-- **Relatives.** The mod's relatives key and the chest menu's **Show relatives nearby** came in the same release and aren't in the plugin yet. The plugin's family page has no such button, and the client mod treats a plugin server like a 1.3.0 server for the relatives key.
+- **Relative markers before 1.21.4.** **Show relatives nearby** marks relatives with dust that only the player sees. The Bukkit API before 1.21.4 can't send it to one player at long range, so on 1.20.1 and 1.21.1 the dust shows only over relatives within 32 blocks. The chat list still names everyone within 64 blocks.
 - **The book.** The family book and breeding plans open as a book screen instead of a lectern.
 - **Saving.** The plugin saves the history when the server saves the world, every five minutes when it changed, and when the server stops. Encoding runs on the main thread and writing on a background thread.
 
@@ -171,6 +173,8 @@ Results on October 31, 2026, before the 1.4.0 release:
 | Spigot 26.3 | Pass | Pass |
 | Spigot 1.21.11 | Pass | Pass |
 | Spigot 1.20.1 | Pass | Pass, with search and rename typed in chat |
+
+The relatives key and **Show relatives nearby** were checked the same day with a modded and an unmodded client on Paper 26.3, 1.21.11, and 1.20.1, Purpur 26.3, and Spigot 26.3, 1.21.11, and 1.20.1, on a wolf family linked with `/familytree pair`. On Paper 26.3, two foals whose parents belong to another player stayed unlit for their owner and lit up once the owner was an operator.
 
 The smoke runs also covered loading a history the mod wrote: Paper 1.21.11 started on a world seeded with the mod's 1.21.11 smoke file and kept all 14 records, and a restart kept all 20 after the smoke added six. In the other direction, Family Tree 1.3.0 on a Fabric 26.3 server listed all 10 records of a history the plugin wrote on Paper 26.3, with tree names, parents, generations, and wool colors.
 

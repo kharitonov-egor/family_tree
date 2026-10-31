@@ -18,6 +18,7 @@ public final class Text {
     private final List<Text> args;
     private final List<Text> children = new ArrayList<>();
     private Color color;
+    private Integer rgb;
     private Boolean bold;
     private Boolean italic;
     private Boolean underlined;
@@ -65,7 +66,8 @@ public final class Text {
         return append(literal(child));
     }
 
-    public Text color(Color value) { color = value; return this; }
+    public Text color(Color value) { color = value; rgb = null; return this; }
+    public Text rgb(int value) { rgb = value & 0xFFFFFF; color = null; return this; }
     public Text bold(boolean value) { bold = value; return this; }
     public Text italic(boolean value) { italic = value; return this; }
     public Text underlined(boolean value) { underlined = value; return this; }
@@ -75,7 +77,7 @@ public final class Text {
     /** A copy with this color unless the text already has one. */
     public Text withDefaultColor(Color value) {
         Text copy = copy();
-        if (copy.color == null) copy.color = value;
+        if (copy.color == null && copy.rgb == null) copy.color = value;
         return copy;
     }
 
@@ -84,6 +86,7 @@ public final class Text {
         copy.keybind = keybind;
         copy.children.addAll(children);
         copy.color = color;
+        copy.rgb = rgb;
         copy.bold = bold;
         copy.italic = italic;
         copy.underlined = underlined;
@@ -98,6 +101,7 @@ public final class Text {
     public List<Text> args() { return args; }
     public List<Text> children() { return children; }
     public Color color() { return color; }
+    public Integer rgb() { return rgb; }
     public Boolean bold() { return bold; }
     public Boolean italic() { return italic; }
     public Boolean underlined() { return underlined; }

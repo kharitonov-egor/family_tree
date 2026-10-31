@@ -20,14 +20,17 @@ public final class Payloads {
     public static final String RENAME = "familytree:rename_request_v2";
     public static final String LINK = "familytree:link_parents";
     public static final String WAYPOINT = "familytree:waypoint_request_v1";
+    public static final String RELATIVES = "familytree:relatives_request_v1";
     public static final String SNAPSHOT = "familytree:snapshot_pages_v5";
     public static final String RENAME_RESULT = "familytree:rename_result_v3";
     public static final String LINK_RESULT = "familytree:link_parents_result";
     public static final String WAYPOINT_RESULT = "familytree:waypoint_result_v1";
-    public static final List<String> INCOMING = List.of(OPEN, DISCOVER, LOCATE, RENAME, LINK, WAYPOINT);
-    public static final List<String> OUTGOING = List.of(SNAPSHOT, RENAME_RESULT, LINK_RESULT, WAYPOINT_RESULT);
+    public static final String RELATIVES_RESULT = "familytree:relatives_result_v1";
+    public static final List<String> INCOMING = List.of(OPEN, DISCOVER, LOCATE, RENAME, LINK, WAYPOINT, RELATIVES);
+    public static final List<String> OUTGOING = List.of(SNAPSHOT, RENAME_RESULT, LINK_RESULT, WAYPOINT_RESULT, RELATIVES_RESULT);
     static final int MAX_PAGE_RECORDS = 8192;
     private static final int WAYPOINT_TEXT = 256;
+    private static final int RELATIVES_TEXT = 256;
 
     private Payloads() {}
 
@@ -43,6 +46,20 @@ public final class Payloads {
 
         public static WaypointResult failed(UUID requestId, Status status) {
             return new WaypointResult(requestId, status.ordinal(), "", "", 0);
+        }
+    }
+    public record RelativesRequest(UUID requestId, UUID target) {}
+    /** {@code relation} is a {@code CloseRelation} ordinal. {@code total} counts every nearby relative before the cap. */
+    public record RelativesResult(UUID requestId, UUID target, int status, String targetName, int total, List<Relative> relatives) {
+        public static final int MAX_RELATIVES = 32;
+
+        /** The network sends the ordinal, so the order matches the mod's. */
+        public enum Status { FOUND, NOT_TRACKED, BUSY, UNAVAILABLE, NOT_ALLOWED }
+
+        public record Relative(UUID id, int relation, String name) {}
+
+        public static RelativesResult empty(UUID requestId, UUID target, Status status) {
+            return new RelativesResult(requestId, target, status.ordinal(), "", 0, List.of());
         }
     }
 
@@ -70,6 +87,11 @@ public final class Payloads {
         return new WaypointRequest(in.uuid(), in.uuid());
     }
 
+    public static RelativesRequest decodeRelatives(byte[] bytes) {
+        Wire.Reader in = new Wire.Reader(bytes);
+        return new RelativesRequest(in.uuid(), in.uuid());
+    }
+
     public static byte[] encodeOpen(OpenRequest request) {
         return new Wire.Writer().uuid(request.requestId()).bool(request.requestAll()).bytes();
     }
@@ -89,6 +111,10 @@ public final class Payloads {
 
     public static byte[] encodeWaypoint(WaypointRequest request) {
         return new Wire.Writer().uuid(request.requestId()).uuid(request.petId()).bytes();
+    }
+
+    public static byte[] encodeRelatives(RelativesRequest request) {
+        return new Wire.Writer().uuid(request.requestId()).uuid(request.target()).bytes();
     }
 
     public static byte[] encodePage(SnapshotPage page) {
@@ -123,6 +149,27 @@ public final class Payloads {
     public static byte[] encodeWaypointResult(WaypointResult result) {
         return new Wire.Writer().uuid(result.requestId()).varInt(result.status()).string(result.name(), WAYPOINT_TEXT)
                 .string(result.dimension(), WAYPOINT_TEXT).longValue(result.position()).bytes();
+    }
+
+    public static byte[] encodeRelativesResult(RelativesResult result) {
+        if (result.relatives().size() > RelativesResult.MAX_RELATIVES) throw new IllegalArgumentException("Too many relatives");
+        Wire.Writer out = new Wire.Writer().uuid(result.requestId()).uuid(result.target()).varInt(result.status())
+                .string(result.targetName(), RELATIVES_TEXT).varInt(result.total()).varInt(result.relatives().size());
+        for (RelativesResult.Relative relative : result.relatives())
+            out.uuid(relative.id()).varInt(relative.relation()).string(relative.name(), RELATIVES_TEXT);
+        return out.bytes();
+    }
+
+    public static RelativesResult decodeRelativesResult(byte[] bytes) {
+        Wire.Reader in = new Wire.Reader(bytes);
+        UUID requestId = in.uuid(), target = in.uuid();
+        int status = in.varInt();
+        String name = in.string(RELATIVES_TEXT);
+        int total = in.varInt(), size = in.varInt();
+        if (size > RelativesResult.MAX_RELATIVES) throw new IllegalArgumentException("Too many relatives");
+        List<RelativesResult.Relative> relatives = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) relatives.add(new RelativesResult.Relative(in.uuid(), in.varInt(), in.string(RELATIVES_TEXT)));
+        return new RelativesResult(requestId, target, status, name, total, relatives);
     }
 
     /** Minecraft's {@code BlockPos.asLong}: 26 bits each for x and z, 12 for y. */

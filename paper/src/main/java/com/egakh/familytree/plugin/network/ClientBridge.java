@@ -10,13 +10,18 @@ import com.egakh.familytree.plugin.FamilyTreePlugin;
 import com.egakh.familytree.plugin.WorldClock;
 import com.egakh.familytree.plugin.command.FamilyTreeCommand;
 import com.egakh.familytree.plugin.storage.FamilyTreeStore;
+import com.egakh.familytree.plugin.track.Entities;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.Messenger;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -78,6 +83,7 @@ public final class ClientBridge implements PluginMessageListener {
                 case Payloads.RENAME -> rename(player, Payloads.decodeRename(message));
                 case Payloads.LINK -> link(player, Payloads.decodeLink(message));
                 case Payloads.WAYPOINT -> waypoint(player, Payloads.decodeWaypoint(message));
+                case Payloads.RELATIVES -> relatives(player, Payloads.decodeRelatives(message));
                 default -> { }
             }
         } catch (RuntimeException malformed) {
@@ -134,6 +140,35 @@ public final class ClientBridge implements PluginMessageListener {
         long packed = Payloads.packBlockPos((int) Math.floor(position.x()), (int) Math.floor(position.y()), (int) Math.floor(position.z()));
         send(player, Payloads.WAYPOINT_RESULT, Payloads.encodeWaypointResult(new Payloads.WaypointResult(request.requestId(),
                 Payloads.WaypointResult.Status.FOUND.ordinal(), name, position.dimension(), packed)));
+    }
+
+    /** Holding the key sends many requests, so a denied node answers quietly instead of with a chat message each time. */
+    private void relatives(Player player, Payloads.RelativesRequest request) {
+        Payloads.RelativesResult result = !mayShowRelatives(player)
+                ? Payloads.RelativesResult.empty(request.requestId(), request.target(), Payloads.RelativesResult.Status.NOT_ALLOWED)
+                : !plugin.cooldowns().relatives(player.getUniqueId())
+                ? Payloads.RelativesResult.empty(request.requestId(), request.target(), Payloads.RelativesResult.Status.BUSY)
+                : nearbyRelatives(player, request.requestId(), request.target());
+        send(player, Payloads.RELATIVES_RESULT, Payloads.encodeRelativesResult(result));
+    }
+
+    public boolean mayShowRelatives(Player player) {
+        return plugin.access().allowed(player, FamilyTreePermission.USE) && plugin.access().allowed(player, FamilyTreePermission.RELATIVES);
+    }
+
+    /** Shared by the relatives channel and the chest menu. */
+    public Payloads.RelativesResult nearbyRelatives(Player player, UUID requestId, UUID target) {
+        FamilyTreeStore state = plugin.store();
+        if (state.readOnly()) return Payloads.RelativesResult.empty(requestId, target, Payloads.RelativesResult.Status.UNAVAILABLE);
+        double range = NearbyRelatives.RANGE;
+        Location at = player.getLocation();
+        Map<UUID, Double> nearby = new HashMap<>();
+        for (Entity entity : player.getNearbyEntities(range, range, range)) {
+            if (!Entities.isAnimal(entity) || entity.isDead()) continue;
+            double distance = entity.getLocation().distanceSquared(at);
+            if (distance <= range * range) nearby.put(entity.getUniqueId(), distance);
+        }
+        return NearbyRelatives.answer(requestId, target, player.getUniqueId(), plugin.access().viewAll(player), state::get, nearby);
     }
 
     private void rename(Player player, Payloads.RenameRequest request) {

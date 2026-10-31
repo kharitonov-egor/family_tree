@@ -12,8 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,16 +24,19 @@ class WireParityTest {
             + "000f00010000000000000005000000000000000601054f776e6572010e6d696e6563726166743a70616c65013ff80000000000004050000000000000c020000000000000136d696e6563726166743a6f766572776f726c64000000000000000e01010743"
             + "726565706572000108536e6f7762616c6c0001036e65770000000000000009000000000000000a0f6d696e6563726166743a686f72736506436c6f766572010000000000000000000300000000000000630000000000010e63686573746e75742f776869"
             + "746500000001013fd599999999999a013fe666666666666601403e000000000000000000000000000000050000000000000064010001";
-    private static final Map<String, String> REQUESTS = Map.of(
-            "open", "0000000000000009000000000000000a01",
-            "discover", "000000000000000b000000000000000c00",
-            "locate", "000000000000000d000000000000000e",
-            "rename", "000000000000000f000000000000001000000000000000110000000000000012084665726e20e78cab",
-            "link", "0000000000000013000000000000001400000000000000150000000000000016000000000000001700000000000000180000000000000000000000000000000001",
-            "linkResult", "0000000000000019000000000000001aac02",
-            "renameResult", "000000000000001b000000000000001c0200",
-            "waypoint", "000000000000001d000000000000001e000000000000001f0000000000000020",
-            "waypointResult", "000000000000002100000000000000220005456d626572136d696e6563726166743a6f766572776f726c640102030405060708");
+    private static final Map<String, String> REQUESTS = Map.ofEntries(
+            Map.entry("open", "0000000000000009000000000000000a01"),
+            Map.entry("discover", "000000000000000b000000000000000c00"),
+            Map.entry("locate", "000000000000000d000000000000000e"),
+            Map.entry("rename", "000000000000000f000000000000001000000000000000110000000000000012084665726e20e78cab"),
+            Map.entry("link", "0000000000000013000000000000001400000000000000150000000000000016000000000000001700000000000000180000000000000000000000000000000001"),
+            Map.entry("linkResult", "0000000000000019000000000000001aac02"),
+            Map.entry("renameResult", "000000000000001b000000000000001c0200"),
+            Map.entry("waypoint", "000000000000001d000000000000001e000000000000001f0000000000000020"),
+            Map.entry("waypointResult", "000000000000002100000000000000220005456d626572136d696e6563726166743a6f766572776f726c640102030405060708"),
+            Map.entry("relatives", "0000000000000023000000000000002400000000000000250000000000000026"),
+            Map.entry("relativesResult", "00000000000000270000000000000028000000000000002900000000000000" + "2a0006436c6f7665720302"
+                    + "000000000000002b000000000000002c0105456d626572" + "000000000000002d000000000000002e03044d6f7373"));
 
     private static String hex(byte[] bytes) {
         return HexFormat.of().formatHex(bytes);
@@ -73,6 +74,20 @@ class WireParityTest {
                 bytes -> Payloads.encodeWaypoint(Payloads.decodeWaypoint(bytes))));
         assertEquals(REQUESTS.get("waypointResult"), hex(Payloads.encodeWaypointResult(
                 new Payloads.WaypointResult(new UUID(33, 34), 0, "Ember", "minecraft:overworld", 0x0102030405060708L))));
+        assertEquals(REQUESTS.get("relatives"), roundTrip(Payloads.encodeRelatives(new Payloads.RelativesRequest(new UUID(35, 36), new UUID(37, 38))),
+                bytes -> Payloads.encodeRelatives(Payloads.decodeRelatives(bytes))));
+        assertEquals(REQUESTS.get("relativesResult"), roundTrip(Payloads.encodeRelativesResult(new Payloads.RelativesResult(
+                new UUID(39, 40), new UUID(41, 42), 0, "Clover", 3, List.of(
+                        new Payloads.RelativesResult.Relative(new UUID(43, 44), 1, "Ember"),
+                        new Payloads.RelativesResult.Relative(new UUID(45, 46), 3, "Moss")))),
+                bytes -> Payloads.encodeRelativesResult(Payloads.decodeRelativesResult(bytes))));
+    }
+
+    @Test void relativesRepliesKeepTheModsCap() {
+        List<Payloads.RelativesResult.Relative> tooMany = new java.util.ArrayList<>();
+        for (int i = 0; i <= Payloads.RelativesResult.MAX_RELATIVES; i++) tooMany.add(new Payloads.RelativesResult.Relative(new UUID(0, i), 0, "Pup"));
+        assertThrows(IllegalArgumentException.class, () -> Payloads.encodeRelativesResult(
+                new Payloads.RelativesResult(new UUID(1, 1), new UUID(2, 2), 0, "Rex", tooMany.size(), tooMany)));
     }
 
     @Test void renameResultsCarryTheRecordLikeThePage() {
@@ -116,13 +131,10 @@ class WireParityTest {
     @Test void theModStillExpectsTheseBytes() throws IOException {
         Path test = Path.of(System.getProperty("familytree.repository"), "src/test/java/com/egakh/familytree/network/WireFormatTest.java");
         String source = Files.readString(test);
-        Matcher literal = Pattern.compile("\"([0-9a-f]{16,})\"").matcher(source);
-        StringBuilder all = new StringBuilder();
-        while (literal.find()) all.append(literal.group(1)).append('\n');
         String joined = source.replaceAll("\"\\s*\\+\\s*\"", "");
         assertTrue(joined.contains(PAGE), "WireFormatTest's snapshot bytes changed");
         for (Map.Entry<String, String> entry : REQUESTS.entrySet())
-            assertTrue(all.toString().contains(entry.getValue()), "WireFormatTest's " + entry.getKey() + " bytes changed");
+            assertTrue(joined.contains('"' + entry.getValue() + '"'), "WireFormatTest's " + entry.getKey() + " bytes changed");
     }
 
     private static String roundTrip(byte[] bytes, Function<byte[], byte[]> again) {

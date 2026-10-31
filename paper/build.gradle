@@ -49,6 +49,7 @@ def sharedJava = [
         'settings/TrackingRules.java',
         'text/LangTables.java',
         'util/AnimalCategory.java',
+        'util/CloseRelation.java',
         'util/Genealogy.java',
         'util/HorseStatUnits.java',
         'util/Kinship.java',

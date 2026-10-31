@@ -5,6 +5,7 @@ import net.kyori.adventure.inventory.Book;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -48,7 +49,8 @@ final class AdventureRenderer implements TextRenderer {
             for (Text arg : text.args()) args.add(component(arg));
             component = Component.translatable(text.key(), args);
         }
-        if (text.color() != null) component = component.color(NamedTextColor.NAMES.value(text.color().name().toLowerCase(java.util.Locale.ROOT)));
+        if (text.rgb() != null) component = component.color(TextColor.color(text.rgb()));
+        else if (text.color() != null) component = component.color(NamedTextColor.NAMES.value(text.color().name().toLowerCase(java.util.Locale.ROOT)));
         if (text.bold() != null) component = component.decoration(TextDecoration.BOLD, text.bold());
         if (text.italic() != null) component = component.decoration(TextDecoration.ITALIC, text.italic());
         if (text.underlined() != null) component = component.decoration(TextDecoration.UNDERLINED, text.underlined());

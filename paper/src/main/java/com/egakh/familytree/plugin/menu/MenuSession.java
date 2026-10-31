@@ -12,6 +12,7 @@ import com.egakh.familytree.permissions.PetAccess;
 import com.egakh.familytree.plugin.Edits;
 import com.egakh.familytree.plugin.FamilyTreePlugin;
 import com.egakh.familytree.plugin.WorldClock;
+import com.egakh.familytree.plugin.network.Payloads.RelativesResult;
 import com.egakh.familytree.plugin.storage.FamilyTreeStore;
 import com.egakh.familytree.plugin.text.GameText;
 import com.egakh.familytree.plugin.text.Messages;
@@ -19,6 +20,7 @@ import com.egakh.familytree.plugin.text.PlanLines;
 import com.egakh.familytree.plugin.text.Text;
 import com.egakh.familytree.plugin.text.VanillaLang;
 import com.egakh.familytree.util.AnimalCategory;
+import com.egakh.familytree.util.CloseRelation;
 import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.util.PetRelations;
@@ -48,7 +50,7 @@ final class MenuSession {
     private static final int CHILD_SLOTS = 18;
     private static final int PREVIOUS = 45, LEFT = 46, LEFT_INNER = 47, LEFT_CENTER = 48, INFO = 49,
             RIGHT_CENTER = 50, RIGHT_INNER = 51, CLOSE = 52, NEXT = 53;
-    private static final int FOCUS = 22, PARENT_A = 10, PARENT_B = 16, CONFIRM = 38, CANCEL = 42, PLAN = 24;
+    private static final int FOCUS = 22, PARENT_A = 10, PARENT_B = 16, CONFIRM = 38, CANCEL = 42, PLAN = 24, RELATIVES = 20;
     private static final int[][] GRANDPARENTS = {{0, 2}, {6, 8}};
     private static final int TOOLTIP_COLUMNS = 40;
     private static final int MAX_QUERY = 64;
@@ -72,7 +74,7 @@ final class MenuSession {
     private boolean viewingAll;
     private boolean canViewAll;
     private boolean operator;
-    private boolean mayScan, mayLocate, mayRename, mayEditParents, mayPlan;
+    private boolean mayScan, mayLocate, mayRename, mayEditParents, mayPlan, mayShowRelatives;
     private Filter filter = Filter.ALL;
     private String species;
     private String query = "";
@@ -123,6 +125,7 @@ final class MenuSession {
         mayRename = plugin.access().allowed(player, FamilyTreePermission.RENAME);
         mayEditParents = plugin.access().allowed(player, FamilyTreePermission.PARENTS);
         mayPlan = plugin.access().allowed(player, FamilyTreePermission.BREED);
+        mayShowRelatives = plugin.bridge().mayShowRelatives(player);
     }
 
     private boolean viewAll() {
@@ -356,6 +359,8 @@ final class MenuSession {
                 wrappedLore("familytree.parents.hint")), () -> { pickerPage = 0; showPicker(petId, null); });
         if (mayPlan && !mates(pet).isEmpty()) menu.put(PLAN, button(Material.GOLDEN_CARROT, text("familytree.menu.plan"),
                 wrappedLore("familytree.menu.plan.hint")), () -> { pickerPage = 0; showMates(petId); });
+        if (mayShowRelatives) menu.put(RELATIVES, button(Material.GLOW_INK_SAC, text("familytree.menu.relatives"),
+                wrappedLore("familytree.menu.relatives.hint")), () -> showRelatives(petId));
         menu.put(INFO, infoButton(kids.isEmpty() ? text("familytree.menu.children.none")
                 : text("familytree.menu.children.count", kids.size()), kids.size() > CHILD_SLOTS
                 ? pageLine(shownPage + 1, pages) : List.of(), manage ? null : "familytree.menu.view_only"), null);
@@ -396,6 +401,44 @@ final class MenuSession {
         }
         player.closeInventory();
         plugin.command().locatePet(player, petId);
+    }
+
+    /** The chest menu's version of the relatives key: chat lines, and particles that only this player sees. */
+    private void showRelatives(UUID petId) {
+        refreshAccess();
+        AnimalRecord pet = view(petId);
+        if (!mayShowRelatives) {
+            showFamily(petId);
+            return;
+        }
+        if (!plugin.cooldowns().relatives(player.getUniqueId())) {
+            notice("familytree.menu.wait");
+            showFamily(petId);
+            return;
+        }
+        RelativesResult result = plugin.bridge().nearbyRelatives(player, UUID.randomUUID(), petId);
+        if (result.status() != RelativesResult.Status.FOUND.ordinal()) {
+            notice("familytree.menu.relatives.far", pet == null ? "" : pet.name());
+            showFamily(petId);
+            return;
+        }
+        player.closeInventory();
+        plugin.chat().send(player, summary(result));
+        RelativeMarkers.mark(player, petId, 0xFFFFFF);
+        for (RelativesResult.Relative relative : result.relatives()) {
+            CloseRelation relation = CloseRelation.byOrdinal(relative.relation());
+            if (relation == null) continue;
+            plugin.chat().send(player, Text.literal("  ").append(text("familytree.relatives.label",
+                    text(relation.translationKey()).rgb(relation.color()), Text.literal(relative.name()))));
+            RelativeMarkers.mark(player, relative.id(), relation.color());
+        }
+    }
+
+    private Text summary(RelativesResult result) {
+        if (result.total() == 0) return text("familytree.relatives.none", result.targetName());
+        if (result.total() > result.relatives().size())
+            return text("familytree.relatives.count_capped", result.targetName(), result.total(), result.relatives().size());
+        return text("familytree.relatives.count", result.targetName(), result.total());
     }
 
     private void openRename(UUID petId) {
