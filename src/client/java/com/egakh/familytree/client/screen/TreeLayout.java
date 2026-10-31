@@ -89,6 +89,7 @@ public final class TreeLayout {
 
     private static final class Band {
         final List<Node> nodes = new ArrayList<>();
+        int index;
         int rows = 1;
         double top;
         double bottom;
@@ -101,7 +102,10 @@ public final class TreeLayout {
 
     private TreeLayout() {}
 
-    /** Collapsing a branch hides all its descendants, including descendants with another parent, and partners left with no shown child. */
+    /**
+     * Collapsing a branch hides all its descendants, including descendants with another parent, and partners left with no
+     * shown child. A collapsed card itself always stays, so its branch can be shown again.
+     */
     public static List<UUID> visibleIds(Result tree, Set<UUID> collapsed) {
         Map<UUID, List<UUID>> children = new HashMap<>();
         for (Edge edge : tree.edges) {
@@ -121,7 +125,7 @@ public final class TreeLayout {
         }
         for (Node node : tree.nodes) {
             List<UUID> shown = children.getOrDefault(node.id, List.of());
-            if (node.partner && !shown.isEmpty() && hidden.containsAll(shown)) hidden.add(node.id);
+            if (node.partner && !collapsed.contains(node.id) && !shown.isEmpty() && hidden.containsAll(shown)) hidden.add(node.id);
         }
         return tree.nodes.stream().map(node -> node.id).filter(id -> !hidden.contains(id)).toList();
     }
@@ -340,7 +344,7 @@ public final class TreeLayout {
                 if (shown == null) more = true;
                 else link(r, linked, shown, node);
             }
-            if (more) r.olderHidden.put(node.id, generationsAbove(node.id, records));
+            if (more) r.olderHidden.put(node.id, generationsAbove(node.id, records, r.byId.keySet()));
         }
         for (Node node : limitedDown) {
             boolean more = false;
@@ -350,17 +354,21 @@ public final class TreeLayout {
                 if (shown == null) more = true;
                 else link(r, linked, node, shown);
             }
-            if (more) r.youngerHidden.put(node.id, generationsBelow(node.id, records, childIndex));
+            if (more) r.youngerHidden.put(node.id, generationsBelow(node.id, records, childIndex, r.byId.keySet()));
         }
 
         if (!hidden.isEmpty()) removeHidden(r, bands, hidden);
+        List<Band> placed = new ArrayList<>();
 
         List<Integer> order = new ArrayList<>(bands.keySet());
         order.sort(Comparator.reverseOrder());
         double top = 0;
+        int index = 0;
         for (int generation : order) {
             Band band = bands.get(generation);
             if (band.nodes.isEmpty()) continue;
+            band.index = index++;
+            placed.add(band);
             band.gap = H_SPACING;
             if (band.nodes.size() > TREE_ROW_LIMIT) {
                 placeGrid(band, top, 0);
@@ -372,7 +380,7 @@ public final class TreeLayout {
             }
             top = band.bottom + V_SPACING;
         }
-        route(r.edges);
+        route(r.edges, placed);
         measure(r);
         return r;
     }
@@ -391,12 +399,6 @@ public final class TreeLayout {
     private static void removeHidden(Result r, Map<Integer, Band> bands, Set<UUID> hidden) {
         Set<UUID> dropped = new HashSet<>();
         for (Node node : r.nodes) if (hidden.contains(node.id)) dropped.add(node.id);
-        for (Node node : r.nodes) {
-            if (!node.partner) continue;
-            boolean anyShown = false;
-            for (Edge edge : r.edges) if (edge.from == node && !dropped.contains(edge.to.id)) anyShown = true;
-            if (!anyShown) dropped.add(node.id);
-        }
         r.nodes.removeIf(node -> dropped.contains(node.id));
         r.edges.removeIf(edge -> dropped.contains(edge.from.id) || dropped.contains(edge.to.id));
         for (UUID id : dropped) {
@@ -415,9 +417,9 @@ public final class TreeLayout {
         return parents;
     }
 
-    /** The number of recorded generations above a card, counting each ancestor at its nearest distance. */
-    static int generationsAbove(UUID id, Map<UUID, AnimalRecord> records) {
-        Set<UUID> seen = new HashSet<>();
+    /** How many generations of ancestors the tree leaves out above a card, counting each at its nearest distance. */
+    static int generationsAbove(UUID id, Map<UUID, AnimalRecord> records, Set<UUID> shown) {
+        Set<UUID> seen = new HashSet<>(shown);
         seen.add(id);
         List<UUID> level = List.of(id);
         int count = 0;
@@ -434,8 +436,8 @@ public final class TreeLayout {
         }
     }
 
-    static int generationsBelow(UUID id, Map<UUID, AnimalRecord> records, Map<UUID, List<UUID>> childIndex) {
-        Set<UUID> seen = new HashSet<>();
+    static int generationsBelow(UUID id, Map<UUID, AnimalRecord> records, Map<UUID, List<UUID>> childIndex, Set<UUID> shown) {
+        Set<UUID> seen = new HashSet<>(shown);
         seen.add(id);
         List<UUID> level = List.of(id);
         int count = 0;
@@ -496,7 +498,8 @@ public final class TreeLayout {
         }
     }
 
-    private static void route(List<Edge> edges) {
+    /** {@code bands} runs top to bottom. A link that skips generations runs down a lane left of every band it passes. */
+    private static void route(List<Edge> edges, List<Band> bands) {
         for (Edge edge : edges) {
             Node parent = edge.from, child = edge.to;
             Band from = parent.band, to = child.band;
@@ -511,7 +514,12 @@ public final class TreeLayout {
                 points.addAll(List.of(px, below, x, below));
             }
             points.addAll(List.of(x, exit));
-            if (child.row == 0) {
+            if (to.index > from.index + 1) {
+                double lane = to.left - to.gap / 2;
+                for (int i = from.index + 1; i < to.index; i++) lane = Math.min(lane, bands.get(i).left - bands.get(i).gap / 2);
+                double entry = child.row == 0 ? to.top - V_SPACING / 2.0 : child.y - WRAP_GAP / 3.0;
+                points.addAll(List.of(lane, exit, lane, entry, cx, entry, cx, child.y));
+            } else if (child.row == 0) {
                 points.addAll(List.of(cx, exit, cx, child.y));
             } else {
                 double above = child.y - WRAP_GAP / 3.0, lane = to.left - to.gap / 2;
@@ -656,10 +664,13 @@ public final class TreeLayout {
 
         double rowGap = H_SPACING + FOREST_EXTRA_SPACING;
         double top = 0;
+        List<Band> bands = new ArrayList<>();
         for (int generation = 0; generation <= maxGeneration; generation++) {
             List<Node> row = byGen.get(generation);
             if (row == null || row.isEmpty()) continue;
             Band band = new Band();
+            band.index = bands.size();
+            bands.add(band);
             band.nodes.addAll(row);
             band.gap = rowGap;
 
@@ -700,7 +711,7 @@ public final class TreeLayout {
             top = band.bottom + V_SPACING;
         }
 
-        route(result.edges);
+        route(result.edges, bands);
         for (Edge edge : result.edges) edge.route = edge.route();
         measure(result);
         return result;

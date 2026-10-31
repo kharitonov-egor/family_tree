@@ -245,6 +245,57 @@ class TreeNavigationTest {
         assertLinksAvoidCards(tree);
     }
 
+    @Test
+    void hidingAPartnersBranchKeepsThePartnerSoTheBranchCanBeShownAgain() {
+        UUID comet = pet(null, null);
+        UUID dusk = pet(null, null);
+        UUID gnocchi = pet(comet, dusk);
+        TreeLayout.Result tree = TreeLayout.layout(comet, records, children);
+
+        List<UUID> visible = TreeLayout.visibleIds(tree, Set.of(dusk));
+        assertTrue(visible.contains(dusk), "Hiding Dusk's branch hid Dusk, so Show branch can't be pressed");
+        assertFalse(visible.contains(gnocchi));
+        Set<UUID> hidden = new HashSet<>(tree.byId.keySet());
+        visible.forEach(hidden::remove);
+        TreeLayout.Result collapsed = TreeLayout.layout(comet, records, children, hidden, Set.of(), Set.of());
+        assertTrue(collapsed.byId.containsKey(dusk));
+        assertFalse(collapsed.byId.containsKey(gnocchi));
+    }
+
+    @Test
+    void linksThatSkipGenerationsGoAroundTheCardsBetween() {
+        UUID grandparent = pet(null, null);
+        UUID focus = pet(grandparent, null);
+        UUID mate = pet(null, null);
+        UUID child = pet(focus, mate);
+        UUID foal = pet(child, grandparent);
+        TreeLayout.Result tree = TreeLayout.layout(focus, records, children);
+        assertTrue(tree.edges.stream().anyMatch(edge -> edge.from.id.equals(grandparent) && edge.to.id.equals(foal)));
+        assertLinksAvoidCards(tree);
+        assertLinksAvoidCards(forest());
+    }
+
+    @Test
+    void depthTabsCountOnlyTheGenerationsLeftOut() {
+        UUID p5 = pet(null, null);
+        UUID p4 = pet(p5, null);
+        UUID p3 = pet(p4, null);
+        UUID p2 = pet(p3, null);
+        UUID p1 = pet(p2, null);
+        UUID p = pet(p1, null);
+        UUID q = pet(null, null);
+        UUID t = pet(p, q);
+        UUID x5 = pet(t, null);
+        UUID x4 = pet(x5, null);
+        UUID x3 = pet(x4, null);
+        UUID x2 = pet(x3, null);
+        UUID x = pet(x2, null);
+        UUID focus = pet(p, x);
+        TreeLayout.Result tree = TreeLayout.layout(focus, records, children);
+
+        assertEquals(java.util.Map.of(t, 1), tree.olderHidden, "Only Q, one generation, is left out above T");
+    }
+
     /** Every link segment stays outside every card, except where it meets its own two cards. */
     private static void assertLinksAvoidCards(TreeLayout.Result tree) {
         for (TreeLayout.Edge edge : tree.edges) {
