@@ -191,7 +191,8 @@ public final class FamilyTreeCommand {
     }
 
     private static int runList(CommandSourceStack source) {
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        FamilyTreeState state = readable(source);
+        if (state == null) return 0;
         List<AnimalRecord> all = state.all().stream()
                 .filter(record -> ServerPetAccess.canView(source, record))
                 .sorted(Comparator.comparing(AnimalRecord::name, String.CASE_INSENSITIVE_ORDER))
@@ -215,7 +216,8 @@ public final class FamilyTreeCommand {
     }
 
     private static int runInfo(CommandSourceStack source, String name) {
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        FamilyTreeState state = readable(source);
+        if (state == null) return 0;
         AnimalRecord match = find(source, state, name, false, id -> "/familytree info " + id);
         if (match == null) return 0;
 
@@ -261,7 +263,8 @@ public final class FamilyTreeCommand {
     /** Uses only records the player may view, so the relationship never passes through hidden animals. */
     private static int runBreed(CommandSourceStack source, String firstName, String secondName) {
         if (denied(source, FamilyTreePermission.BREED)) return 0;
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        FamilyTreeState state = readable(source);
+        if (state == null) return 0;
         AnimalRecord first = find(source, state, firstName, false,
                 id -> "/familytree breed " + id + " " + StringArgumentType.escapeIfRequired(secondName));
         if (first == null) return 0;
@@ -276,8 +279,9 @@ public final class FamilyTreeCommand {
     }
 
     private static int runLocate(CommandSourceStack source, String typed) {
-        if (denied(source, FamilyTreePermission.LOCATE) || busy(source, FamilyTreePackets::allowLocate)) return 0;
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        if (denied(source, FamilyTreePermission.LOCATE)) return 0;
+        FamilyTreeState state = readable(source);
+        if (state == null || busy(source, FamilyTreePackets::allowLocate)) return 0;
         String name = PetNames.unquote(typed);
         PetNames.Lookup lookup = PetNames.find(state.all(), typed, record -> ServerPetAccess.canView(source, record),
                 record -> ServerPetAccess.canManage(source, record));
@@ -360,6 +364,7 @@ public final class FamilyTreeCommand {
     }
 
     private static int runScan(CommandSourceStack source) {
+        if (readable(source) == null) return 0;
         if (!FamilyTreePackets.allowScan(source.getServer(), source.getPlayer() == null ? null : source.getPlayer().getUUID())) {
             ServerText.failure(source, Component.translatable("familytree.command.cooldown"));
             return 0;
@@ -408,11 +413,8 @@ public final class FamilyTreeCommand {
     private static int runPrune(CommandSourceStack source, java.util.function.Predicate<AnimalRecord> which,
                                 String what, boolean confirmed) {
         if (denied(source, FamilyTreePermission.PRUNE)) return 0;
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        if (state.readOnly()) {
-            ServerText.failure(source, Component.translatable("familytree.command.read_only"));
-            return 0;
-        }
+        FamilyTreeState state = readable(source);
+        if (state == null) return 0;
         long matching = state.all().stream().filter(which).count();
         if (matching == 0) {
             ServerText.failure(source, Component.translatable("familytree.command.prune.none"));
@@ -470,7 +472,9 @@ public final class FamilyTreeCommand {
                 ? pet.deathWorldDay()
                 : TimeUtil.currentWorldDay(source.getLevel());
         if (days > anchorDay) {
-            ServerText.failure(source, Component.translatable("familytree.command.setage.invalid", days, anchorDay));
+            ServerText.failure(source, days == 1
+                    ? Component.translatable("familytree.command.setage.invalid_one", anchorDay)
+                    : Component.translatable("familytree.command.setage.invalid", days, anchorDay));
             return 0;
         }
 
@@ -543,10 +547,15 @@ public final class FamilyTreeCommand {
 
     /** The node, then the edit cooldown, then a writable store, before any name lookup. */
     private static boolean mayEdit(CommandSourceStack source, FamilyTreePermission permission) {
-        if (denied(source, permission) || busy(source, FamilyTreePackets::allowEdit)) return false;
-        if (!FamilyTreeState.get(source.getServer()).readOnly()) return true;
+        return !denied(source, permission) && !busy(source, FamilyTreePackets::allowEdit) && readable(source) != null;
+    }
+
+    /** An unreadable history holds no pets, so commands say it couldn't be read instead of finding nothing. */
+    private static FamilyTreeState readable(CommandSourceStack source) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        if (!state.readOnly()) return state;
         ServerText.failure(source, Component.translatable("familytree.command.read_only"));
-        return false;
+        return null;
     }
 
     /**
@@ -594,12 +603,13 @@ public final class FamilyTreeCommand {
     }
 
     public static int locatePet(CommandSourceStack source, java.util.UUID id) {
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        AnimalRecord pet = state.get(id);
         if (!ServerPetAccess.allowed(source, FamilyTreePermission.LOCATE)) {
             ServerText.failure(source, Component.translatable("familytree.permission.denied", FamilyTreePermission.LOCATE.node()));
             return 0;
         }
+        FamilyTreeState state = readable(source);
+        if (state == null) return 0;
+        AnimalRecord pet = state.get(id);
         if (!ServerPetAccess.canManage(source, pet)) {
             ServerText.failure(source, Component.translatable("familytree.access.denied"));
             return 0;

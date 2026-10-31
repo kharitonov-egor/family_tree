@@ -130,10 +130,15 @@ public final class FamilyTreeCommand implements TabExecutor {
 
     /** The node, then the edit cooldown, then a writable store, before any name lookup. */
     private boolean mayEdit(CommandSender sender, FamilyTreePermission permission) {
-        if (denied(sender, permission) || busy(sender, plugin.cooldowns()::edit)) return false;
-        if (!store().readOnly()) return true;
+        return !denied(sender, permission) && !busy(sender, plugin.cooldowns()::edit) && readable(sender) != null;
+    }
+
+    /** An unreadable history holds no pets, so commands say it couldn't be read instead of finding nothing. */
+    private FamilyTreeStore readable(CommandSender sender) {
+        FamilyTreeStore state = store();
+        if (!state.readOnly()) return state;
         chat().fail(sender, "familytree.command.read_only");
-        return false;
+        return null;
     }
 
     @Override
@@ -261,7 +266,9 @@ public final class FamilyTreeCommand implements TabExecutor {
     }
 
     private void runList(CommandSender sender) {
-        List<AnimalRecord> all = store().all().stream().filter(record -> access().canView(sender, record))
+        FamilyTreeStore state = readable(sender);
+        if (state == null) return;
+        List<AnimalRecord> all = state.all().stream().filter(record -> access().canView(sender, record))
                 .sorted(Comparator.comparing(AnimalRecord::name, String.CASE_INSENSITIVE_ORDER)).toList();
         if (all.isEmpty()) {
             chat().send(sender, "familytree.screen.empty");
@@ -275,7 +282,8 @@ public final class FamilyTreeCommand implements TabExecutor {
     }
 
     private void runInfo(CommandSender sender, String name) {
-        FamilyTreeStore state = store();
+        FamilyTreeStore state = readable(sender);
+        if (state == null) return;
         AnimalRecord match = find(state, name, sender, false, id -> "/familytree info " + id);
         if (match == null) return;
         String language = chat().language(sender);
@@ -306,7 +314,8 @@ public final class FamilyTreeCommand implements TabExecutor {
 
     /** Kinship uses only the animals this sender may view, as the screens do. */
     private void runBreed(CommandSender sender, String firstName, String secondName) {
-        FamilyTreeStore state = store();
+        FamilyTreeStore state = readable(sender);
+        if (state == null) return;
         AnimalRecord first = find(state, firstName, sender, false, id -> "/familytree breed " + id + " " + Args.quoteIfNeeded(secondName));
         if (first == null) return;
         AnimalRecord second = find(state, secondName, sender, false, id -> "/familytree breed " + Args.quoteIfNeeded(firstName) + " " + id);
@@ -323,8 +332,9 @@ public final class FamilyTreeCommand implements TabExecutor {
     }
 
     private void runLocate(CommandSender sender, String typed) {
-        if (denied(sender, FamilyTreePermission.LOCATE) || busy(sender, plugin.cooldowns()::locate)) return;
-        FamilyTreeStore state = store();
+        if (denied(sender, FamilyTreePermission.LOCATE)) return;
+        FamilyTreeStore state = readable(sender);
+        if (state == null || busy(sender, plugin.cooldowns()::locate)) return;
         String name = PetNames.unquote(typed);
         PetNames.Lookup lookup = PetNames.find(state.all(), typed, record -> access().canView(sender, record),
                 record -> access().canManage(sender, record));
@@ -382,9 +392,10 @@ public final class FamilyTreeCommand implements TabExecutor {
     }
 
     public boolean locatePet(CommandSender sender, UUID id) {
-        FamilyTreeStore state = store();
-        AnimalRecord pet = state.get(id);
         if (denied(sender, FamilyTreePermission.LOCATE)) return false;
+        FamilyTreeStore state = readable(sender);
+        if (state == null) return false;
+        AnimalRecord pet = state.get(id);
         if (!access().canManage(sender, pet)) {
             chat().fail(sender, "familytree.access.denied");
             return false;
@@ -394,6 +405,7 @@ public final class FamilyTreeCommand implements TabExecutor {
     }
 
     private void runScan(CommandSender sender) {
+        if (readable(sender) == null) return;
         UUID player = sender instanceof Player p ? p.getUniqueId() : null;
         if (!plugin.cooldowns().scan(player)) {
             chat().fail(sender, "familytree.command.cooldown");
@@ -405,11 +417,8 @@ public final class FamilyTreeCommand implements TabExecutor {
 
     /** The first run only counts the records and asks for {@code confirm}, which backs up and then removes them. */
     private void runPrune(CommandSender sender, String label, Predicate<AnimalRecord> which, String what, boolean confirmed) {
-        FamilyTreeStore state = store();
-        if (state.readOnly()) {
-            chat().fail(sender, "familytree.command.read_only");
-            return;
-        }
+        FamilyTreeStore state = readable(sender);
+        if (state == null) return;
         long matching = state.all().stream().filter(which).count();
         if (matching == 0) {
             chat().fail(sender, "familytree.command.prune.none");
@@ -449,7 +458,8 @@ public final class FamilyTreeCommand implements TabExecutor {
         if (pet == null) return;
         long anchorDay = pet.deceased() && pet.deathWorldDay() != null ? pet.deathWorldDay() : WorldClock.currentWorldDay();
         if (days > anchorDay) {
-            chat().fail(sender, "familytree.command.setage.invalid", days, anchorDay);
+            if (days == 1) chat().fail(sender, "familytree.command.setage.invalid_one", anchorDay);
+            else chat().fail(sender, "familytree.command.setage.invalid", days, anchorDay);
             return;
         }
         long birthDay = anchorDay - days;
