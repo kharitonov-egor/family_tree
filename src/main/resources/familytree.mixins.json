@@ -13,6 +13,11 @@
     "TamableAnimalTameMixin",
     "WolfVariantInvoker"
   ],
+  "client": [
+    "client.EntityOutlineColorMixin",
+    "client.EntityRendererLabelMixin",
+    "client.MinecraftGlowMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

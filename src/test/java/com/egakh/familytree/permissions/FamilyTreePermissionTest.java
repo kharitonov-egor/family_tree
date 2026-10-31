@@ -23,7 +23,7 @@ class FamilyTreePermissionTest {
 
     /** Without a permission mod, players get exactly what Family Tree 1.3.0 gave them by op level. */
     @Test void defaultsMatchTheOperatorLevelsOf130() {
-        Set<FamilyTreePermission> everyone = EnumSet.of(USE, MENU, SCAN, LOCATE, RENAME, PARENTS, AGE, LINKING_STICK, BREED);
+        Set<FamilyTreePermission> everyone = EnumSet.of(USE, MENU, SCAN, LOCATE, RENAME, PARENTS, AGE, LINKING_STICK, BREED, RELATIVES);
         for (FamilyTreePermission permission : values()) {
             assertTrue(permission.fallback(ServerSettings.DEFAULT, true), permission + " must allow operators");
             assertEquals(everyone.contains(permission), permission.fallback(ServerSettings.DEFAULT, false), permission.node());

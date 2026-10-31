@@ -160,7 +160,7 @@ class ServerSettingsTest {
         assertEquals(3, settings.operatorLevel());
         assertEquals(new ServerSettings.OwnerActions(false, true, true, false), settings.ownerActions());
         assertEquals(25, settings.listLimit());
-        assertEquals(new ServerSettings.Cooldowns(0, 2_000, 10_000, 250, 1_000), settings.cooldowns());
+        assertEquals(new ServerSettings.Cooldowns(0, 2_000, 10_000, 250, 1_000, 200), settings.cooldowns());
         assertFalse(settings.linkingStick());
         assertEquals("Pedigree Wand", settings.linkingStickName());
         assertEquals(30, settings.linkingSelectionSeconds());

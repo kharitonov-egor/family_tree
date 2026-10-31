@@ -8,4 +8,5 @@ final class LegacyClientPackets {
     static void receive(RenamePetResult packet) { FamilyTreeClient.receive(packet); }
     static void receive(LinkParentsResult packet) { FamilyTreeClient.receive(packet); }
     static void receive(WaypointResult packet) { FamilyTreeClient.receive(packet); }
+    static void receive(RelativesResult packet) { FamilyTreeClient.receive(packet); }
 }

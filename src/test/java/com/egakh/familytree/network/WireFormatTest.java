@@ -48,6 +48,13 @@ class WireFormatTest {
         assertEquals("000000000000001d000000000000001e000000000000001f0000000000000020", bytes(WaypointRequest.STREAM_CODEC, new WaypointRequest(new UUID(29, 30), new UUID(31, 32)), WireFormatTest::registryBuffer));
         assertEquals("000000000000002100000000000000220005456d626572136d696e6563726166743a6f766572776f726c640102030405060708",
                 bytes(WaypointResult.STREAM_CODEC, new WaypointResult(new UUID(33, 34), 0, "Ember", "minecraft:overworld", 0x0102030405060708L), WireFormatTest::registryBuffer));
+        assertEquals("00000000000000230000000000000024000000000000002500000000000000" + "26",
+                bytes(RelativesRequest.STREAM_CODEC, new RelativesRequest(new UUID(35, 36), new UUID(37, 38)), WireFormatTest::registryBuffer));
+        assertEquals("00000000000000270000000000000028000000000000002900000000000000" + "2a0006436c6f7665720302"
+                        + "000000000000002b000000000000002c0105456d626572" + "000000000000002d000000000000002e03044d6f7373",
+                bytes(RelativesResult.STREAM_CODEC, new RelativesResult(new UUID(39, 40), new UUID(41, 42), 0, "Clover", 3,
+                        List.of(new RelativesResult.Relative(new UUID(43, 44), 1, "Ember"),
+                                new RelativesResult.Relative(new UUID(45, 46), 3, "Moss"))), WireFormatTest::registryBuffer));
     }
 
     private static <B extends ByteBuf, T> String bytes(StreamCodec<? super B, T> codec, T value, Function<ByteBuf, B> wrap) {

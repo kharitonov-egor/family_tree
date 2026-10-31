@@ -20,6 +20,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 
 
+import net.neoforged.neoforge.client.settings.KeyConflictContext;
 import net.neoforged.neoforge.common.NeoForge;
 
 @Mod(value = FamilyTreeMod.MOD_ID, dist = Dist.CLIENT)
@@ -34,7 +35,11 @@ public final class NeoForgeClient {
         container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> new FamilyTreeSettingsScreen(parent));
         FamilyTreeClient client = new FamilyTreeClient();
         client.initialize();
-        modBus.addListener((RegisterKeyMappingsEvent event) -> event.register(FamilyTreeKeybinds.OPEN_TREE));
+        FamilyTreeKeybinds.SHOW_RELATIVES.setKeyConflictContext(KeyConflictContext.IN_GAME);
+        modBus.addListener((RegisterKeyMappingsEvent event) -> {
+            event.register(FamilyTreeKeybinds.OPEN_TREE);
+            event.register(FamilyTreeKeybinds.SHOW_RELATIVES);
+        });
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> client.tick(Minecraft.getInstance()));
     }
 

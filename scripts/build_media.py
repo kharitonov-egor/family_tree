@@ -222,6 +222,23 @@ def showcase(page_directory, recording, start, server_recording, server_start, s
         print(f'{target.relative_to(ROOT)}: {index / fps:.1f} s, {target.stat().st_size // 1024} KiB')
 
 
+def relatives(game_directory):
+    """Copy the relatives scene from `runDemo -Pdemo -Prelatives` into docs/: a still and a clip under 2.5 MB."""
+    assert 'AI breeding over three generations' in (game_directory / 'demo-result.txt').read_text()
+    screenshots = game_directory / 'screenshots'
+    frames = sorted(screenshots.glob('relatives-clip-[0-9]*.png'))
+    assert len(frames) >= 85, 'The relatives clip is incomplete'
+    Image.open(screenshots / 'relatives-still.png').crop((160, 110, 1440, 830)).save(ROOT / 'docs/relatives-in-world.webp', quality=88)
+    clip = ROOT / 'docs/relatives-in-world-clip.webp'
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', '10', '-pattern_type', 'glob',
+                    '-i', str(screenshots / 'relatives-clip-*.png'), '-vf', 'crop=1280:720:160:130,scale=800:450:flags=lanczos',
+                    '-c:v', 'libwebp_anim', '-quality', '55', '-compression_level', '6', '-loop', '0', str(clip)], check=True)
+    assert clip.stat().st_size <= 2_500_000, 'The relatives clip is over 2.5 MB'
+    for name in ['relatives-in-world.webp', 'relatives-in-world-clip.webp']:
+        path = ROOT / 'docs' / name
+        print(path.name, path.stat().st_size, 'bytes')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--game-directory', type=Path, default=ROOT / 'build/demo-26.2')
@@ -234,6 +251,7 @@ def main():
     parser.add_argument('--server-recording', type=Path, help="Recording of the unmodded client's chest menu")
     parser.add_argument('--server-start', type=float, help='Seconds into that recording where the menu walkthrough starts')
     parser.add_argument('--server-shots', type=Path, help='Screenshots from scripts/server_media.py; packages the server media')
+    parser.add_argument('--relatives', type=Path, help='Package only the relatives scene from this game directory')
     args = parser.parse_args()
     if args.server_shots:
         server_page(args.server_shots, args.server_recording, args.server_start)
@@ -249,6 +267,9 @@ def main():
         return
     if args.animals:
         animals(args.animals)
+        return
+    if args.relatives:
+        relatives(args.relatives)
         return
     assert 'vanilla feeding; AI breeding' in (args.game_directory / 'demo-result.txt').read_text()
     frames = sorted((args.game_directory / 'screenshots').glob('gameplay-[0-9]*.png'))

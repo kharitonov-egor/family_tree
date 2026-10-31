@@ -1,5 +1,6 @@
 package com.egakh.familytree.client.screen;
 
+import com.egakh.familytree.client.keybind.FamilyTreeKeybinds;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -18,8 +19,12 @@ public final class FamilyTreeHelpScreen extends FamilyTreeScreen {
         gfx.fill(0, 0, width, height, 0xFF151A21);
         gfx.centeredText(font, title, width / 2, 14, 0xFFFFFFFF);
         int y = 38;
-        for (String key : java.util.List.of("familytree.help.discover", "familytree.help.parents", "familytree.help.breed", "familytree.help.animals", "familytree.help.export", "familytree.help.feedback")) {
-            for (var line : font.split(Component.translatable(key), Math.min(520, width - 32))) {
+        for (Component paragraph : java.util.List.of(Component.translatable("familytree.help.discover"),
+                Component.translatable("familytree.help.parents"), Component.translatable("familytree.help.breed"),
+                Component.translatable("familytree.help.animals"),
+                Component.translatable("familytree.help.relatives", FamilyTreeKeybinds.SHOW_RELATIVES.getTranslatedKeyMessage()),
+                Component.translatable("familytree.help.export"), Component.translatable("familytree.help.feedback"))) {
+            for (var line : font.split(paragraph, Math.min(520, width - 32))) {
                 gfx.text(font, line, Math.max(16, (width - 520) / 2), y, 0xFFB0B7C0); y += font.lineHeight + 2;
             }
             y += 10;

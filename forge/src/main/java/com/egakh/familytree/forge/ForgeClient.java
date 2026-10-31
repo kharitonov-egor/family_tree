@@ -8,6 +8,7 @@ import com.egakh.familytree.network.payloads.LinkParentsResult;
 import com.egakh.familytree.network.payloads.RenamePetResult;
 import com.egakh.familytree.network.payloads.SnapshotPagePayload;
 import com.egakh.familytree.network.payloads.WaypointResult;
+import com.egakh.familytree.network.payloads.RelativesResult;
 import com.egakh.familytree.client.integration.MapWaypoints;
 import com.egakh.familytree.client.platform.ClientEnvironment;
 import com.egakh.familytree.client.screen.FamilyTreeSettingsScreen;
@@ -17,6 +18,7 @@ import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.settings.KeyConflictContext;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -37,6 +39,7 @@ final class ForgeClient {
         ForgeNetwork.clientbound(LinkParentsResult.TYPE, LinkParentsResult.STREAM_CODEC, FamilyTreeClient::receive);
         ForgeNetwork.clientbound(RenamePetResult.TYPE, RenamePetResult.STREAM_CODEC, FamilyTreeClient::receive);
         ForgeNetwork.clientbound(WaypointResult.TYPE, WaypointResult.STREAM_CODEC, FamilyTreeClient::receive);
+        ForgeNetwork.clientbound(RelativesResult.TYPE, RelativesResult.STREAM_CODEC, FamilyTreeClient::receive);
         ModList mods = ModList.get();
         ClientEnvironment.configure(new ClientEnvironment.Versions(version(mods, "familytree"), version(mods, "minecraft"),
                 "Forge", version(mods, "forge")), mods::isLoaded);
@@ -45,7 +48,11 @@ final class ForgeClient {
                 () -> new ConfigScreenHandler.ConfigScreenFactory((minecraft, parent) -> new FamilyTreeSettingsScreen(parent)));
         FamilyTreeClient client = new FamilyTreeClient();
         client.initialize();
-        modBus.addListener((RegisterKeyMappingsEvent event) -> event.register(FamilyTreeKeybinds.OPEN_TREE));
+        FamilyTreeKeybinds.SHOW_RELATIVES.setKeyConflictContext(KeyConflictContext.IN_GAME);
+        modBus.addListener((RegisterKeyMappingsEvent event) -> {
+            event.register(FamilyTreeKeybinds.OPEN_TREE);
+            event.register(FamilyTreeKeybinds.SHOW_RELATIVES);
+        });
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent event) -> {
             if (event.phase == TickEvent.Phase.END) client.tick(Minecraft.getInstance());
         });

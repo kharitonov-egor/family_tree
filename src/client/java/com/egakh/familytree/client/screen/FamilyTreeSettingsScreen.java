@@ -6,9 +6,37 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+
 public class FamilyTreeSettingsScreen extends Screen {
 
+    private record Toggle(String key, BooleanSupplier value, Consumer<Boolean> setter) {
+        Component label() {
+            return Component.translatable(key, Component.translatable(value.getAsBoolean()
+                    ? "familytree.screen.settings.on" : "familytree.screen.settings.off"));
+        }
+    }
+
+    private static final List<Toggle> TOGGLES = List.of(
+            new Toggle("familytree.screen.settings.show_age",
+                    FamilyTreeClientSettings::showAge, FamilyTreeClientSettings::setShowAge),
+            new Toggle("familytree.screen.settings.show_birth_day",
+                    FamilyTreeClientSettings::showBirthDay, FamilyTreeClientSettings::setShowBirthDay),
+            new Toggle("familytree.screen.settings.show_generation",
+                    FamilyTreeClientSettings::showGeneration, FamilyTreeClientSettings::setShowGeneration),
+            new Toggle("familytree.screen.settings.show_horse_stats",
+                    FamilyTreeClientSettings::showHorseStats, FamilyTreeClientSettings::setShowHorseStats),
+            new Toggle("familytree.screen.settings.show_relatives",
+                    FamilyTreeClientSettings::showRelatives, FamilyTreeClientSettings::setShowRelatives),
+            new Toggle("familytree.screen.settings.relative_lines",
+                    FamilyTreeClientSettings::relativeLines, FamilyTreeClientSettings::setRelativeLines));
+
+    private static final int ROW = 24;
+
     private final Screen parent;
+    private int top;
 
     public FamilyTreeSettingsScreen(Screen parent) {
         super(Component.translatable("familytree.screen.settings.title"));
@@ -18,35 +46,17 @@ public class FamilyTreeSettingsScreen extends Screen {
     @Override
     protected void init() {
         int centerX = this.width / 2;
-        int top = this.height / 2 - 52;
-
-        this.addRenderableWidget(Button.builder(showAgeLabel(), button -> {
-                    FamilyTreeClientSettings.setShowAge(!FamilyTreeClientSettings.showAge());
-                    button.setMessage(showAgeLabel());
-                })
-                .bounds(centerX - 100, top, 200, 20)
-                .build());
-
-        this.addRenderableWidget(Button.builder(showBirthDayLabel(), button -> {
-                    FamilyTreeClientSettings.setShowBirthDay(!FamilyTreeClientSettings.showBirthDay());
-                    button.setMessage(showBirthDayLabel());
-                })
-                .bounds(centerX - 100, top + 28, 200, 20)
-                .build());
-
-        this.addRenderableWidget(Button.builder(showGenerationLabel(), button -> {
-                    FamilyTreeClientSettings.setShowGeneration(!FamilyTreeClientSettings.showGeneration());
-                    button.setMessage(showGenerationLabel());
-                })
-                .bounds(centerX - 100, top + 56, 200, 20)
-                .build());
-
-        this.addRenderableWidget(Button.builder(showHorseStatsLabel(), button -> {
-                    FamilyTreeClientSettings.setShowHorseStats(!FamilyTreeClientSettings.showHorseStats());
-                    button.setMessage(showHorseStatsLabel());
-                })
-                .bounds(centerX - 100, top + 84, 200, 20)
-                .build());
+        top = Math.max(28, this.height / 2 - (TOGGLES.size() + 1) * ROW / 2 + 6);
+        int y = top;
+        for (Toggle toggle : TOGGLES) {
+            this.addRenderableWidget(Button.builder(toggle.label(), button -> {
+                        toggle.setter().accept(!toggle.value().getAsBoolean());
+                        button.setMessage(toggle.label());
+                    })
+                    .bounds(centerX - 100, y, 200, 20)
+                    .build());
+            y += ROW;
+        }
 
         this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"),
                         button -> {
@@ -54,7 +64,7 @@ public class FamilyTreeSettingsScreen extends Screen {
                                 this.minecraft.setScreen(parent);
                             }
                         })
-                .bounds(centerX - 100, top + 112, 200, 20)
+                .bounds(centerX - 100, y + 4, 200, 20)
                 .build());
     }
 
@@ -68,39 +78,11 @@ public class FamilyTreeSettingsScreen extends Screen {
         /*super.extractRenderState(gfx);
         *///?} else
         super.extractRenderState(gfx, mouseX, mouseY, delta);
-        gfx.centeredText(this.font, this.title, this.width / 2, this.height / 2 - 66, 0xFFFFFFFF);
+        gfx.centeredText(this.font, this.title, this.width / 2, top - 16, 0xFFFFFFFF);
     }
 
     @Override
     public boolean isPauseScreen() {
         return false;
-    }
-
-    private static Component showAgeLabel() {
-        return Component.translatable("familytree.screen.settings.show_age",
-                FamilyTreeClientSettings.showAge()
-                        ? Component.translatable("familytree.screen.settings.on")
-                        : Component.translatable("familytree.screen.settings.off"));
-    }
-
-    private static Component showBirthDayLabel() {
-        return Component.translatable("familytree.screen.settings.show_birth_day",
-                FamilyTreeClientSettings.showBirthDay()
-                        ? Component.translatable("familytree.screen.settings.on")
-                        : Component.translatable("familytree.screen.settings.off"));
-    }
-
-    private static Component showHorseStatsLabel() {
-        return Component.translatable("familytree.screen.settings.show_horse_stats",
-                FamilyTreeClientSettings.showHorseStats()
-                        ? Component.translatable("familytree.screen.settings.on")
-                        : Component.translatable("familytree.screen.settings.off"));
-    }
-
-    private static Component showGenerationLabel() {
-        return Component.translatable("familytree.screen.settings.show_generation",
-                FamilyTreeClientSettings.showGeneration()
-                        ? Component.translatable("familytree.screen.settings.on")
-                        : Component.translatable("familytree.screen.settings.off"));
     }
 }
