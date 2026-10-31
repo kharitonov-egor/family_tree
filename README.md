@@ -94,6 +94,8 @@ Click a pet to see its parents, grandparents, and children, then click any relat
 
 The menus follow the same permissions and cooldowns as the screens. They never show coordinates, and another player's pets are view-only. Every click is refused before Minecraft moves an item, so players cannot take, move, or copy anything through them, including with shift-click, number keys, dragging, or the offhand key.
 
+A pet's family page also has **Plan breeding**, which lists possible mates and opens the baby's odds as a book, and **Show relatives nearby**, which lists the pet's loaded relatives in chat and marks them with colored dust that only that player sees.
+
 Players who have the client mod keep the full screens, and `/familytree menu` opens the chest menu for them too.
 
 Menu text and chat messages follow each player's Minecraft language when Family Tree has a translation, and English otherwise. Server operators can change these settings in `config/familytree-server.properties`, then run `/familytree reload`:
@@ -115,6 +117,16 @@ An automated scene in Minecraft 26.3. Two tamed horses ate golden carrots, and v
 Stats are base values, so potion effects don't change them. Family Tree reads them when it records an animal and again whenever the server loads, unloads, or scans it. Horses recorded by an older version get stats the next time they load.
 
 Minecraft treats every camel as tamed, and skeleton trap horses are tamed without an owner. Family Tree records these animals once a player rides or breeds them, and that player becomes their owner in Family Tree. Their owner in Minecraft stays unchanged, and wild camels nobody rides stay out of the tree.
+
+## Plan the next foal
+
+Choose **Breeding planner** at the top of the browser, or select an animal in the tree and choose **Plan breeding**. For horses, donkeys, mules, and llamas, the planner shows each foal stat's lowest, most likely, and highest value and the chance the foal beats both parents, computed exactly from Minecraft's breeding code. It also lists variant odds for sheep, axolotls, mooshrooms, pandas, horses, rabbits, and other species, names how the two animals are related, and gives the baby's inbreeding coefficient. **Best pairs** ranks a herd's pairs by expected speed, jump, health, chest slots, or an overall score.
+
+Shift-click a second card in a tree to name how the two animals are related, such as half siblings or first cousins, and light up the link between them. Players without the client mod use `/familytree breed <a> <b>` or **Plan breeding** on a pet's family page in the chest menu.
+
+![The breeding planner for two half-sibling horses, with each stat's range and chance to beat both parents](docs/breeding-planner.webp)
+
+The planner for Quill and Sorrel, two horses bred by vanilla AI in an automated scene in Minecraft 26.3.
 
 ## Animals you breed, name, or add
 
@@ -218,11 +230,13 @@ Servers that run Paper, Spigot, or Purpur can use the Family Tree plugin instead
 
 Family Tree includes English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Russian, Ukrainian, German, French, Italian, Spanish (Spain and Mexico), Brazilian Portuguese, Polish, and Turkish. Everything except English was machine-translated. If a phrase reads wrong in your language, please [open an issue](https://github.com/kharitonov-egor/family_tree/issues) or send a pull request that edits `src/main/resources/assets/familytree/lang/<language>.json`. A test checks that every language file has the same keys and format arguments as `en_us.json`.
 
-## Upgrading to 1.3.0
+## Upgrading to 1.4.0
 
-Existing Family Tree history and custom names remain, and 1.2.0 saves load unchanged. Saved records gain one optional `variant_origin` field. Update the server and clients together because the snapshot and rename result channels changed. If you go back to 1.2.0, it keeps every record, including farm animals and other new species, and drops `variant_origin` on its next save. Minecraft world version restrictions still apply, so each build is for worlds of its own Minecraft version, not for downgrading a newer world.
+Existing Family Tree history and custom names remain. 1.4.0 adds no saved fields, so 1.3.0 saves load unchanged and the Paper plugin reads the same file. A 1.3.0 settings file keeps every value and is rewritten once with comments and the new settings. Update the server and clients together when you can. A 1.4.0 client still joins a 1.3.0 server, where the relatives key shows a message and everything else works.
 
-[Latest release notes](docs/releases/1.3.0.md) | [1.2.0 release notes](docs/releases/1.2.0.md) | [1.1.0 release notes](docs/releases/1.1.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
+`/familytree prune` now removes nothing until you repeat it with `confirm`. If you go back to 1.3.0, it keeps every record, but it rewrites `config/familytree-server.properties` without the 1.4.0 settings and ignores permission nodes. Don't go back while Family Tree reports an unreadable history, because 1.3.0 would save an empty history over it. Minecraft world version restrictions still apply, so each build is for worlds of its own Minecraft version, not for downgrading a newer world.
+
+[Latest release notes](docs/releases/1.4.0.md) | [1.3.0 release notes](docs/releases/1.3.0.md) | [1.2.0 release notes](docs/releases/1.2.0.md) | [1.1.0 release notes](docs/releases/1.1.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
 
 ## Build and test
 
@@ -247,8 +261,8 @@ See [runtime validation](docs/testing.md) for the separate server smoke tests an
 
 ## Releases and download progress
 
-Version 1.3.0 records every breedable animal with inherited variants, adds chest menus for players without the client mod, 14 translations, Jade, WTHIT, and map waypoint support, and builds for Minecraft 1.21.4 to 1.21.10. Update clients and servers together. It preserves existing history, keeps unreadable records in the save, and disables writes to an unsupported future save format. Operator pruning writes a backup before deleting records.
+Version 1.4.0 adds the breeding planner, the relatives key, the Paper, Purpur, and Spigot plugin, permission nodes, and commented server settings that reload without a restart. It also builds Fabric for the 26.4 snapshot for testing. It preserves existing history, keeps unreadable records in the save, and stops saving instead of overwriting a history file it can't read. Operator pruning asks for confirmation and writes a backup before deleting records.
 
-[Release notes](docs/releases/1.3.0.md), [runtime checks](docs/testing.md), and [public download counts](docs/metrics/README.md) describe the release and progress toward 10,000 Modrinth downloads. Run `python scripts/download_counts.py` to update the public counters. The daily GitHub workflow does the same. Repeat downloads and upgrades count toward platform totals.
+[Release notes](docs/releases/1.4.0.md), [runtime checks](docs/testing.md), and [public download counts](docs/metrics/README.md) describe the release and progress toward 10,000 Modrinth downloads. Run `python scripts/download_counts.py` to update the public counters. The daily GitHub workflow does the same. Repeat downloads and upgrades count toward platform totals.
 
 Build all targets with JDK 25, JDK 21, and JDK 17 installed using `./gradlew buildAll --no-parallel`. Commit the tested source, then run `python scripts/release_manifest.py` to verify jar metadata, Java targets, license, icon, and hashes. Publish the copies under `build/releases/<version>/`.

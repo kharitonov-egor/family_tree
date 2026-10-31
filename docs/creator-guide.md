@@ -54,7 +54,7 @@ The horse, sheep, and panda media come from automated scenes in Minecraft 26.3. 
 
 ## Compatibility and limits
 
-Version 1.3.0 supports Fabric on Minecraft 1.20.1, 1.21.1, 1.21.4 to 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge builds cover 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.2, and 26.3, and Forge covers 1.20.1. NeoForge 26.3 is beta. See the [installation table](../README.md#install) for Java and loader requirements.
+Version 1.4.0 supports Fabric on Minecraft 1.20.1, 1.21.1, 1.21.4 to 1.21.11, 26.1.1, 26.1.2, 26.2, and 26.3. NeoForge builds cover 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.2, and 26.3, and Forge covers 1.20.1. NeoForge 26.3 is beta. The Paper and Spigot plugin runs on Paper 1.20.1 to 26.3 and Spigot 1.20.1, 1.21.11, and 26.3. See the [installation table](../README.md#install) for Java and loader requirements.
 
 Tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses join on their own. Camels and skeleton trap horses join once a player rides or breeds them. Every other breedable animal, vanilla or modded, joins when a player breeds, names, or adds it. Frogs, sniffers, and turtles hatch from spawn or eggs, so their babies need **Add parents**. Parrots cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule. Naturalist 2.0.7 on NeoForge 1.21.1 was tested with bred deer; other animal mods have not been tested.
 

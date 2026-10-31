@@ -43,10 +43,11 @@ def main():
                       if '=' in line and not line.startswith('#'))
     version = properties['mod_version']
     output = args.output or ROOT / 'build/releases' / version
-    output.mkdir(parents=True, exist_ok=True)
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    refuse_other_release(output, commit)
     if subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=ROOT, text=True).strip():
         raise SystemExit('Commit the tested source before generating the release manifest.')
+    output.mkdir(parents=True, exist_ok=True)
     files = []
     for loader, targets in TARGETS.items():
         for mc in targets:
@@ -110,6 +111,18 @@ def main():
     manifest = {'mod_version': version, 'commit': commit, 'license': 'MIT', 'files': files}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print(f'Verified {len(files)} release jars at {commit}. Output: {output}')
+
+
+def refuse_other_release(output, commit):
+    """A folder whose manifest names another commit holds jars that may already be published, so never overwrite it."""
+    path = output / 'manifest.json'
+    if not path.exists():
+        return
+    manifest = json.loads(path.read_text())
+    if manifest.get('commit') != commit:
+        raise SystemExit(f'{output} already holds the {manifest.get("mod_version")} release built from '
+                         f'{manifest.get("commit")}, and HEAD is {commit}. Bump mod_version in gradle.properties, '
+                         'or pass --output with a new folder.')
 
 
 def plugin_file(version, output):

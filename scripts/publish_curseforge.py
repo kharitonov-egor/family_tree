@@ -62,17 +62,35 @@ def game_version(ids, name):
     return matches[0]
 
 
+def published_files(record, first_upload):
+    """The upload API can't list a project's files, so the local record is the only way to skip earlier uploads."""
+    if record.exists():
+        if first_upload:
+            raise SystemExit(f'{record} exists, so this is not a first upload. Run without --first-upload to '
+                             'upload only the files it does not list.')
+        return json.loads(record.read_text())
+    if not first_upload:
+        raise SystemExit(f'{record} does not exist. If this version was uploaded to CurseForge by hand, write that '
+                         'file instead of uploading again. If no file of this version is on CurseForge yet, '
+                         'run again with --first-upload.')
+    return []
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--manifest', type=Path, required=True)
     parser.add_argument('--quilt', action='store_true', help='Also tag Fabric files as Quilt-compatible')
+    parser.add_argument('--first-upload', action='store_true',
+                        help="Upload a version that has no curseforge-published.json yet. Check the project's Files "
+                             'page first: the upload token cannot list files, so this script cannot see uploads '
+                             'made by hand.')
     args = parser.parse_args()
+    record = args.manifest.parent / 'curseforge-published.json'
+    published = published_files(record, args.first_upload)
     api = CurseForge()
     ids = api.version_ids()
     manifest = json.loads(args.manifest.read_text())
     changelog = (ROOT / 'docs/releases' / (manifest['mod_version'] + '.md')).read_text()
-    record = args.manifest.parent / 'curseforge-published.json'
-    published = json.loads(record.read_text()) if record.exists() else []
     done = {item['version'] for item in published}
     for item in manifest['files']:
         if item['loader'] == 'plugin':
