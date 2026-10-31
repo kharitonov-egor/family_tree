@@ -60,6 +60,8 @@ sourceSets.main {
 }
 sourceSets.test {
     java.setSrcDirs(['../src/test/java'])
+    // These tests compile unprocessed, and NeoForge's event loop class won't initialize outside the game. Fabric runs AfterClickTest on every version.
+    java.exclude '**/menu/AfterClickTest.java'
     compileClasspath += sourceSets.main.compileClasspath
     runtimeClasspath += sourceSets.main.runtimeClasspath
 }
