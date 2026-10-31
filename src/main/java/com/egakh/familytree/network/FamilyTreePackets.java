@@ -57,6 +57,7 @@ public final class FamilyTreePackets {
             reject(player, packet.requestId());
             return;
         }
+        if (unreadable(player, packet.requestId())) return;
         if (!allowScan(player.level().getServer(), player.getUUID())) {
             reject(player, packet.requestId());
             return;
@@ -200,12 +201,8 @@ public final class FamilyTreePackets {
 
     public static void sendSnapshot(ServerPlayer player, UUID requestId, boolean requestAll) {
         var world = player.level();
+        if (unreadable(player, requestId)) return;
         FamilyTreeState state = FamilyTreeState.get(world.getServer());
-        if (state.readOnly()) {
-            ServerText.send(player, Component.translatable("familytree.command.read_only"));
-            reject(player, requestId);
-            return;
-        }
         boolean mayViewAll = ServerPetAccess.viewAll(player);
         boolean viewingAll = mayViewAll && requestAll;
         boolean operator = ServerPetAccess.manageAll(player.createCommandSourceStack());
@@ -219,6 +216,14 @@ public final class FamilyTreePackets {
             com.egakh.familytree.FamilyTreeMod.LOGGER.warn("Could not send family snapshot", failure);
             reject(player, requestId);
         }
+    }
+
+    /** The refusal carries no reason, so the chat line tells the player why the screen stays empty. */
+    private static boolean unreadable(ServerPlayer player, UUID requestId) {
+        if (!FamilyTreeState.get(player.level().getServer()).readOnly()) return false;
+        ServerText.send(player, Component.translatable("familytree.command.read_only"));
+        reject(player, requestId);
+        return true;
     }
 
     private static void reject(ServerPlayer player, UUID requestId) {

@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -275,6 +276,9 @@ public final class TreeLayout {
 
         Map<UUID, Integer> generationsLeft = new HashMap<>();
         generationsLeft.put(focusId, MAX_ANCESTOR_GENERATIONS);
+        Map<UUID, Integer> heights = ancestorHeights(focusId, records);
+        List<Link> laterLinks = new ArrayList<>();
+        Map<UUID, Integer> laterLeft = new HashMap<>();
         List<Node> limitedUp = new ArrayList<>();
         List<Node> level = List.of(focusNode);
         while (!level.isEmpty()) {
@@ -293,6 +297,12 @@ public final class TreeLayout {
                     if (parent == null) continue;
                     Node node = r.byId.get(parentId);
                     if (node == null) {
+                        // An ancestor that is also a further ancestor waits for its older line, so its links all run downward.
+                        if (heights.getOrDefault(parentId, 0) > child.generation + 1) {
+                            laterLinks.add(new Link(parentId, child.id));
+                            laterLeft.merge(parentId, left - 1, Math::max);
+                            continue;
+                        }
                         node = add(r, bands, new Node(parentId, parent, child.generation + 1));
                         generationsLeft.put(parentId, left - 1);
                         next.add(node);
@@ -300,11 +310,30 @@ public final class TreeLayout {
                     link(r, linked, node, child);
                 }
             }
+            if (next.isEmpty()) {
+                // A parent whose older line runs past the generation limit sits just above the children shown instead.
+                Map<UUID, Integer> cut = new LinkedHashMap<>();
+                for (Link later : laterLinks) {
+                    if (!r.byId.containsKey(later.from())) cut.merge(later.from(), r.byId.get(later.to()).generation + 1, Math::max);
+                }
+                Set<UUID> waitingAbove = new HashSet<>();
+                for (UUID id : cut.keySet()) waitingAbove.addAll(parents(records.get(id)));
+                for (Map.Entry<UUID, Integer> entry : cut.entrySet()) {
+                    if (waitingAbove.contains(entry.getKey())) continue;
+                    next.add(add(r, bands, new Node(entry.getKey(), records.get(entry.getKey()), entry.getValue())));
+                    generationsLeft.put(entry.getKey(), laterLeft.get(entry.getKey()));
+                }
+            }
             level = next;
+        }
+        for (Link later : laterLinks) {
+            Node parent = r.byId.get(later.from());
+            if (parent != null) link(r, linked, parent, r.byId.get(later.to()));
         }
 
         generationsLeft.clear();
         generationsLeft.put(focusId, MAX_DESCENDANT_GENERATIONS);
+        Map<UUID, Integer> depths = descendantDepths(focusId, records, childIndex);
         Map<UUID, Node> reachedFrom = new LinkedHashMap<>();
         List<Node> limitedDown = new ArrayList<>();
         level = List.of(focusNode);
@@ -324,6 +353,8 @@ public final class TreeLayout {
                     if (child == null) continue;
                     Node node = r.byId.get(childId);
                     if (node == null) {
+                        // A foal whose other parent is a younger descendant waits for that parent, so it sits below both.
+                        if (depths.getOrDefault(childId, 0) > 1 - parent.generation) continue;
                         node = add(r, bands, new Node(childId, child, parent.generation - 1));
                         generationsLeft.put(childId, left - 1);
                         reachedFrom.put(childId, parent);
@@ -335,7 +366,7 @@ public final class TreeLayout {
             level = next;
         }
 
-        Map<UUID, Node> partnerOf = new HashMap<>();
+        Map<UUID, Node> partnerOf = new LinkedHashMap<>();
         for (Map.Entry<UUID, Node> entry : reachedFrom.entrySet()) {
             Node child = r.byId.get(entry.getKey());
             Node shownParent = entry.getValue();
@@ -355,6 +386,14 @@ public final class TreeLayout {
                     r.byId.put(parentId, node);
                 }
                 link(r, linked, node, child);
+            }
+        }
+        // A partner whose parents are already drawn links to them, so a sibling bred to the focus reads as a sibling.
+        for (UUID partnerId : partnerOf.keySet()) {
+            Node partner = r.byId.get(partnerId);
+            for (UUID parentId : parents(partner.record)) {
+                Node parent = r.byId.get(parentId);
+                if (parent != null && parent.generation > partner.generation) link(r, linked, parent, partner);
             }
         }
 
@@ -440,6 +479,77 @@ public final class TreeLayout {
         return parents;
     }
 
+    /**
+     * Generations above the focus along each ancestor's longest line, so an animal that is both a parent and a
+     * grandparent sits above both of the children it links to. Animals on a loop in the records, and their ancestors,
+     * get no height.
+     */
+    static Map<UUID, Integer> ancestorHeights(UUID focusId, Map<UUID, AnimalRecord> records) {
+        Set<UUID> reachable = new HashSet<>();
+        ArrayDeque<UUID> pending = new ArrayDeque<>(List.of(focusId));
+        while (!pending.isEmpty()) {
+            for (UUID parent : parents(records.get(pending.removeLast()))) {
+                if (records.containsKey(parent) && reachable.add(parent)) pending.add(parent);
+            }
+        }
+        reachable.remove(focusId);
+        Map<UUID, Integer> waiting = new HashMap<>();
+        for (UUID id : reachable) waiting.put(id, 0);
+        for (UUID id : reachable) for (UUID parent : parents(records.get(id))) waiting.computeIfPresent(parent, (key, count) -> count + 1);
+        for (UUID parent : parents(records.get(focusId))) waiting.computeIfPresent(parent, (key, count) -> count + 1);
+        Map<UUID, Integer> heights = new HashMap<>();
+        heights.put(focusId, 0);
+        ArrayDeque<UUID> ready = new ArrayDeque<>(List.of(focusId));
+        while (!ready.isEmpty()) {
+            UUID child = ready.removeFirst();
+            for (UUID parent : parents(records.get(child))) {
+                Integer left = waiting.get(parent);
+                if (left == null) continue;
+                heights.merge(parent, heights.get(child) + 1, Math::max);
+                waiting.put(parent, left - 1);
+                if (left == 1) ready.add(parent);
+            }
+        }
+        heights.keySet().removeIf(id -> waiting.getOrDefault(id, 0) > 0);
+        return heights;
+    }
+
+    /**
+     * Generations below the focus along each descendant's longest line, so a foal bred back to an older relative sits
+     * below its younger parent. Animals on a loop in the records, and their descendants, get no depth.
+     */
+    static Map<UUID, Integer> descendantDepths(UUID focusId, Map<UUID, AnimalRecord> records, Map<UUID, List<UUID>> childIndex) {
+        Set<UUID> reachable = new HashSet<>();
+        ArrayDeque<UUID> pending = new ArrayDeque<>(List.of(focusId));
+        while (!pending.isEmpty()) {
+            for (UUID child : childIndex.getOrDefault(pending.removeLast(), List.of())) {
+                if (records.containsKey(child) && reachable.add(child)) pending.add(child);
+            }
+        }
+        reachable.remove(focusId);
+        Map<UUID, Integer> waiting = new HashMap<>();
+        for (UUID id : reachable) {
+            int count = 0;
+            for (UUID parent : parents(records.get(id))) if (parent.equals(focusId) || reachable.contains(parent)) count++;
+            waiting.put(id, count);
+        }
+        Map<UUID, Integer> depths = new HashMap<>();
+        depths.put(focusId, 0);
+        ArrayDeque<UUID> ready = new ArrayDeque<>(List.of(focusId));
+        while (!ready.isEmpty()) {
+            UUID parent = ready.removeFirst();
+            for (UUID child : new LinkedHashSet<>(childIndex.getOrDefault(parent, List.of()))) {
+                Integer left = waiting.get(child);
+                if (left == null) continue;
+                depths.merge(child, depths.get(parent) + 1, Math::max);
+                waiting.put(child, left - 1);
+                if (left == 1) ready.add(child);
+            }
+        }
+        depths.keySet().removeIf(id -> waiting.getOrDefault(id, 0) > 0);
+        return depths;
+    }
+
     /** How many generations of ancestors the tree leaves out above a card, counting each at its nearest distance. */
     static int generationsAbove(UUID id, Map<UUID, AnimalRecord> records, Set<UUID> shown) {
         Set<UUID> seen = new HashSet<>(shown);
@@ -521,35 +631,87 @@ public final class TreeLayout {
         }
     }
 
-    /** {@code bands} runs top to bottom. A link that skips generations runs down a lane left of every band it passes. */
+    /**
+     * {@code bands} runs top to bottom. A link that skips generations turns off above its parent's bus, runs down its
+     * own lane outside its parent's row and every band down to the child, and joins the child's line below the bus, so
+     * it never runs along another parent's line.
+     */
     private static void route(List<Edge> edges, List<Band> bands) {
+        List<double[]> lanes = new ArrayList<>(), rails = new ArrayList<>();
+        List<Edge> skipping = new ArrayList<>();
         for (Edge edge : edges) {
             Node parent = edge.from, child = edge.to;
             Band from = parent.band, to = child.band;
             if (from == null || to == null || to.top <= from.bottom) continue;
-            double px = parent.x + NODE_WIDTH / 2.0, cx = child.x + NODE_WIDTH / 2.0;
-            double exit = from.bottom + V_SPACING / 2.0;
-            List<Double> points = new ArrayList<>(List.of(px, parent.y + from.cardHeight));
-            double x = px;
-            if (parent.row < from.rows - 1) {
-                double below = parent.y + from.cardHeight + WRAP_GAP / 3.0;
-                x = from.right + from.gap / 2;
-                points.addAll(List.of(px, below, x, below));
-            }
-            points.addAll(List.of(x, exit));
             if (to.index > from.index + 1) {
-                double lane = to.left - to.gap / 2;
-                for (int i = from.index + 1; i < to.index; i++) lane = Math.min(lane, bands.get(i).left - bands.get(i).gap / 2);
-                double entry = child.row == 0 ? to.top - V_SPACING / 2.0 : child.y - WRAP_GAP / 3.0;
-                points.addAll(List.of(lane, exit, lane, entry, cx, entry, cx, child.y));
-            } else if (child.row == 0) {
-                points.addAll(List.of(cx, exit, cx, child.y));
+                skipping.add(edge);
+                continue;
+            }
+            double cx = child.x + NODE_WIDTH / 2.0, exit = from.bottom + V_SPACING / 2.0;
+            List<Double> points = new ArrayList<>();
+            double x = leave(parent, points, lanes, exit);
+            if (child.row == 0) {
+                points.addAll(List.of(x, exit, cx, exit, cx, child.y));
             } else {
                 double above = child.y - WRAP_GAP / 3.0, lane = to.left - to.gap / 2;
-                points.addAll(List.of(lane, exit, lane, above, cx, above, cx, child.y));
+                lanes.add(new double[]{lane, exit, above});
+                points.addAll(List.of(x, exit, lane, exit, lane, above, cx, above, cx, child.y));
             }
             edge.route = simplify(points);
         }
+        for (Edge edge : skipping) {
+            Node parent = edge.from, child = edge.to;
+            Band from = parent.band, to = child.band;
+            double cx = child.x + NODE_WIDTH / 2.0, turn = from.bottom + V_SPACING / 4.0;
+            List<Double> points = new ArrayList<>();
+            double x = leave(parent, points, null, turn);
+            double left = from.left - from.gap / 2, right = from.right + from.gap / 2;
+            for (int i = from.index + 1; i <= to.index; i++) {
+                left = Math.min(left, bands.get(i).left - bands.get(i).gap / 2);
+                right = Math.max(right, bands.get(i).right + bands.get(i).gap / 2);
+            }
+            double entry = child.row == 0 ? to.top - V_SPACING / 4.0 : child.y - WRAP_GAP / 3.0;
+            double step = x - left <= right - x ? -from.gap / 2 : from.gap / 2;
+            double lane = step < 0 ? left : right;
+            while (laneTaken(lanes, lane, turn, entry)) lane += step;
+            lanes.add(new double[]{lane, turn, entry});
+            turn = freeRail(rails, turn, x, lane);
+            if (child.row == 0) entry = freeRail(rails, entry, lane, cx);
+            points.addAll(List.of(x, turn, lane, turn, lane, entry, cx, entry, cx, child.y));
+            edge.route = simplify(points);
+        }
+    }
+
+    /** Starts a route at the bottom of the parent's card. A parent above the last row of a wrapped band leaves by its right side. */
+    private static double leave(Node parent, List<Double> points, List<double[]> lanes, double down) {
+        Band from = parent.band;
+        double px = parent.x + NODE_WIDTH / 2.0;
+        points.addAll(List.of(px, parent.y + from.cardHeight));
+        if (parent.row == from.rows - 1) return px;
+        double below = parent.y + from.cardHeight + WRAP_GAP / 3.0, x = from.right + from.gap / 2;
+        points.addAll(List.of(px, below, x, below));
+        if (lanes != null) lanes.add(new double[]{x, below, down});
+        return x;
+    }
+
+    /** A height near {@code y} where no other skipping link already runs across this span, kept clear of the buses. */
+    private static double freeRail(List<double[]> rails, double y, double x1, double x2) {
+        double from = Math.min(x1, x2), to = Math.max(x1, x2);
+        for (double offset : new double[]{0, -4, 4, -8, 8, -12, 12, -16, 16}) {
+            double candidate = y + offset;
+            boolean taken = false;
+            for (double[] rail : rails) taken |= Math.abs(rail[0] - candidate) < 1 && rail[1] < to && from < rail[2];
+            if (!taken) {
+                rails.add(new double[]{candidate, from, to});
+                return candidate;
+            }
+        }
+        return y;
+    }
+
+    private static boolean laneTaken(List<double[]> lanes, double x, double top, double bottom) {
+        for (double[] lane : lanes) if (Math.abs(lane[0] - x) < 1 && lane[1] < bottom && top < lane[2]) return true;
+        return false;
     }
 
     private static double[] simplify(List<Double> points) {

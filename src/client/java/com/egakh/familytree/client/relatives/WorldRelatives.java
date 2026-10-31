@@ -66,6 +66,11 @@ public final class WorldRelatives {
 
     private WorldRelatives() {}
 
+    /** True while the key is held and relatives are outlined, which is when an overlay would cover their labels. */
+    public static boolean showing() {
+        return held && !SHOWN.isEmpty();
+    }
+
     public static int outlineColor(Entity entity) {
         if (SHOWN.isEmpty()) return 0;
         Highlight highlight = SHOWN.get(entity);

@@ -103,8 +103,12 @@ public final class ClientBridge implements PluginMessageListener {
     }
 
     private void discover(Player player, Payloads.OpenRequest request) {
-        if (denied(player, FamilyTreePermission.USE) || denied(player, FamilyTreePermission.SCAN)
-                || !plugin.cooldowns().scan(player.getUniqueId())) {
+        if (denied(player, FamilyTreePermission.USE) || denied(player, FamilyTreePermission.SCAN)) {
+            reject(player, request.requestId());
+            return;
+        }
+        if (unreadable(player, request.requestId())) return;
+        if (!plugin.cooldowns().scan(player.getUniqueId())) {
             reject(player, request.requestId());
             return;
         }
@@ -200,12 +204,8 @@ public final class ClientBridge implements PluginMessageListener {
     }
 
     private void sendSnapshot(Player player, UUID requestId, boolean requestAll) {
+        if (unreadable(player, requestId)) return;
         FamilyTreeStore state = plugin.store();
-        if (state.readOnly()) {
-            plugin.chat().send(player, "familytree.command.read_only");
-            reject(player, requestId);
-            return;
-        }
         boolean mayViewAll = plugin.access().viewAll(player);
         boolean viewingAll = mayViewAll && requestAll;
         boolean operator = plugin.access().manageAll(player);
@@ -220,6 +220,14 @@ public final class ClientBridge implements PluginMessageListener {
             plugin.getLogger().log(Level.WARNING, "Could not send family snapshot", failure);
             reject(player, requestId);
         }
+    }
+
+    /** The refusal carries no reason, so the chat line tells the player why the screen stays empty. */
+    private boolean unreadable(Player player, UUID requestId) {
+        if (!plugin.store().readOnly()) return false;
+        plugin.chat().send(player, "familytree.command.read_only");
+        reject(player, requestId);
+        return true;
     }
 
     private void reject(Player player, UUID requestId) {
