@@ -49,6 +49,16 @@ public final class VariantRules {
         return group == null || variant == null ? null : "familytree.variant." + group + "." + path(variant);
     }
 
+    /** Cats and wolves show their coat in the portrait, but breeding plans name it in text. */
+    public static String coatKey(String species, String variant) {
+        if (variant == null) return null;
+        return switch (species) {
+            case "minecraft:cat" -> "familytree.variant.cat." + path(variant);
+            case "minecraft:wolf" -> "familytree.variant.wolf." + path(variant);
+            default -> null;
+        };
+    }
+
     public static String pandaGeneKey(String gene) {
         return "familytree.variant.panda." + gene;
     }

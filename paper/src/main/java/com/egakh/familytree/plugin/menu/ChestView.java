@@ -1,5 +1,6 @@
 package com.egakh.familytree.plugin.menu;
 
+import com.egakh.familytree.menu.MenuText;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -20,7 +21,7 @@ final class ChestView implements InventoryHolder {
     boolean acting;
 
     ChestView(String title) {
-        this.inventory = Bukkit.createInventory(this, SIZE, title.length() > 64 ? title.substring(0, 63) + "…" : title);
+        this.inventory = Bukkit.createInventory(this, SIZE, MenuText.trim(title, 64));
     }
 
     @Override

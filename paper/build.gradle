@@ -36,6 +36,7 @@ def sharedJava = [
         'breeding/OffspringStats.java',
         'breeding/VariantOdds.java',
         'data/FarmRecords.java',
+        'menu/FamilyIndex.java',
         'menu/MenuText.java',
         'naming/NameGenerator.java',
         'naming/PetRenaming.java',
