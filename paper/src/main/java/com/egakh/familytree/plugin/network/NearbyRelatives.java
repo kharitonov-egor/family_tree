@@ -47,7 +47,7 @@ public final class NearbyRelatives {
         record Found(AnimalRecord record, CloseRelation relation, double distanceSq) {}
         List<Found> found = new ArrayList<>();
         for (AnimalRecord record : candidates.values()) {
-            CloseRelation relation = CloseRelation.of(kinship.relation(record.id(), targetId));
+            CloseRelation relation = CloseRelation.of(siblingHalf(kinship.relation(record.id(), targetId), record, target));
             if (relation != null) found.add(new Found(record, relation, nearby.get(record.id())));
         }
         found.sort(Comparator.comparingInt((Found relative) -> relative.relation().ordinal())
@@ -85,6 +85,20 @@ public final class NearbyRelatives {
             lineage.put(record.id(), withParents(record, parents[0], parents[1]));
         }
         return lineage;
+    }
+
+    /**
+     * Siblings linked through a parent the viewer sees are full or half by both animals' own parent IDs, which every
+     * snapshot already carries, so dropping a hidden second parent doesn't turn half siblings into plain siblings.
+     */
+    private static Kinship.Relation siblingHalf(Kinship.Relation relation, AnimalRecord a, AnimalRecord b) {
+        if (relation.kind() != Kinship.Kind.SIBLING || relation.half() != Kinship.Half.UNKNOWN) return relation;
+        if (a.parentA() == null || a.parentB() == null || b.parentA() == null || b.parentB() == null) return relation;
+        int shared = 0;
+        for (UUID parent : new UUID[]{a.parentA(), a.parentB()})
+            if (parent.equals(b.parentA()) || parent.equals(b.parentB())) shared++;
+        Kinship.Half half = shared >= 2 ? Kinship.Half.FULL : Kinship.Half.HALF;
+        return new Kinship.Relation(relation.kind(), relation.up(), relation.down(), half, relation.commonAncestors());
     }
 
     /** A copy with other parent links, so the stored record never changes. Kinship reads only IDs and parent links. */

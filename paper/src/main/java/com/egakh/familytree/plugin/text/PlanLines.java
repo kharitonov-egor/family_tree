@@ -1,5 +1,6 @@
 package com.egakh.familytree.plugin.text;
 
+import com.egakh.familytree.breeding.BreedingPair;
 import com.egakh.familytree.breeding.BreedingPlan;
 import com.egakh.familytree.breeding.VariantOdds;
 import com.egakh.familytree.util.HorseStatUnits.Stat;
@@ -28,10 +29,11 @@ public final class PlanLines {
             sections.add(intro);
             return sections;
         }
-        intro.add(new Line(tr(language, "familytree.planner.foal", foal(language, plan.foalSpecies)), false));
+        Text baby = tr(language, BreedingPair.babyKey(plan.foalSpecies));
+        intro.add(new Line(tr(language, "familytree.planner.foal", baby, foal(language, plan.foalSpecies)), false));
         intro.add(new Line(kinship(language, plan.relation, plan.first.name(), plan.second.name()), false));
         sections.add(intro);
-        sections.add(List.of(new Line(tr(language, "familytree.planner.inbreeding", percent(plan.inbreeding)), false),
+        sections.add(List.of(new Line(tr(language, "familytree.planner.inbreeding", baby, percent(plan.inbreeding)), false),
                 new Line(tr(language, "familytree.planner.inbreeding.note"), true)));
         List<Line> stats = new ArrayList<>();
         for (BreedingPlan.StatForecast stat : plan.stats) {

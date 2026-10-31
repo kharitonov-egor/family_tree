@@ -30,10 +30,10 @@ public final class PlanText {
             sections.add(intro);
             return sections;
         }
-        intro.add(new Line(Component.translatable("familytree.planner.foal", foal(plan.foalSpecies)), false));
+        intro.add(new Line(Component.translatable("familytree.planner.foal", baby(plan.foalSpecies), foal(plan.foalSpecies)), false));
         intro.add(new Line(KinshipText.describe(plan.relation, plan.first.name(), plan.second.name()), false));
         sections.add(intro);
-        sections.add(List.of(new Line(KinshipText.inbreeding(plan.inbreeding), false),
+        sections.add(List.of(new Line(KinshipText.inbreeding(baby(plan.foalSpecies), plan.inbreeding), false),
                 new Line(Component.translatable("familytree.planner.inbreeding.note"), true)));
         List<Line> stats = new ArrayList<>();
         for (BreedingPlan.StatForecast stat : plan.stats) {
@@ -67,6 +67,10 @@ public final class PlanText {
         return lines;
     }
 
+    public static Component baby(List<String> species) {
+        return Component.translatable(BreedingPair.babyKey(species));
+    }
+
     public static Component foal(List<String> species) {
         if (species.isEmpty()) return Component.literal("?");
         if (species.size() == 1) return speciesName(species.get(0));
@@ -75,15 +79,20 @@ public final class PlanText {
 
     public static MutableComponent group(String species, VariantOdds.Group group) {
         MutableComponent list = Component.empty();
-        for (VariantOdds.Chance chance : group.chances()) {
+        for (MutableComponent entry : entries(species, group)) {
             if (!list.getSiblings().isEmpty()) list.append(", ");
-            list.append(chance(species, group.kind(), chance));
-        }
-        if (group.unpredictable() > 0) {
-            if (!list.getSiblings().isEmpty()) list.append(", ");
-            list.append(Component.translatable("familytree.planner.variant.biome_share", KinshipText.percent(group.unpredictable())));
+            list.append(entry);
         }
         return Component.translatable("familytree.plan.variant", title(group.kind()), list);
+    }
+
+    /** Each outcome with its chance, then the share the biome decides. */
+    public static List<MutableComponent> entries(String species, VariantOdds.Group group) {
+        List<MutableComponent> entries = new ArrayList<>();
+        for (VariantOdds.Chance chance : group.chances()) entries.add(chance(species, group.kind(), chance));
+        if (group.unpredictable() > 0)
+            entries.add(Component.translatable("familytree.planner.variant.biome_share", KinshipText.percent(group.unpredictable())));
+        return entries;
     }
 
     public static MutableComponent chance(String species, VariantOdds.Kind kind, VariantOdds.Chance chance) {

@@ -42,6 +42,36 @@ class BestPairsTest {
     }
 
     @Test
+    void aHerdWithOnlySomeStatsKeepsTheRanksItCanScore() {
+        for (String name : List.of("Ann", "Bea", "Cid")) {
+            AnimalRecord horse = animal("minecraft:horse", name, 0, 0, 0, null, ME, null, null);
+            horse.setHorseStats(new HorseStats(null, null, 20.0 + name.length(), null));
+        }
+        AnimalRecord llama = animal("minecraft:llama", "Lou", 0, 0, 0, null, ME, null, null);
+        llama.setHorseStats(new HorseStats(0.175, 0.5, 22.0, null));
+        animal("minecraft:trader_llama", "Tay", 0.175, 0.5, 24.0, 3, ME, null, null);
+        List<AnimalRecord> all = new ArrayList<>(records.values());
+
+        assertEquals(List.of(Rank.HEALTH), BestPairs.rankable(all, new Options(Herd.HORSE, Rank.OVERALL, Relatives.ALLOW, Owners.ANY, ME)));
+        assertEquals(List.of(Rank.HEALTH), BestPairs.rankable(all, new Options(Herd.LLAMA, Rank.OVERALL, Relatives.ALLOW, Owners.ANY, ME)));
+        assertEquals(List.of(), BestPairs.rankable(all, new Options(Herd.MULE, Rank.OVERALL, Relatives.ALLOW, Owners.ANY, ME)));
+        assertEquals(3, rank(Herd.HORSE, Rank.HEALTH, Relatives.ALLOW, Owners.ANY).pairs().size());
+        assertTrue(rank(Herd.HORSE, Rank.OVERALL, Relatives.ALLOW, Owners.ANY).pairs().isEmpty());
+    }
+
+    @Test
+    void aHerdWithFullStatsOffersEveryRank() {
+        animal("minecraft:horse", "Ann", 0.2, 0.6, 22.0, null, ME, null, null);
+        animal("minecraft:horse", "Bea", 0.3, 0.7, 24.0, null, ME, null, null);
+        animal("minecraft:donkey", "Dot", 0.175, 0.5, 20.0, null, ME, null, null);
+        List<AnimalRecord> all = new ArrayList<>(records.values());
+        assertEquals(Herd.HORSE.ranks(), BestPairs.rankable(all, new Options(Herd.HORSE, Rank.OVERALL, Relatives.ALLOW, Owners.ANY, ME)));
+        assertEquals(Herd.MULE.ranks(), BestPairs.rankable(all, new Options(Herd.MULE, Rank.JUMP, Relatives.ALLOW, Owners.ANY, ME)));
+        assertEquals(List.of(), BestPairs.rankable(all, new Options(Herd.DONKEY, Rank.OVERALL, Relatives.ALLOW, Owners.ANY, ME)));
+        assertEquals(List.of(), BestPairs.rankable(all, new Options(Herd.HORSE, Rank.OVERALL, Relatives.ALLOW, Owners.MINE, FRIEND)));
+    }
+
+    @Test
     void ranksByTheExpectedFoalValue() {
         animal("minecraft:horse", "Slow", 0.12, 0.5, 20.0, null, ME, null, null);
         animal("minecraft:horse", "Quick", 0.30, 0.5, 20.0, null, ME, null, null);

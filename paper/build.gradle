@@ -61,12 +61,21 @@ def sharedJava = [
         'util/PetRelations.java',
         'util/VariantRules.java',
 ]
+def sharedTests = [
+        'util/KinshipPedigreeTest.java',
+        'util/ReviewKinshipProofTest.java',
+]
 def sharedSources = layout.buildDirectory.dir('generated/shared/java')
+def sharedTestSources = layout.buildDirectory.dir('generated/sharedTest/java')
 def sharedResources = layout.buildDirectory.dir('generated/shared/resources')
 
 tasks.register('syncSharedSources', Sync) {
     from('../src/main/java/com/egakh/familytree') { include sharedJava }
     into sharedSources.map { it.dir('com/egakh/familytree') }
+}
+tasks.register('syncSharedTests', Sync) {
+    from('../src/test/java/com/egakh/familytree') { include sharedTests }
+    into sharedTestSources.map { it.dir('com/egakh/familytree') }
 }
 tasks.register('syncSharedResources', Sync) {
     from('../src/main/resources') { include 'assets/familytree/lang/*.json', 'assets/familytree/icon.png' }
@@ -78,6 +87,9 @@ sourceSets {
     main {
         java.srcDir sharedSources
         resources.srcDir sharedResources
+    }
+    test {
+        java.srcDir sharedTestSources
     }
     paper {
         compileClasspath += main.output
@@ -103,6 +115,7 @@ dependencies {
 }
 
 tasks.named('compileJava') { dependsOn 'syncSharedSources' }
+tasks.named('compileTestJava') { dependsOn 'syncSharedTests' }
 tasks.named('processResources') {
     dependsOn 'syncSharedResources'
     inputs.property 'version', project.version

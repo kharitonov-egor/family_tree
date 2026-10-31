@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -47,11 +48,11 @@ public final class NearbyRelatives {
             AnimalRecord record = loaded.getValue() <= RANGE * RANGE ? visible.apply(loaded.getKey()) : null;
             if (record != null && !record.id().equals(targetId)) candidates.put(record.id(), record);
         }
-        Kinship kinship = new Kinship(ancestry(target, candidates.values(), visible));
+        Kinship kinship = new Kinship(ancestry(target, candidates.values(), lookup, visible));
         record Found(AnimalRecord record, CloseRelation relation, double distanceSq) {}
         List<Found> found = new ArrayList<>();
         for (AnimalRecord record : candidates.values()) {
-            CloseRelation relation = CloseRelation.of(kinship.relation(record.id(), targetId));
+            CloseRelation relation = CloseRelation.of(siblingHalf(kinship.relation(record.id(), targetId), record, target));
             if (relation != null) found.add(new Found(record, relation, nearby.get(record.id())));
         }
         found.sort(Comparator.comparingInt((Found relative) -> relative.relation().ordinal())
@@ -63,21 +64,58 @@ public final class NearbyRelatives {
                 found.size(), shown);
     }
 
-    /** The target, the candidates, and every visible ancestor of them: all that Kinship walks to relate them. */
+    /**
+     * The target, the candidates, and every visible ancestor of them: all that Kinship walks to relate them. A parent
+     * the viewer can't see is cut from the copy Kinship gets, so it never links two animals. A parent ID without any
+     * record stays, as it does in the Family Tree screens.
+     */
     private static Map<UUID, AnimalRecord> ancestry(AnimalRecord target, Collection<AnimalRecord> candidates,
-                                                    Function<UUID, AnimalRecord> visible) {
+                                                    Function<UUID, AnimalRecord> lookup, Function<UUID, AnimalRecord> visible) {
         Map<UUID, AnimalRecord> lineage = new HashMap<>();
         ArrayDeque<AnimalRecord> pending = new ArrayDeque<>(candidates);
         pending.add(target);
         while (!pending.isEmpty()) {
             AnimalRecord record = pending.pop();
-            if (lineage.putIfAbsent(record.id(), record) != null) continue;
-            for (UUID parent : new UUID[]{record.parentA(), record.parentB()}) {
-                AnimalRecord found = parent == null || lineage.containsKey(parent) ? null : visible.apply(parent);
-                if (found != null) pending.push(found);
-            }
+            if (lineage.containsKey(record.id())) continue;
+            UUID parentA = shownParent(record.parentA(), lookup, visible, lineage, pending);
+            UUID parentB = shownParent(record.parentB(), lookup, visible, lineage, pending);
+            boolean cut = !Objects.equals(parentA, record.parentA()) || !Objects.equals(parentB, record.parentB());
+            lineage.put(record.id(), cut ? withParents(record, parentA, parentB) : record);
         }
         return lineage;
+    }
+
+    /**
+     * Siblings linked through a parent the viewer sees are full or half by both animals' own parent IDs, which every
+     * snapshot already carries, so cutting a hidden second parent doesn't turn half siblings into plain siblings.
+     */
+    private static Kinship.Relation siblingHalf(Kinship.Relation relation, AnimalRecord a, AnimalRecord b) {
+        if (relation.kind() != Kinship.Kind.SIBLING || relation.half() != Kinship.Half.UNKNOWN) return relation;
+        if (a.parentA() == null || a.parentB() == null || b.parentA() == null || b.parentB() == null) return relation;
+        int shared = 0;
+        for (UUID parent : new UUID[]{a.parentA(), a.parentB()})
+            if (parent.equals(b.parentA()) || parent.equals(b.parentB())) shared++;
+        Kinship.Half half = shared >= 2 ? Kinship.Half.FULL : Kinship.Half.HALF;
+        return new Kinship.Relation(relation.kind(), relation.up(), relation.down(), half, relation.commonAncestors());
+    }
+
+    private static UUID shownParent(UUID parent, Function<UUID, AnimalRecord> lookup, Function<UUID, AnimalRecord> visible,
+                                    Map<UUID, AnimalRecord> lineage, ArrayDeque<AnimalRecord> pending) {
+        if (parent == null) return null;
+        AnimalRecord found = visible.apply(parent);
+        if (found != null) {
+            if (!lineage.containsKey(parent)) pending.push(found);
+            return parent;
+        }
+        return lookup.apply(parent) == null ? parent : null;
+    }
+
+    private static AnimalRecord withParents(AnimalRecord record, UUID parentA, UUID parentB) {
+        AnimalRecord copy = new AnimalRecord(record.id(), record.speciesId(), record.originalName(), record.nameAutogenerated(),
+                parentA, parentB, record.birthWorldDay(), record.birthEpochMillis(), record.deceased(), record.deathWorldDay(),
+                record.deathEpochMillis(), record.ownerId(), record.ownerName(), record.variantId(), null, null);
+        copy.setTreeName(record.treeName());
+        return copy;
     }
 
     /** The action bar line after a reply: how many relatives are nearby, or that none are. */
