@@ -208,7 +208,7 @@ public final class BestPairsScreen extends FamilyTreeScreen {
 
     @Override
     protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
-        if (button != 0 || outcome == null || mouseY < listTop() || mouseY >= listBottom()) return false;
+        if (!isLeftButton(button) || outcome == null || mouseY < listTop() || mouseY >= listBottom()) return false;
         int rowWidth = Math.min(width - 16, 440), x = (width - rowWidth) / 2;
         if (mouseX < x || mouseX >= x + rowWidth) return false;
         int index = (int) ((mouseY - listTop() + scroll) / ROW_HEIGHT);

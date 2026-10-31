@@ -4,7 +4,8 @@ import java.util.function.DoubleSupplier;
 
 /**
  * Minecraft's foal attribute rule, read from {@code AbstractHorse.createOffspringAttribute} with javap on every
- * supported target from 1.20.1 to 26.3. The rule and its ranges are identical on all of them.
+ * supported target from 1.20.1 to 26.4. The rule and its ranges are identical on all of them; 26.4 calls
+ * {@code Math.clamp} where older versions call {@code Mth.clamp}, which gives the same result.
  *
  * <p>Each parent value is clamped to the attribute's range. The foal's value is the parents' average plus
  * {@code (|a - b| + 0.3 * (max - min)) * (U1 + U2 + U3 - 1.5) / 3} for three uniform draws, reflected back into the

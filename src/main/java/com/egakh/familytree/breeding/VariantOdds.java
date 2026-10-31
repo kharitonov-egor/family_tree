@@ -11,7 +11,7 @@ import java.util.Set;
 
 /**
  * Variant odds for a planned foal, from each species' {@code getBreedOffspring}. The rules are identical on every
- * supported target from 1.20.1 to 26.3. Variants use the strings saved in {@code variant_id}.
+ * supported target from 1.20.1 to 26.4. Variants use the strings saved in {@code variant_id}.
  */
 public final class VariantOdds {
     public enum Kind { WOOL, COAT, MARKINGS, LOOK, VARIANT }
