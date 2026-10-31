@@ -102,11 +102,11 @@ The linking stick remains available. Rename a stick to `familytree`, right-click
 
 Commands correct ages and birth days, inspect records, and manage history. Name-based edits reject duplicate names and offer UUID choices. Operator pruning writes a backup first. See the [command guide](https://github.com/kharitonov-egor/family_tree/blob/main/docs/commands.md).
 
-Version 1.2.0 preserves existing history and adds one optional field for horse stats. Update clients and servers together because the network channels changed. Back up your world before changing Minecraft versions. An older Minecraft build does not make a newer world safe to downgrade.
+Version 1.3.0 preserves existing history and adds one optional field that records how a bred animal got its variant. Update clients and servers together because the network channels changed. Back up your world before changing Minecraft versions. An older Minecraft build does not make a newer world safe to downgrade.
 
-Each new 1.2.0 build ran in a real game instance before release: Fabric and Forge on 1.20.1, Fabric and NeoForge on 1.21.11, and the horse scenes on Fabric 26.3 and NeoForge 1.21.1. The [release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.2.0/docs/releases/1.2.0.md) list what was tested.
+The new 1.3.0 builds for 1.21.4, 1.21.5, 1.21.8, and 1.21.10 ran in real game instances before release. The [release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.3.0/docs/releases/1.3.0.md) describe the changes.
 
-[Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.2.0/docs/releases/1.2.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
+[Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.3.0/docs/releases/1.3.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
 
 ## Making a video or adding it to a pack?
 

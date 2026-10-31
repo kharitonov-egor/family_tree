@@ -186,11 +186,11 @@ Owners and server operators can locate or edit their pets. Linking two parents r
 
 Family Tree includes English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Russian, Ukrainian, German, French, Italian, Spanish (Spain and Mexico), Brazilian Portuguese, Polish, and Turkish. Everything except English was machine-translated. If a phrase reads wrong in your language, please [open an issue](https://github.com/kharitonov-egor/family_tree/issues) or send a pull request that edits `src/main/resources/assets/familytree/lang/<language>.json`. A test checks that every language file has the same keys and format arguments as `en_us.json`.
 
-## Upgrading to 1.2.0
+## Upgrading to 1.3.0
 
-Existing Family Tree history and custom names remain. Saved records gain one optional `horse_stats` field, and 1.1.0 saves load unchanged. Update the server and clients together because the network channels changed. If you go back to 1.1.0, it keeps every record but drops horse stats on its next save. Minecraft world version restrictions still apply, so each build is for worlds of its own Minecraft version, not for downgrading a newer world.
+Existing Family Tree history and custom names remain, and 1.2.0 saves load unchanged. Saved records gain one optional `variant_origin` field. Update the server and clients together because the snapshot and rename result channels changed. If you go back to 1.2.0, it keeps every record, including farm animals and other new species, and drops `variant_origin` on its next save. Minecraft world version restrictions still apply, so each build is for worlds of its own Minecraft version, not for downgrading a newer world.
 
-[Latest release notes](docs/releases/1.2.0.md) | [1.1.0 release notes](docs/releases/1.1.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
+[Latest release notes](docs/releases/1.3.0.md) | [1.2.0 release notes](docs/releases/1.2.0.md) | [1.1.0 release notes](docs/releases/1.1.0.md) | [1.0.0 release notes](docs/releases/1.0.0.md)
 
 ## Build and test
 
@@ -214,8 +214,8 @@ See [runtime validation](docs/testing.md) for the separate server smoke tests an
 
 ## Releases and download progress
 
-Version 1.2.0 adds horse breeding stats and builds for Minecraft 1.20.1 and 1.21.11. Update clients and servers together. It preserves existing history, keeps unreadable records in the save, and disables writes to an unsupported future save format. Operator pruning writes a backup before deleting records.
+Version 1.3.0 records every breedable animal with inherited variants, adds chest menus for players without the client mod, 14 translations, Jade, WTHIT, and map waypoint support, and builds for Minecraft 1.21.4 to 1.21.10. Update clients and servers together. It preserves existing history, keeps unreadable records in the save, and disables writes to an unsupported future save format. Operator pruning writes a backup before deleting records.
 
-[Release notes](docs/releases/1.2.0.md), [runtime checks](docs/testing.md), and [public download counts](docs/metrics/README.md) describe the release and progress toward 10,000 Modrinth downloads. Run `python scripts/download_counts.py` to update the public counters. The daily GitHub workflow does the same. Repeat downloads and upgrades count toward platform totals.
+[Release notes](docs/releases/1.3.0.md), [runtime checks](docs/testing.md), and [public download counts](docs/metrics/README.md) describe the release and progress toward 10,000 Modrinth downloads. Run `python scripts/download_counts.py` to update the public counters. The daily GitHub workflow does the same. Repeat downloads and upgrades count toward platform totals.
 
 Build all targets with JDK 25, JDK 21, and JDK 17 installed using `./gradlew buildAll --no-parallel`. Commit the tested source, then run `python scripts/release_manifest.py` to verify jar metadata, Java targets, license, icon, and hashes. Publish the copies under `build/releases/<version>/`.
