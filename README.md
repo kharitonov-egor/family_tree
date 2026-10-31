@@ -67,6 +67,8 @@ Search by pet name or species, filter living or deceased pets, and follow genera
 
 Death records retain the pet's name, family, death day, and cause when known. Settings let you show or hide generation, age, birth day, and horse stats. Hide a branch to focus on one part of a large family, then use **Show all** to restore it.
 
+Ages and birth days count world days. A world day is 24,000 ticks, or 20 minutes of the world running. Sleeping and `/time` move the sun without aging animals, so an age can trail the day count Minecraft shows. Family Tree keeps this clock because it never runs backward: `/time set` can't make an animal younger or put its birth in the future.
+
 ![The pet browser with search, status filters, and Find existing pets](docs/tracked-pets-browser.webp)
 
 ## See relatives in the world
@@ -122,7 +124,7 @@ Family Tree also records cows, mooshrooms, sheep, pigs, chickens, rabbits, goats
 - Uses a name tag on one. The player who named it owns it.
 - Clicks one with the linking stick. The player who clicked owns it, and it becomes the next pet in the linking selection.
 
-A baby belongs to its parents' owner when the parents already have one. Frogs, sniffers, and turtles hatch from spawn or eggs, so Minecraft never links their babies to the parents. Breeding frogs or sniffers still adds both parents for the player; turtles need a name tag or the linking stick. Name or add the hatchlings, then use **Add parents**.
+A baby belongs to its parents' owner when the parents already have one. Frogs, sniffers, and turtles hatch from spawn or eggs, so Minecraft never links their babies to the parents. Breeding frogs, sniffers, or turtles still adds both parents for the player. Name or add the hatchlings, then use **Add parents**.
 
 Cards, the details panel, and exports show each animal's variant: axolotl, mooshroom, frog, and llama colors, wool color, panda genes, and rabbit and fox types. On Minecraft 1.21.5 and newer, cows, pigs, and chickens show their warm, cold, or temperate variant. A gold ★ marks a rare variant: a blue axolotl, a brown mooshroom, or a brown panda. Select a baby to compare its variant with its parents'. The panel explains surprises, for example that the parents' wool colors mixed, that a panda shows a gene both parents carried hidden, or that a bred axolotl turned blue, which happens about 1 time in 1,200.
 

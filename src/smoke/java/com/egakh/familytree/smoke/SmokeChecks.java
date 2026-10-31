@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.BreedGoal;
 import net.minecraft.world.entity.animal.Animal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -153,6 +154,20 @@ public final class SmokeChecks {
             require(PetLifecycleListeners.addAnimal(world, state, axolotl, breeder, "Breeder") == PetLifecycleListeners.AddResult.ADDED
                     && "blue".equals(state.get(axolotl.getUUID()).variantId()), "Adding an axolotl lost its color");
 
+            Animal vixen = place(world, "FOX", 8), tod = place(world, "FOX", 9);
+            require(PetLifecycleListeners.addAnimal(world, state, vixen, breeder, "Breeder") == PetLifecycleListeners.AddResult.ADDED,
+                    "Adding a fox failed");
+            runBreedGoal(vixen, tod);
+            AnimalRecord kit = state.all().stream().filter(record -> vixen.getUUID().equals(record.parentA())
+                    && tod.getUUID().equals(record.parentB())).findFirst().orElse(null);
+            require(kit != null && kit.speciesId().equals("minecraft:fox") && breeder.equals(kit.ownerId()),
+                    "Fox breeding through its own goal did not record the kit");
+
+            Animal turtle = place(world, "TURTLE", 10), turtleMate = place(world, "TURTLE", 11);
+            runBreedGoal(turtle, turtleMate);
+            require(!state.contains(turtle.getUUID()) && !state.contains(turtleMate.getUUID()),
+                    "Turtles bred without a player were recorded");
+
             StringBuilder variants = new StringBuilder();
             String[][] checks = {{"AXOLOTL", "blue"}, {"PANDA", "brown/brown"}, {"RABBIT", "salt"}, {"FOX", "snow"},
                     {"MOOSHROOM", "brown"}, {"FROG", "minecraft:cold"}, {"PARROT", "gray"}, {"SHEEP", "pink"},
@@ -197,7 +212,7 @@ public final class SmokeChecks {
             require(state.contains(lamb.getUUID()) && state.contains(ewe.getUUID()), "Cleanup removed living animals");
             require(pets == state.all().stream().filter(record -> record.speciesId().equals("minecraft:wolf")).count(),
                     "Cleanup removed pets");
-            return "farm animals: wild ignored, player breeding, lineage without a player, added axolotl, variants ("
+            return "farm animals: wild ignored, player breeding, lineage without a player, added axolotl, fox kit from its own breed goal, turtle breed goal, variants ("
                     + variants + "), disabled category, farm limit, cleanup with backup";
         } finally {
             if (original == null) Files.deleteIfExists(config);
@@ -227,6 +242,21 @@ public final class SmokeChecks {
         animal.setPos(x, 64, 6);
         world.addFreshEntity(animal);
         return animal;
+    }
+
+    /** Runs the animal's own breeding goal with {@code mate}, as its AI does once both are in love. */
+    private static void runBreedGoal(Animal animal, Animal mate) throws Exception {
+        var selectorField = net.minecraft.world.entity.Mob.class.getDeclaredField("goalSelector");
+        selectorField.setAccessible(true);
+        var selector = (net.minecraft.world.entity.ai.goal.GoalSelector) selectorField.get(animal);
+        BreedGoal goal = selector.getAvailableGoals().stream().map(wrapped -> wrapped.getGoal())
+                .filter(BreedGoal.class::isInstance).map(BreedGoal.class::cast).findFirst().orElseThrow();
+        var partner = BreedGoal.class.getDeclaredField("partner");
+        partner.setAccessible(true);
+        partner.set(goal, mate);
+        var breed = BreedGoal.class.getDeclaredMethod("breed");
+        breed.setAccessible(true);
+        breed.invoke(goal);
     }
 
     private static Animal child(Animal parent, Animal mate, ServerLevel world) {

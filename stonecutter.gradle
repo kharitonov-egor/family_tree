@@ -61,6 +61,8 @@ stonecutter.parameters {
             replace 'world.entity.animal.equine.', 'world.entity.animal.horse.'
             replace 'world.entity.animal.feline.Cat', 'world.entity.animal.Cat'
             replace 'world.entity.animal.panda.Panda', 'world.entity.animal.Panda'
+            replace 'animal.fox.Fox$FoxBreedGoal', 'animal.Fox$FoxBreedGoal'
+            replace 'animal.turtle.Turtle$TurtleBreedGoal', 'animal.Turtle$TurtleBreedGoal'
             replace '.identifier()', '.location()'
         }
         string(current.parsed < '1.21.9') {

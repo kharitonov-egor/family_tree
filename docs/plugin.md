@@ -129,7 +129,7 @@ The plugin finds players with the client mod from the channels their client anno
 
 - **Item text on Spigot.** Spigot can't put translatable text on items, so species names, wool colors, and death messages in Spigot's chest menus are in English. Family Tree's own words still follow each player's language, and so does chat everywhere. Paper shows all of it in the player's language.
 - **Text entry on older Spigot.** Paper, and Spigot from 1.21, open an anvil for search and rename. Spigot 1.20.1 has no API for an anvil that reads typed text, so players type the name in chat instead, `-` to clear it or `cancel` to stop.
-- **Frogs and sniffers on Spigot.** Paper reports when frogs and sniffers breed, and the plugin records both parents for the player, as the mod does. Spigot reports nothing for them, so on Spigot they need a name tag or the linking stick.
+- **Frogs, sniffers, and turtles on Spigot.** Paper reports when frogs, sniffers, and turtles breed, and the plugin records both parents for the player, as the mod does. Spigot reports nothing for them, so on Spigot they need a name tag or the linking stick.
 - **Relative markers before 1.21.4.** **Show relatives nearby** marks relatives with dust that only the player sees. The Bukkit API before 1.21.4 can't send it to one player at long range, so on 1.20.1 and 1.21.1 the dust shows only over relatives within 32 blocks. The chat list still names everyone within 64 blocks.
 - **The book.** The family book and breeding plans open as a book screen instead of a lectern.
 - **Saving.** The plugin saves the history when the server saves the world, every five minutes when it changed, and when the server stops. Encoding runs on the main thread and writing on a background thread.
