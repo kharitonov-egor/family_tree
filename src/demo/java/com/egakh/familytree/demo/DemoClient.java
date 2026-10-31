@@ -22,6 +22,7 @@ public final class DemoClient {
     private final FarmCapture farm = new FarmCapture();
     private final IntegrationCapture integrations = new IntegrationCapture();
     private final PlannerCapture planner = new PlannerCapture();
+    private final MediaCapture media = new MediaCapture();
     private int tick;
     private int totalTicks;
     private final List<AnimalRecord> pets = new ArrayList<>();
@@ -41,6 +42,7 @@ public final class DemoClient {
             if (Boolean.getBoolean("familytree.demo.planner")) { planner.tick(client, this); return; }
             if (Boolean.getBoolean("familytree.demo.animals")) { animals.tick(client, this); return; }
             if (Boolean.getBoolean("familytree.demo.farm")) { farm.tick(client, this); return; }
+            if (Boolean.getBoolean("familytree.demo.media")) { media.tick(client, this); return; }
             if (Boolean.getBoolean("familytree.demo.integrationScene")) { integrations.tick(client, this); return; }
             tick++;
             if (tick == 1) {

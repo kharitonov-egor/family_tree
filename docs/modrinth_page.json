@@ -1,0 +1,11 @@
+{
+  "title": "Family Tree: Animal Breeding & Lineage",
+  "summary": "See who bred whom across generations of pets, horses, and farm animals. Horse breeding stats show whether each foal beat its parents. Works on servers, with chest menus for players without the mod. Export any tree as a PNG.",
+  "categories": [
+    "mobs",
+    "utility"
+  ],
+  "additional_categories": [
+    "management"
+  ]
+}

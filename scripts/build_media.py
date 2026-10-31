@@ -53,12 +53,79 @@ def animals(game_directory):
         print(path.name, path.stat().st_size, 'bytes')
 
 
+MEDIA = ROOT / 'docs/media'
+
+
+def timeline(path, start):
+    """Seconds into the screen recording for each label that `-Pmedia` wrote to media-timeline.txt."""
+    marks = {}
+    for line in path.read_text().splitlines():
+        millis, _, label = line.split(' ', 2)
+        marks.setdefault(label, (int(millis) - start) / 1000)
+    return marks
+
+
+def animation(recording, start, duration, name, fps=12, width=800, quality=62):
+    """Cuts a clip from the 1600x1000 recording into an animated WebP and a GIF fallback for CurseForge."""
+    scale = f'fps={fps},scale={width}:-2:flags=area'
+    webp, gif = MEDIA / f'{name}.webp', MEDIA / f'{name}.gif'
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{start:.2f}', '-t', f'{duration:.2f}', '-i', str(recording),
+                    '-vf', scale, '-c:v', 'libwebp_anim', '-quality', str(quality), '-compression_level', '6', '-loop', '0', str(webp)], check=True)
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{start:.2f}', '-t', f'{duration:.2f}', '-i', str(recording),
+                    '-vf', f'fps=10,scale=640:-2:flags=area,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle',
+                    '-loop', '0', str(gif)], check=True)
+    return webp, gif
+
+
+def still(source, name, crop=None, scale=0.5, quality=88):
+    """Halves a GUI-scale-2 screenshot, which keeps Minecraft's pixel font sharp at its 1x size."""
+    image = Image.open(source).convert('RGB')
+    if crop: image = image.crop(crop)
+    if scale != 1: image = image.resize((round(image.width * scale), round(image.height * scale)), Image.Resampling.BOX)
+    path = MEDIA / f'{name}.webp'
+    image.save(path, quality=quality, method=6)
+    return path
+
+
+def page(game_directory, recording, start):
+    """Packages the `-Pmedia` scene into docs/media/: page animations, stills, and the exported family."""
+    assert 'four horse generations' in (game_directory / 'demo-result.txt').read_text()
+    MEDIA.mkdir(parents=True, exist_ok=True)
+    marks = timeline(game_directory / 'media-timeline.txt', start)
+    shots = game_directory / 'screenshots'
+    outputs = []
+    outputs += animation(recording, marks['tree pan'], marks['tree pan end'] - marks['tree pan'], 'tree-tour')
+    outputs += animation(recording, marks['pair Clover x Pippin'] + 0.6, 7.0, 'horse-breeding')
+    outputs += animation(recording, marks['browser pets'] + 0.4, marks['browser search'] - marks['browser pets'] + 4.2, 'browser-tabs', fps=10)
+    outputs.append(still(shots / 'media-tree-fit.png', 'tree-four-generations'))
+    outputs.append(still(shots / 'media-foal-stats.png', 'foal-stats'))
+    outputs.append(still(shots / 'media-sheep-variant.png', 'sheep-variant'))
+    outputs.append(still(shots / 'media-jade.png', 'jade-tooltip', crop=(400, 0, 1200, 660), scale=1))
+    outputs.append(still(shots / 'media-waypoint-world.png', 'journeymap-waypoint'))
+    outputs.append(still(shots / 'media-browser-search.png', 'browser-search'))
+    if (shots / 'media-panda-variant.png').exists():
+        outputs.append(still(shots / 'media-panda-variant.png', 'panda-variant'))
+    export = Image.open(newest_export(game_directory)).convert('RGB')
+    export.save(MEDIA / 'horse-family-export.png', optimize=True)
+    export.resize((800, round(export.height * 800 / export.width)), Image.Resampling.LANCZOS).save(
+        MEDIA / 'horse-family-export-small.webp', quality=90, method=6)
+    outputs += [MEDIA / 'horse-family-export.png', MEDIA / 'horse-family-export-small.webp']
+    for path in outputs:
+        print(f'{path.relative_to(ROOT)}: {path.stat().st_size // 1024} KiB')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--game-directory', type=Path, default=ROOT / 'build/demo-26.2')
     parser.add_argument('--horses', type=Path, help='Package only the horse scene from this game directory')
     parser.add_argument('--animals', type=Path, help='Package only the sheep and axolotl scene from this game directory')
+    parser.add_argument('--page', type=Path, help='Package the -Pmedia scene from this game directory')
+    parser.add_argument('--recording', type=Path, help='Screen recording of the -Pmedia run')
+    parser.add_argument('--recording-start', type=int, help='Epoch milliseconds when the recording started')
     args = parser.parse_args()
+    if args.page:
+        page(args.page, args.recording, args.recording_start)
+        return
     if args.horses:
         horses(args.horses)
         return

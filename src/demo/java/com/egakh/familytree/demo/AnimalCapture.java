@@ -163,7 +163,7 @@ public final class AnimalCapture {
     }
 
     /** Uses a real name tag, so the name tag hook records the animal for the player. */
-    private static void nameTag(ServerPlayer player, Animal target, String name) throws Exception {
+    static void nameTag(ServerPlayer player, Animal target, String name) throws Exception {
         ItemStack tag = new ItemStack(Items.NAME_TAG);
         try {
             ItemStack.class.getMethod("setHoverName", Component.class).invoke(tag, Component.literal(name));

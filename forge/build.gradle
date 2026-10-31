@@ -147,6 +147,7 @@ if (project.hasProperty('demo')) {
                 systemProperty 'familytree.demo.planner', project.hasProperty('planner').toString()
                 systemProperty 'familytree.demo.animals', project.hasProperty('animals').toString()
                 systemProperty 'familytree.demo.farm', project.hasProperty('farm').toString()
+                systemProperty 'familytree.demo.media', project.hasProperty('media').toString()
                 if (project.hasProperty('moddedAnimal')) systemProperty 'familytree.demo.moddedAnimal', project.property('moddedAnimal').toString()
                 if (project.hasProperty('moddedFood')) systemProperty 'familytree.demo.moddedFood', project.property('moddedFood').toString()
                 systemProperty 'familytree.demo.integrationScene', (project.hasProperty('integrationScene') || project.hasProperty('integrations')).toString()

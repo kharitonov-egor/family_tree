@@ -10,7 +10,7 @@ displayName="Family Tree"
 displayURL="https://modrinth.com/mod/familytree"
 authors="egakh"
 ${logoProperty}="assets/familytree/icon.png"
-description='''Keep your pets' family history, find missing companions, and export their family tree.'''
+description='''See who bred whom. A family tree of your pets, horses, and farm animals, with each foal's stats against both parents, inherited colors, and PNG export.'''
 
 [[dependencies.familytree]]
 modId="neoforge"

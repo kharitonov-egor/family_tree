@@ -3,7 +3,7 @@
   "id": "familytree",
   "version": "${version}",
   "name": "Family Tree",
-  "description": "Track your pets' family history, find their last known location, and export a family tree to keep or share.",
+  "description": "See who bred whom. A family tree of your pets, horses, and farm animals, with each foal's stats against both parents, inherited colors, and PNG export.",
   "authors": ["egakh"],
   "icon": "assets/familytree/icon.png",
   "contact": {

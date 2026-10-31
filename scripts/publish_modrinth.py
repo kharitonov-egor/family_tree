@@ -2,6 +2,8 @@
 import argparse
 import hashlib
 import json
+import os
+import re
 from pathlib import Path
 import urllib.error
 import urllib.parse
@@ -10,11 +12,12 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = 'CVQKDAe7'
+MIME = {'.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.jpg': 'image/jpeg'}
 
 
 class Modrinth:
     def __init__(self):
-        values = dict(line.split('=', 1) for line in (ROOT / '.env').read_text().splitlines()
+        values = dict(line.split('=', 1) for line in Path(os.environ.get('FAMILYTREE_ENV', ROOT / '.env')).read_text().splitlines()
                       if '=' in line and not line.lstrip().startswith('#'))
         self.token = values['MODRINTH_TOKEN'].strip().strip('"').strip("'")
 
@@ -46,7 +49,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--manifest', type=Path)
     parser.add_argument('--media', type=Path)
+    parser.add_argument('--prune-gallery', action='store_true', help='With --media, delete gallery items missing from it')
     parser.add_argument('--update-page', action='store_true')
+    parser.add_argument('--icon', type=Path, help='Replace the project icon with this PNG or WebP')
     parser.add_argument('--fix-archive', action='store_true')
     parser.add_argument('--quilt', action='store_true', help='Also list Fabric files for Quilt')
     args = parser.parse_args()
@@ -80,35 +85,7 @@ def main():
             (args.manifest.parent / 'modrinth-published.json').write_text(json.dumps(published, indent=2) + '\n')
             print('Verified Modrinth version:', item['version'], version['id'])
     if args.media:
-        media = json.loads(args.media.read_text())
-        current_titles = {item['title'] for item in media}
-        project = api.request('GET', f'project/{PROJECT}')
-        for index, item in enumerate(project['gallery']):
-            if item['title'] in current_titles:
-                continue
-            api.request('PATCH', f'project/{PROJECT}/gallery?url=' + urllib.parse.quote(item['url'], safe=''), {
-                'featured': False, 'ordering': index + 20,
-                'title': item['title'] if item['title'].startswith('Previous release:') else 'Previous release: ' + item['title']})
-        registry = {}
-        for item in media:
-            path = ROOT / item['file']
-            content = path.read_bytes()
-            assert len(content) <= 5 * 1024 * 1024, 'Modrinth gallery limit exceeded'
-            project = api.request('GET', f'project/{PROJECT}')
-            existing = next((image for image in project['gallery'] if image['title'] == item['title']), None)
-            if not existing:
-                query = urllib.parse.urlencode({'ext': path.suffix[1:], 'featured': str(item['featured']).lower(),
-                    'title': item['title'], 'description': item['description'], 'ordering': item['ordering']})
-                api.request('POST', f'project/{PROJECT}/gallery?{query}', content,
-                            'image/png' if path.suffix == '.png' else 'image/webp')
-                project = api.request('GET', f'project/{PROJECT}')
-                existing = next(image for image in project['gallery'] if image['title'] == item['title'])
-            else:
-                api.request('PATCH', f'project/{PROJECT}/gallery?url=' + urllib.parse.quote(existing['url'], safe=''), {
-                    'featured': item['featured'], 'ordering': item['ordering']})
-            registry[item['key']] = existing.get('raw_url') or existing['url']
-            print('Published media:', item['title'])
-        (ROOT / 'build/implementation/media-urls.json').write_text(json.dumps(registry, indent=2) + '\n')
+        sync_gallery(api, json.loads(args.media.read_text()), args.prune_gallery)
     if args.fix_archive:
         for version_id in ['9j4QmEV4', 'tJWEkJby', 'jKecFBLl']:
             version = api.request('GET', f'version/{version_id}')
@@ -121,14 +98,64 @@ def main():
                 patch['changelog'] = note + version['changelog'].removeprefix(note)
             api.request('PATCH', f'version/{version_id}', patch)
             print('Corrected archived metadata:', version_id)
+    if args.icon:
+        api.request('PATCH', f'project/{PROJECT}/icon?ext={args.icon.suffix[1:]}', args.icon.read_bytes(),
+                    'image/png' if args.icon.suffix == '.png' else 'image/webp')
+        print('Updated icon:', api.request('GET', f'project/{PROJECT}')['icon_url'])
     if args.update_page:
-        api.request('PATCH', f'project/{PROJECT}', {'title': 'Family Tree for Minecraft pets',
-            'description': "Keep your pets' family history and compare each foal's speed, jump, and health with its parents. Find missing pets and export a family tree as a PNG.",
-            'body': (ROOT / 'modrinth_description.md').read_text()})
+        page = json.loads((ROOT / 'docs/modrinth_page.json').read_text())
+        body = page_body(api, json.loads((ROOT / 'docs/media.json').read_text()))
+        api.request('PATCH', f'project/{PROJECT}', {'title': page['title'], 'description': page['summary'],
+            'categories': page['categories'], 'additional_categories': page['additional_categories'], 'body': body})
         project = api.request('GET', f'project/{PROJECT}')
-        assert project['body'] == (ROOT / 'modrinth_description.md').read_text()
+        assert project['body'] == body and project['title'] == page['title'] and project['description'] == page['summary']
+        assert sorted(project['categories']) == sorted(page['categories'])
         print('Verified project page:', 'https://modrinth.com/mod/familytree')
 
+
+def gallery_url(item):
+    return item.get('raw_url') or item['url']
+
+
+def sync_gallery(api, media, prune):
+    """Uploads docs/media.json items by title, applies their order and captions, and with prune deletes the rest."""
+    titles = {item['title'] for item in media}
+    if prune:
+        for image in api.request('GET', f'project/{PROJECT}')['gallery']:
+            if image['title'] not in titles:
+                api.request('DELETE', f'project/{PROJECT}/gallery?url=' + urllib.parse.quote(image['url'], safe=''))
+                print('Removed media:', image['title'])
+    registry = {}
+    for item in media:
+        path = ROOT / item['file']
+        content = path.read_bytes()
+        assert len(content) <= 5 * 1024 * 1024, 'Modrinth gallery limit exceeded'
+        existing = next((image for image in api.request('GET', f'project/{PROJECT}')['gallery']
+                         if image['title'] == item['title']), None)
+        if not existing:
+            query = urllib.parse.urlencode({'ext': path.suffix[1:], 'featured': str(item['featured']).lower(),
+                'title': item['title'], 'description': item['description'], 'ordering': item['ordering']})
+            api.request('POST', f'project/{PROJECT}/gallery?{query}', content, MIME[path.suffix])
+            existing = next(image for image in api.request('GET', f'project/{PROJECT}')['gallery']
+                            if image['title'] == item['title'])
+        else:
+            query = urllib.parse.urlencode({'url': existing['url'], 'featured': str(item['featured']).lower(),
+                'title': item['title'], 'description': item['description'], 'ordering': item['ordering']})
+            api.request('PATCH', f'project/{PROJECT}/gallery?{query}')
+        registry[item['key']] = gallery_url(existing)
+        print('Published media:', item['title'])
+    (ROOT / 'build/implementation').mkdir(parents=True, exist_ok=True)
+    (ROOT / 'build/implementation/media-urls.json').write_text(json.dumps(registry, indent=2) + '\n')
+
+
+def page_body(api, media):
+    """Replaces media:<key> links in modrinth_description.md with the gallery's CDN URLs."""
+    gallery = {image['title']: gallery_url(image) for image in api.request('GET', f'project/{PROJECT}')['gallery']}
+    urls = {item['key']: gallery[item['title']] for item in media if item['title'] in gallery}
+    body = (ROOT / 'modrinth_description.md').read_text()
+    missing = sorted(set(re.findall(r'\(media:([a-z0-9-]+)\)', body)) - set(urls))
+    assert not missing, f'Upload these gallery items first: {missing}'
+    return re.sub(r'\(media:([a-z0-9-]+)\)', lambda match: '(' + urls[match.group(1)] + ')', body)
 
 if __name__ == '__main__':
     main()
