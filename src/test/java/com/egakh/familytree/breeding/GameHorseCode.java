@@ -1,6 +1,5 @@
 package com.egakh.familytree.breeding;
 
-import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
@@ -18,16 +17,21 @@ import java.util.Set;
 final class GameHorseCode {
     private static final String NAME = "com.egakh.familytree.breeding.GameHorseRules";
     private static final Set<String> METHODS = Set.of("createOffspringAttribute", "generateSpeed", "generateJumpStrength", "generateMaxHealth");
+    // NeoForge compiles these tests without Stonecutter, so the class is found by both of its package names.
+    private static final String[] CLASS_FILES = {"net/minecraft/world/entity/animal/equine/AbstractHorse.class",
+            "net/minecraft/world/entity/animal/horse/AbstractHorse.class"};
 
     private GameHorseCode() {}
 
     static Class<?> load() throws Exception {
-        String resource = AbstractHorse.class.getName().replace('.', '/') + ".class";
-        byte[] original;
-        try (InputStream in = GameHorseCode.class.getClassLoader().getResourceAsStream(resource)) {
-            if (in == null) throw new IllegalStateException("Missing " + resource);
-            original = in.readAllBytes();
+        byte[] original = null;
+        for (String resource : CLASS_FILES) {
+            try (InputStream in = GameHorseCode.class.getClassLoader().getResourceAsStream(resource)) {
+                if (in != null) original = in.readAllBytes();
+            }
+            if (original != null) break;
         }
+        if (original == null) throw new IllegalStateException("AbstractHorse is not on the test classpath");
         ClassNode source = new ClassNode();
         new ClassReader(original).accept(source, 0);
         ClassNode copy = new ClassNode();

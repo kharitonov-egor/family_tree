@@ -66,42 +66,61 @@ class VariantOddsTest {
         assertEquals("purple", VariantOdds.mixedWool("blue", "red"));
     }
 
-    /** Reads every shapeless recipe with two dye ingredients and a dye result from the Minecraft jar. */
+    /**
+     * Reads every shapeless recipe with two dye ingredients and a dye result. NeoForge ships its own copies of the
+     * dye recipes that use {@code #c:dyes/<color>} tags, which hold the vanilla dyes, so every jar that has the
+     * recipes is read and the first copy of each file wins, as a data pack override would.
+     */
     private static Map<Set<String>, String> twoDyeRecipes() throws Exception {
-        URL marker = null;
+        Map<String, Map.Entry<Set<String>, String>> byFile = new java.util.LinkedHashMap<>();
+        boolean found = false;
         for (String folder : List.of("recipe", "recipes")) {
-            marker = VariantOddsTest.class.getClassLoader().getResource("data/minecraft/" + folder + "/purple_dye.json");
-            if (marker != null) break;
-        }
-        assertNotNull(marker, "Minecraft's recipe data is not on the test classpath");
-        Map<Set<String>, String> mixes = new HashMap<>();
-        try (JarFile jar = ((JarURLConnection) marker.openConnection()).getJarFile()) {
-            for (JarEntry entry : java.util.Collections.list(jar.entries())) {
-                String name = entry.getName();
-                if (!name.matches("data/minecraft/recipes?/[^/]+\\.json")) continue;
-                JsonObject recipe;
-                try (var reader = new InputStreamReader(jar.getInputStream(entry), StandardCharsets.UTF_8)) {
-                    recipe = JsonParser.parseReader(reader).getAsJsonObject();
+            for (URL marker : java.util.Collections.list(VariantOddsTest.class.getClassLoader()
+                    .getResources("data/minecraft/" + folder + "/purple_dye.json"))) {
+                found = true;
+                try (JarFile jar = ((JarURLConnection) marker.openConnection()).getJarFile()) {
+                    for (JarEntry entry : java.util.Collections.list(jar.entries())) {
+                        String name = entry.getName();
+                        if (!name.matches("data/minecraft/recipes?/[^/]+\\.json") || byFile.containsKey(name)) continue;
+                        JsonObject recipe;
+                        try (var reader = new InputStreamReader(jar.getInputStream(entry), StandardCharsets.UTF_8)) {
+                            recipe = JsonParser.parseReader(reader).getAsJsonObject();
+                        }
+                        byFile.put(name, null);
+                        if (!recipe.has("type") || !"minecraft:crafting_shapeless".equals(recipe.get("type").getAsString())) continue;
+                        JsonArray ingredients = recipe.getAsJsonArray("ingredients");
+                        if (ingredients.size() != 2) continue;
+                        JsonElement result = recipe.get("result");
+                        String id = result.isJsonPrimitive() ? result.getAsString()
+                                : result.getAsJsonObject().has("id") ? result.getAsJsonObject().get("id").getAsString()
+                                : result.getAsJsonObject().get("item").getAsString();
+                        String output = dye(id);
+                        String first = dye(item(ingredients.get(0))), second = dye(item(ingredients.get(1)));
+                        if (output != null && first != null && second != null)
+                            byFile.put(name, Map.entry(Set.of(first, second), output));
+                    }
                 }
-                if (!"minecraft:crafting_shapeless".equals(recipe.get("type").getAsString())) continue;
-                JsonArray ingredients = recipe.getAsJsonArray("ingredients");
-                if (ingredients.size() != 2) continue;
-                JsonElement result = recipe.get("result");
-                String id = result.isJsonPrimitive() ? result.getAsString()
-                        : result.getAsJsonObject().has("id") ? result.getAsJsonObject().get("id").getAsString()
-                        : result.getAsJsonObject().get("item").getAsString();
-                String output = dye(id);
-                String first = dye(item(ingredients.get(0))), second = dye(item(ingredients.get(1)));
-                if (output != null && first != null && second != null) mixes.put(Set.of(first, second), output);
             }
+        }
+        assertTrue(found, "Minecraft's recipe data is not on the test classpath");
+        Map<Set<String>, String> mixes = new HashMap<>();
+        for (var mix : byFile.values()) {
+            if (mix == null) continue;
+            String previous = mixes.put(mix.getKey(), mix.getValue());
+            assertTrue(previous == null || previous.equals(mix.getValue()), "Two recipes mix " + mix.getKey() + " differently");
         }
         return mixes;
     }
 
+    /** Plain items, and the {@code c:} or {@code forge:} dye tags that loaders put in their recipe copies. */
     private static String item(JsonElement ingredient) {
-        if (ingredient.isJsonPrimitive()) return ingredient.getAsString();
-        if (ingredient.isJsonObject() && ingredient.getAsJsonObject().has("item")) return ingredient.getAsJsonObject().get("item").getAsString();
-        return null;
+        String text = null;
+        if (ingredient.isJsonPrimitive()) text = ingredient.getAsString();
+        else if (ingredient.isJsonObject() && ingredient.getAsJsonObject().has("item")) text = ingredient.getAsJsonObject().get("item").getAsString();
+        else if (ingredient.isJsonObject() && ingredient.getAsJsonObject().has("tag")) text = "#" + ingredient.getAsJsonObject().get("tag").getAsString();
+        if (text == null || !text.startsWith("#")) return text;
+        java.util.regex.Matcher tag = java.util.regex.Pattern.compile("#(?:c|forge):dyes/([a-z_]+)").matcher(text);
+        return tag.matches() ? "minecraft:" + tag.group(1) + "_dye" : null;
     }
 
     private static String dye(String item) {
