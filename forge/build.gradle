@@ -144,6 +144,7 @@ if (project.hasProperty('demo')) {
                 programArguments.addAll '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
                 systemProperty 'familytree.demo.gameplay', project.hasProperty('gameplay').toString()
                 systemProperty 'familytree.demo.horses', project.hasProperty('horses').toString()
+                systemProperty 'familytree.demo.planner', project.hasProperty('planner').toString()
                 systemProperty 'familytree.demo.animals', project.hasProperty('animals').toString()
                 systemProperty 'familytree.demo.farm', project.hasProperty('farm').toString()
                 if (project.hasProperty('moddedAnimal')) systemProperty 'familytree.demo.moddedAnimal', project.property('moddedAnimal').toString()

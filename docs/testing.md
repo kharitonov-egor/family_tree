@@ -102,6 +102,14 @@ This is an automated demonstration scene, not footage from a long-running surviv
 
 The horse runner tames two vanilla horses, feeds them golden carrots, and waits for AI breeding. The client must receive the foal's and parents' stats through the network. It rides a camel to check that the rider becomes its owner, sorts the browser by speed, opens the foal's tree, and exports it. Each run clears the demo world's Family Tree records first, so use a disposable world. `python scripts/build_media.py --horses build/demo-26.3` copies the tree screenshot and the export into `docs/`.
 
+```sh
+./gradlew :26.3:runDemo -Pdemo -Pplanner
+./gradlew :1.20.1:runDemo -Pdemo -Pplanner
+./gradlew -p neoforge runDemo -Pdemo -Pplanner -Pminecraft=1.21.1
+```
+
+The planner runner fences five pens and breeds seven horses, a donkey, and two llamas through four generations with golden carrots, hay bales, and vanilla AI breeding. Between rounds it moves each planned pair into a pen, resets breeding cooldowns, and grows and tames the foals so they can breed in the next round. The game picks every stat. The runner checks each foal's recorded stats against the planner's range for its actual parents and fails if one falls outside. `planner-result.txt` lists every foal with its range, most likely value, and chance to beat both parents, and counts how many foals beat both parents next to the planner's expected count. The runner then selects one card in the tree and Shift-clicks another through the screen's own click handling, opens the planner from **Plan breeding**, checks that the pair are half siblings, opens **Best pairs** and its top pair, plans a mule and a llama pair, and runs `/familytree breed`. Last, it opens `/familytree menu` and clicks Quill, **Plan breeding**, and Sorrel with real inventory clicks, and checks that the plan opens as a book. Each step's screen goes into `screenshots/`, and `planner-clip-*.png` frames cover the planner walk-through at ten frames a second.
+
 On Linux without a free display, run the client under Xvfb: `xvfb-run -a -s "-screen 0 1600x1000x24" ./gradlew ...`. Unset `WAYLAND_DISPLAY` first so the window cannot open on a desktop session. Minecraft 26.3 opens its window through SDL; set `SDL_VIDEO_DRIVER=x11` so SDL uses Xvfb. To test GUI scale 4, set `guiScale:4` in the run directory's `options.txt`. Before trusting a run, read `DISPLAY` from the game process's `/proc/<pid>/environ` to confirm it uses the Xvfb display.
 
 ## Optional integrations

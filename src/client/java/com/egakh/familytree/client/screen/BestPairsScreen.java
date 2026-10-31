@@ -27,7 +27,7 @@ import java.util.UUID;
 
 /** Ranks pairs of living adults by a foal's expected stat. */
 public final class BestPairsScreen extends FamilyTreeScreen {
-    private static final int LIST_TOP = 96, ROW_HEIGHT = 26, LIMIT = 50;
+    private static final int SUMMARY_TOP = 80, ROW_HEIGHT = 26, LIMIT = 50;
     private static final int TEXT = 0xFFFFFFFF, MUTED = 0xFFB0B7C0, HEADING = 0xFFFFD24A;
 
     private final Screen parent;
@@ -152,13 +152,30 @@ public final class BestPairsScreen extends FamilyTreeScreen {
         };
     }
 
+    private Component summary() {
+        if (herd == null) return Component.translatable("familytree.best.no_herd");
+        if (outcome.pairs().isEmpty()) return Component.translatable("familytree.best.none");
+        return Component.translatable(outcome.trimmed() ? "familytree.best.summary_trimmed" : "familytree.best.summary",
+                outcome.pairsConsidered(), outcome.candidates());
+    }
+
+    /** The summary wraps to two lines at most, so the list starts below it at every GUI scale. */
+    private List<net.minecraft.util.FormattedCharSequence> summaryLines() {
+        List<net.minecraft.util.FormattedCharSequence> lines = font.split(summary(), Math.min(width - 16, 440));
+        return lines.size() > 2 ? lines.subList(0, 2) : lines;
+    }
+
+    private int listTop() {
+        return SUMMARY_TOP + summaryLines().size() * (font.lineHeight + 2) + 4;
+    }
+
     private int listBottom() {
         return height - 8;
     }
 
     private int maxScroll() {
         int rows = outcome == null ? 0 : outcome.pairs().size();
-        return Math.max(0, rows * ROW_HEIGHT - (listBottom() - LIST_TOP));
+        return Math.max(0, rows * ROW_HEIGHT - (listBottom() - listTop()));
     }
 
     @Override
@@ -166,20 +183,17 @@ public final class BestPairsScreen extends FamilyTreeScreen {
         gfx.fill(0, 0, width, height, 0xFF151A21);
         gfx.centeredText(font, title, width / 2, 13, TEXT);
         int rowWidth = Math.min(width - 16, 440), x = (width - rowWidth) / 2;
-        Component summary;
-        if (herd == null) summary = Component.translatable("familytree.best.no_herd");
-        else if (outcome.pairs().isEmpty()) summary = Component.translatable("familytree.best.none");
-        else summary = Component.translatable(outcome.trimmed() ? "familytree.best.summary_trimmed" : "familytree.best.summary",
-                outcome.pairsConsidered(), outcome.candidates());
-        gfx.text(font, font.plainSubstrByWidth(summary.getString(), rowWidth), x, 80, MUTED);
+        List<net.minecraft.util.FormattedCharSequence> summary = summaryLines();
+        for (int i = 0; i < summary.size(); i++) gfx.text(font, summary.get(i), x, SUMMARY_TOP + i * (font.lineHeight + 2), MUTED);
+        int listTop = listTop();
         if (outcome != null && !outcome.pairs().isEmpty()) {
-            gfx.enableScissor(0, LIST_TOP, width, listBottom());
+            gfx.enableScissor(0, listTop, width, listBottom());
             for (int i = 0; i < outcome.pairs().size(); i++) {
-                int top = LIST_TOP + i * ROW_HEIGHT - scroll;
-                if (top + ROW_HEIGHT < LIST_TOP || top > listBottom()) continue;
+                int top = listTop + i * ROW_HEIGHT - scroll;
+                if (top + ROW_HEIGHT < listTop || top > listBottom()) continue;
                 BestPairs.Ranked pair = outcome.pairs().get(i);
                 boolean hover = mouseX >= x && mouseX < x + rowWidth && mouseY >= top && mouseY < top + ROW_HEIGHT - 2
-                        && mouseY >= LIST_TOP && mouseY < listBottom();
+                        && mouseY >= listTop && mouseY < listBottom();
                 gfx.fill(x, top, x + rowWidth, top + ROW_HEIGHT - 2, hover ? 0xFF2A3440 : 0xFF202830);
                 String name = Component.translatable("familytree.best.row", i + 1, pair.first().name(), pair.second().name()).getString();
                 gfx.text(font, font.plainSubstrByWidth(name, rowWidth - 8), x + 4, top + 3, TEXT);
@@ -194,10 +208,10 @@ public final class BestPairsScreen extends FamilyTreeScreen {
 
     @Override
     protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
-        if (button != 0 || outcome == null || mouseY < LIST_TOP || mouseY >= listBottom()) return false;
+        if (button != 0 || outcome == null || mouseY < listTop() || mouseY >= listBottom()) return false;
         int rowWidth = Math.min(width - 16, 440), x = (width - rowWidth) / 2;
         if (mouseX < x || mouseX >= x + rowWidth) return false;
-        int index = (int) ((mouseY - LIST_TOP + scroll) / ROW_HEIGHT);
+        int index = (int) ((mouseY - listTop() + scroll) / ROW_HEIGHT);
         if (index < 0 || index >= outcome.pairs().size()) return false;
         BestPairs.Ranked pair = outcome.pairs().get(index);
         minecraft.setScreen(new BreedingPlannerScreen(this, snapshot, pair.first().id(), pair.second().id()));

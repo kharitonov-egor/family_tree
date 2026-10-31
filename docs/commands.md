@@ -12,6 +12,7 @@ Names match either the original pet name or its custom tree name, without regard
 | `/familytree info <name>` | Show a visible animal's history, known parents, variant, and horse stats. For a baby, also show its parents' variants and how it got its own. |
 | `/familytree pair <parentA> <parentB> <child>` | Link distinct pets of the same species, or horse and donkey parents for a mule. Requires permission for all three animals. |
 | `/familytree unpair <child>` | Clear the child's parents. |
+| `/familytree breed <a> <b>` | Predict a foal of two visible animals: each stat's range, most likely value, and chance to beat both parents, the variant odds, the foal's inbreeding coefficient, and how the two are related. Quote names that contain spaces. |
 | `/familytree setage <name> <days>` | Set age in world days. |
 | `/familytree setbirth <name> <day>` | Set the recorded birth day. |
 | `/familytree prune deceased` | Permanently remove deceased records. Operators only. |
@@ -26,7 +27,7 @@ Select a pet in the tree and use Add parents for a picker with a confirmation st
 
 ## Chest menu
 
-Players without the client mod use `/familytree` to open a chest menu. The bottom row holds page arrows, a status filter, a species filter, the scope toggle for players allowed to see everyone's pets, a name search, **Find existing pets**, and Close. Click a pet to open its family. Owners and operators also see Locate, Rename, Add parents, and the family book. Opening the menu shares the half-second cooldown with the screens, and Find existing pets shares the two-second scan cooldown with `/familytree scan`.
+Players without the client mod use `/familytree` to open a chest menu. The bottom row holds page arrows, a status filter, a species filter, the scope toggle for players allowed to see everyone's pets, a name search, **Find existing pets**, and Close. Click a pet to open its family. Owners and operators also see Locate, Rename, Add parents, and the family book. A living animal that can breed also shows **Plan breeding**, which lists the mates the player may view and opens the planner's prediction as a book. Opening the menu shares the half-second cooldown with the screens, and Find existing pets shares the two-second scan cooldown with `/familytree scan`.
 
 ## Server settings
 
