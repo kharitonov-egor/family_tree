@@ -149,7 +149,14 @@ public final class FamilyTreePackets {
         if (outcome.result() == PetRenaming.Result.NO_PERMISSION && !namesPermission)
             ServerText.send(player, Component.translatable("familytree.permission.denied", FamilyTreePermission.RENAME.node()));
         ServerTransport.send(player, new RenamePetResult(packet.requestId(), outcome.result().wireStatus(namesPermission),
-                outcome.result() == PetRenaming.Result.SUCCESS ? Optional.of(outcome.record()) : Optional.empty()));
+                renameReply(outcome, player.getUUID(), ServerPetAccess.manageAll(player.createCommandSourceStack()),
+                        ServerPetAccess.allowed(player, FamilyTreePermission.LOCATE))));
+    }
+
+    /** The renamed record goes back filtered like a snapshot, so a rename never reveals a position the viewer may not locate. */
+    static Optional<AnimalRecord> renameReply(RenameOutcome outcome, UUID viewer, boolean operator, boolean mayLocate) {
+        return outcome.result() == PetRenaming.Result.SUCCESS
+                ? Optional.of(PetAccess.forViewer(outcome.record(), viewer, operator, mayLocate)) : Optional.empty();
     }
 
     /** Shared by the parent picker packet and the server menu. */

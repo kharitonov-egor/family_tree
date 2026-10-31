@@ -181,7 +181,13 @@ public final class ClientBridge implements PluginMessageListener {
         if (result == PetRenaming.Result.NO_PERMISSION && !namesPermission)
             plugin.chat().send(player, "familytree.permission.denied", FamilyTreePermission.RENAME.node());
         AnimalRecord record = result == PetRenaming.Result.SUCCESS ? plugin.store().get(request.petId()) : null;
-        send(player, Payloads.RENAME_RESULT, Payloads.encodeRenameResult(request.requestId(), result.wireStatus(namesPermission), record));
+        send(player, Payloads.RENAME_RESULT, renameReply(request.requestId(), result.wireStatus(namesPermission), record,
+                player.getUniqueId(), plugin.access().manageAll(player), plugin.access().allowed(player, FamilyTreePermission.LOCATE)));
+    }
+
+    /** The renamed record goes back filtered like a snapshot, so a rename never reveals a position the viewer may not locate. */
+    static byte[] renameReply(UUID requestId, int status, AnimalRecord saved, UUID viewer, boolean operator, boolean mayLocate) {
+        return Payloads.encodeRenameResult(requestId, status, saved == null ? null : PetAccess.forViewer(saved, viewer, operator, mayLocate));
     }
 
     private void link(Player player, Payloads.LinkRequest request) {
