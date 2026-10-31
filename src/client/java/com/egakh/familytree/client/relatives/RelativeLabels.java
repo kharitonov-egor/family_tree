@@ -6,7 +6,9 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.camel.Camel;
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
+import net.minecraft.world.entity.animal.equine.Llama;
 import org.joml.Quaternionf;
 //? if >=1.21.9 {
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -21,16 +23,17 @@ import java.util.WeakHashMap;
 //?}
 
 /**
- * Draws a relative's label in place of its name tag: above the head and ears, on a dark background, in front of
- * whatever is between it and the camera, and at a size on screen that stops growing up close and stops shrinking far away.
+ * Draws a relative's label in place of its name tag: above the head and ears, on a dark background, over any model
+ * in front of it, and at a size on screen that stops growing up close and stops shrinking far away.
  */
 public final class RelativeLabels {
     public record Label(Component text, double base) {}
 
     private static final float NAME_TAG_SCALE = 0.025F;
     private static final double NEAR = 6.0, FAR = 12.0;
-    private static final double HEAD_ROOM = 0.3, EQUINE_HEAD = 0.35;
-    private static final int TEXT = 0xFFFFFFFF, BACKGROUND = 0xA0000000, FULL_BRIGHT = 0xF000F0;
+    private static final double HEAD_ROOM = 0.3, HORSE_HEAD = 0.6, LLAMA_HEAD = 0.2;
+    /** Each of the two passes draws the background, so together they cover about 63% of what is behind the label. */
+    private static final int TEXT = 0xFFFFFFFF, BACKGROUND = 0x64000000, FULL_BRIGHT = 0xF000F0;
 
     //? if >=1.21.2 {
     private static final Map<EntityRenderState, Label> PENDING = new WeakHashMap<>();
@@ -38,10 +41,14 @@ public final class RelativeLabels {
 
     private RelativeLabels() {}
 
-    /** Height above the feet of the label's bottom edge. Horses, llamas, and camels hold their heads above their hitbox. */
+    /**
+     * Height above the feet of the label's bottom edge. A horse's head and ears reach well above its hitbox and come
+     * toward a camera it faces, so its label goes higher; a llama's head rises less, and a camel's hitbox covers its head.
+     */
     public static double base(Entity entity) {
         double height = entity.getBbHeight();
-        return height + HEAD_ROOM + (entity instanceof AbstractHorse ? height * EQUINE_HEAD : 0);
+        double head = entity instanceof Camel ? 0 : entity instanceof Llama ? LLAMA_HEAD : entity instanceof AbstractHorse ? HORSE_HEAD : 0;
+        return height + HEAD_ROOM + height * head;
     }
 
     /** A name tag's scale between {@link #NEAR} and {@link #FAR} blocks, and the same size on screen outside that range. */
@@ -82,11 +89,14 @@ public final class RelativeLabels {
         //?} else {
         /*poseStack.scale(-scale, -scale, scale);
         *///?}
-        //? if >=1.21.9 {
-        out.submitText(poseStack, x, y, text, false, Font.DisplayMode.SEE_THROUGH, FULL_BRIGHT, TEXT, BACKGROUND, 0);
-        //?} else {
-        /*font.drawInBatch(text, x, y, TEXT, false, poseStack.last().pose(), out, Font.DisplayMode.SEE_THROUGH, BACKGROUND, FULL_BRIGHT);
-        *///?}
+        // The see-through pass keeps the label over closer models; the normal pass writes depth so clouds behind it can't cover it.
+        for (Font.DisplayMode mode : new Font.DisplayMode[]{Font.DisplayMode.SEE_THROUGH, Font.DisplayMode.NORMAL}) {
+            //? if >=1.21.9 {
+            out.submitText(poseStack, x, y, text, false, mode, FULL_BRIGHT, TEXT, BACKGROUND, 0);
+            //?} else {
+            /*font.drawInBatch(text, x, y, TEXT, false, poseStack.last().pose(), out, mode, BACKGROUND, FULL_BRIGHT);
+            *///?}
+        }
         poseStack.popPose();
     }
 }
