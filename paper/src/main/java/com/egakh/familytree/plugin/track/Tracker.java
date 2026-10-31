@@ -65,18 +65,19 @@ public final class Tracker {
         if (state.contains(entity.getUniqueId())) stampLastSeen(state, entity);
     }
 
-    /** {@code breeder} is the player who fed either parent, or null. */
-    public void onBred(Animals parentA, Animals parentB, Animals child, Player breeder) {
+    /** {@code player} is the online player who fed either parent, or null. */
+    public void onBred(Animals parentA, Animals parentB, Animals child, Player player) {
+        Feeder feederA = feeder(parentA), feederB = feeder(parentB);
+        Feeder breeder = player != null ? Feeder.of(player) : feederA != null ? feederA : feederB;
         if (!PetRules.isTameableSpecies(child)) {
-            recordBirth(parentA, parentB, child,
-                    breeder == null ? null : breeder.getUniqueId(), breeder == null ? null : breeder.getName());
+            recordBirth(parentA, parentB, child, breeder == null ? null : breeder.id(), breeder == null ? null : breeder.name());
             return;
         }
         FamilyTreeStore state = store();
         if (!rules.records(child, AnimalCategory.PETS)) return;
 
-        rememberParent(state, parentA, feeder(parentA) != null ? feeder(parentA) : breeder);
-        rememberParent(state, parentB, feeder(parentB) != null ? feeder(parentB) : breeder);
+        rememberParent(state, parentA, feederA != null ? feederA : breeder);
+        rememberParent(state, parentB, feederB != null ? feederB : breeder);
 
         UUID childId = child.getUniqueId();
         String existingName = Entities.customName(child);
@@ -107,8 +108,8 @@ public final class Tracker {
                 }
             }
             if (parentOwner == null && breeder != null) {
-                parentOwner = breeder.getUniqueId();
-                parentOwnerName = breeder.getName();
+                parentOwner = breeder.id();
+                parentOwnerName = breeder.name();
             }
             owner = parentOwner;
             ownerName = parentOwnerName;
@@ -142,8 +143,8 @@ public final class Tracker {
         return outcome == VariantRules.Outcome.UNKNOWN ? null : outcome.key();
     }
 
-    private void rememberParent(FamilyTreeStore state, Animals parent, Player breeder) {
-        if (breeder != null && PetRules.isUnclaimedMount(parent)) claim(state, parent, breeder);
+    private void rememberParent(FamilyTreeStore state, Animals parent, Feeder feeder) {
+        if (feeder != null && PetRules.isUnclaimedMount(parent)) claim(state, parent, feeder.id(), feeder.name());
         else ensureRecord(state, parent);
     }
 
@@ -171,11 +172,11 @@ public final class Tracker {
             noticeFarmLimit(state, breeder, "familytree.farm.limit");
             return;
         }
-        Player feederA = feeder(parentA), feederB = feeder(parentB);
-        AnimalRecord a = recordParent(state, parentA, parentB, feederA != null ? feederA.getUniqueId() : breeder,
-                feederA != null ? feederA.getName() : breederName);
-        AnimalRecord b = recordParent(state, parentB, parentA, feederB != null ? feederB.getUniqueId() : breeder,
-                feederB != null ? feederB.getName() : breederName);
+        Feeder feederA = feeder(parentA), feederB = feeder(parentB);
+        AnimalRecord a = recordParent(state, parentA, parentB, feederA != null ? feederA.id() : breeder,
+                feederA != null ? feederA.name() : breederName);
+        AnimalRecord b = recordParent(state, parentB, parentA, feederB != null ? feederB.id() : breeder,
+                feederB != null ? feederB.name() : breederName);
         AnimalRecord owner = a.ownerId() != null ? a : b.ownerId() != null ? b : null;
         AnimalRecord record = newRecord(state, child);
         record.setParents(parentA.getUniqueId(), parentB.getUniqueId());
@@ -187,25 +188,34 @@ public final class Tracker {
     }
 
     /** Frogs, sniffers, and turtles lay spawn or an egg instead of a baby, so a player's breeding records only the parents. */
-    public void onBredWithoutBaby(Animals parentA, Animals parentB, Player breeder) {
+    public void onBredWithoutBaby(Animals parentA, Animals parentB, Player player) {
+        Feeder feederA = feeder(parentA), feederB = feeder(parentB);
+        Feeder breeder = player != null ? Feeder.of(player) : feederA != null ? feederA : feederB;
         if (breeder == null || PetRules.isTameableSpecies(parentA) || !rules.recordsNewAnimal(parentA)) return;
         FamilyTreeStore state = store();
         if (state.readOnly()) return;
         int needed = (state.contains(parentA.getUniqueId()) ? 0 : 1) + (state.contains(parentB.getUniqueId()) ? 0 : 1);
         if (needed > 0 && !roomForFarmRecords(state, needed)) {
-            noticeFarmLimit(state, breeder.getUniqueId(), "familytree.farm.limit_parents");
+            noticeFarmLimit(state, breeder.id(), "familytree.farm.limit_parents");
             return;
         }
-        for (Animals parent : new Animals[]{parentA, parentB}) {
-            Player fed = feeder(parent) != null ? feeder(parent) : breeder;
-            recordParent(state, parent, parent == parentA ? parentB : parentA, fed.getUniqueId(), fed.getName());
+        Feeder fedA = feederA != null ? feederA : breeder, fedB = feederB != null ? feederB : breeder;
+        recordParent(state, parentA, parentB, fedA.id(), fedA.name());
+        recordParent(state, parentB, parentA, fedB.id(), fedB.name());
+    }
+
+    private record Feeder(UUID id, String name) {
+        static Feeder of(Player player) {
+            return new Feeder(player.getUniqueId(), player.getName());
         }
     }
 
-    /** The online player who fed this animal, like Minecraft's love cause. */
-    private static Player feeder(Animals animal) {
+    /** The player who fed this animal, like Minecraft's love cause, even after they log off. */
+    private static Feeder feeder(Animals animal) {
         UUID cause = animal.getBreedCause();
-        return cause == null ? null : Bukkit.getPlayer(cause);
+        if (cause == null) return null;
+        Player online = Bukkit.getPlayer(cause);
+        return new Feeder(cause, online != null ? online.getName() : Bukkit.getOfflinePlayer(cause).getName());
     }
 
     private AnimalRecord recordParent(FamilyTreeStore state, Entity parent, Entity mate, UUID breeder, String breederName) {
@@ -312,17 +322,17 @@ public final class Tracker {
     /** The first rider of an unclaimed mount becomes its owner in Family Tree. Vanilla ownership is unchanged. */
     public void onMountRidden(Entity mount, Player rider) {
         if (!PetRules.isUnclaimedMount(mount)) return;
-        claim(store(), mount, rider);
+        claim(store(), mount, rider.getUniqueId(), rider.getName());
     }
 
-    private void claim(FamilyTreeStore state, Entity entity, Player player) {
+    private void claim(FamilyTreeStore state, Entity entity, UUID owner, String ownerName) {
         UUID id = entity.getUniqueId();
         if (!state.contains(id)) {
             if (!rules.records(entity, AnimalCategory.PETS)) return;
             state.put(newRecord(state, entity));
         }
         state.update(id, record -> {
-            if (record.ownerId() == null) record.setOwner(player.getUniqueId(), player.getName());
+            if (record.ownerId() == null) record.setOwner(owner, ownerName);
         });
         ensureRecord(state, entity);
     }

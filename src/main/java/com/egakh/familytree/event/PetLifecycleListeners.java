@@ -34,13 +34,32 @@ import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.animal.equine.Llama;
 import net.minecraft.world.entity.animal.feline.Cat;
 import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.entity.player.Player;
 
+import java.util.Collections;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 public final class PetLifecycleListeners {
 
     private PetLifecycleListeners() {}
+
+    /** A player who fed an animal, kept so an animal fed by someone who has since logged off still goes to them. */
+    private record Feeder(UUID id, String name) {}
+
+    private static final Map<Animal, Feeder> FEEDERS = Collections.synchronizedMap(new WeakHashMap<>());
+
+    public static void onFedForLove(Animal animal, Player player) {
+        if (player instanceof ServerPlayer fed) FEEDERS.put(animal, new Feeder(fed.getUUID(), fed.getName().getString()));
+    }
+
+    /** Minecraft's love cause, which only resolves while that player is online, or else the player who last fed it. */
+    private static Feeder feeder(Animal animal) {
+        ServerPlayer online = animal.getLoveCause();
+        return online != null ? new Feeder(online.getUUID(), online.getName().getString()) : FEEDERS.get(animal);
+    }
 
     public static void onLoad(Entity entity, ServerLevel world) {
         if (!(entity instanceof Animal)) return;
@@ -56,18 +75,18 @@ public final class PetLifecycleListeners {
     }
 
     public static void onBred(ServerLevel world, Animal parentA, Animal parentB, Animal child) {
-        ServerPlayer breeder = parentA.getLoveCause() != null ? parentA.getLoveCause() : parentB.getLoveCause();
+        Feeder feederA = feeder(parentA), feederB = feeder(parentB);
+        Feeder breeder = feederA != null ? feederA : feederB;
         if (!PetFilter.isTameableSpecies(child)) {
-            recordBirth(world, parentA, parentB, child,
-                    breeder == null ? null : breeder.getUUID(), breeder == null ? null : breeder.getName().getString());
+            recordBirth(world, parentA, parentB, child, breeder == null ? null : breeder.id(), breeder == null ? null : breeder.name());
             return;
         }
 
         FamilyTreeState state = FamilyTreeState.get(world);
         if (!PetFilter.records(child, AnimalCategory.PETS)) return;
 
-        rememberParent(world, state, parentA, parentA.getLoveCause() != null ? parentA.getLoveCause() : breeder);
-        rememberParent(world, state, parentB, parentB.getLoveCause() != null ? parentB.getLoveCause() : breeder);
+        rememberParent(world, state, parentA, feederA != null ? feederA : breeder);
+        rememberParent(world, state, parentB, feederB != null ? feederB : breeder);
 
         UUID childId = child.getUUID();
 
@@ -100,8 +119,8 @@ public final class PetLifecycleListeners {
                 }
             }
             if (parentOwner == null && breeder != null) {
-                parentOwner = breeder.getUUID();
-                parentOwnerName = breeder.getName().getString();
+                parentOwner = breeder.id();
+                parentOwnerName = breeder.name();
             }
             owner = parentOwner;
             ownerName = parentOwnerName;
@@ -145,8 +164,8 @@ public final class PetLifecycleListeners {
         return outcome == VariantRules.Outcome.UNKNOWN ? null : outcome.key();
     }
 
-    private static void rememberParent(ServerLevel world, FamilyTreeState state, Animal parent, ServerPlayer breeder) {
-        if (breeder != null && PetFilter.isUnclaimedMount(parent)) claim(world, state, parent, breeder);
+    private static void rememberParent(ServerLevel world, FamilyTreeState state, Animal parent, Feeder feeder) {
+        if (feeder != null && PetFilter.isUnclaimedMount(parent)) claim(world, state, parent, feeder.id(), feeder.name());
         else ensureRecord(world, state, parent);
     }
 
@@ -176,11 +195,11 @@ public final class PetLifecycleListeners {
             return;
         }
 
-        ServerPlayer feederA = parentA.getLoveCause(), feederB = parentB.getLoveCause();
-        AnimalRecord a = recordParent(world, state, parentA, parentB, feederA != null ? feederA.getUUID() : breeder,
-                feederA != null ? feederA.getName().getString() : breederName);
-        AnimalRecord b = recordParent(world, state, parentB, parentA, feederB != null ? feederB.getUUID() : breeder,
-                feederB != null ? feederB.getName().getString() : breederName);
+        Feeder feederA = feeder(parentA), feederB = feeder(parentB);
+        AnimalRecord a = recordParent(world, state, parentA, parentB, feederA != null ? feederA.id() : breeder,
+                feederA != null ? feederA.name() : breederName);
+        AnimalRecord b = recordParent(world, state, parentB, parentA, feederB != null ? feederB.id() : breeder,
+                feederB != null ? feederB.name() : breederName);
         AnimalRecord owner = a.ownerId() != null ? a : b.ownerId() != null ? b : null;
         AnimalRecord record = newRecord(world, state, child);
         record.setParents(parentA.getUUID(), parentB.getUUID());
@@ -193,19 +212,19 @@ public final class PetLifecycleListeners {
 
     /** Frogs, sniffers, and turtles lay spawn or an egg instead of a baby, so a player's breeding records only the parents. */
     public static void onBredWithoutBaby(ServerLevel world, Animal parentA, Animal parentB) {
-        ServerPlayer breeder = parentA.getLoveCause() != null ? parentA.getLoveCause() : parentB.getLoveCause();
+        Feeder feederA = feeder(parentA), feederB = feeder(parentB);
+        Feeder breeder = feederA != null ? feederA : feederB;
         if (breeder == null || PetFilter.isTameableSpecies(parentA) || !PetFilter.recordsNewAnimal(parentA)) return;
         FamilyTreeState state = FamilyTreeState.get(world);
         if (state.readOnly()) return;
         int needed = (state.contains(parentA.getUUID()) ? 0 : 1) + (state.contains(parentB.getUUID()) ? 0 : 1);
         if (needed > 0 && !roomForFarmRecords(world, state, needed)) {
-            noticeFarmLimit(world, state, breeder.getUUID(), "familytree.farm.limit_parents");
+            noticeFarmLimit(world, state, breeder.id(), "familytree.farm.limit_parents");
             return;
         }
-        for (Animal parent : new Animal[]{parentA, parentB}) {
-            ServerPlayer feeder = parent.getLoveCause() != null ? parent.getLoveCause() : breeder;
-            recordParent(world, state, parent, parent == parentA ? parentB : parentA, feeder.getUUID(), feeder.getName().getString());
-        }
+        Feeder fedB = feederB != null ? feederB : breeder;
+        recordParent(world, state, parentA, parentB, breeder.id(), breeder.name());
+        recordParent(world, state, parentB, parentA, fedB.id(), fedB.name());
     }
 
     private static AnimalRecord recordParent(ServerLevel world, FamilyTreeState state, Animal parent, Animal mate,
@@ -298,17 +317,17 @@ public final class PetLifecycleListeners {
     /** The first rider of an unclaimed mount becomes its owner in Family Tree. Vanilla ownership is unchanged. */
     public static void onMountRidden(AbstractHorse mount, ServerPlayer rider) {
         if (!(mount.level() instanceof ServerLevel world) || !PetFilter.isUnclaimedMount(mount)) return;
-        claim(world, FamilyTreeState.get(world), mount, rider);
+        claim(world, FamilyTreeState.get(world), mount, rider.getUUID(), rider.getName().getString());
     }
 
-    private static void claim(ServerLevel world, FamilyTreeState state, Entity entity, ServerPlayer player) {
+    private static void claim(ServerLevel world, FamilyTreeState state, Entity entity, UUID owner, String ownerName) {
         UUID id = entity.getUUID();
         if (!state.contains(id)) {
             if (!PetFilter.records(entity, AnimalCategory.PETS)) return;
             state.put(newRecord(world, state, entity));
         }
         state.update(id, record -> {
-            if (record.ownerId() == null) record.setOwner(player.getUUID(), player.getName().getString());
+            if (record.ownerId() == null) record.setOwner(owner, ownerName);
         });
         ensureRecord(world, state, entity);
     }
