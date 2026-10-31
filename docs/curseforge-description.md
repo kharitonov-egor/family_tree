@@ -94,7 +94,7 @@ Tooltips and waypoints follow Family Tree's permissions. They show only animals 
 
 ![Nova's four generations exported as a PNG with each horse's speed, jump, and health](https://raw.githubusercontent.com/kharitonov-egor/family_tree/main/docs/media/horse-family-export.png)
 
-**Export family tree** saves a PNG under `screenshots/familytree/`, and **Open folder** shows it. The image includes the displayed family beyond the screen edges, at a fixed readable scale. Hidden branches stay hidden. A focused tree shows up to six generations in either direction. Exports omit player names and coordinates, and nothing uploads automatically.
+**Export family tree** saves a PNG under `screenshots/familytree/`, and **Open folder** shows it. The image includes the displayed family beyond the screen edges, at a fixed readable scale. Hidden branches stay hidden. A focused tree opens with six generations in either direction, and a tab on the edge cards shows six more. Exports omit player names and coordinates, and nothing uploads automatically.
 
 ## Start with the animals you already have
 

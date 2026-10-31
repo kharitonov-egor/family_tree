@@ -7,8 +7,11 @@ import com.egakh.familytree.util.HorseStatUnits.Trend;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -22,9 +25,12 @@ public final class TreeImageExporter {
     private static final long MAX_PIXELS = 24_000_000;
     public record Card(double x, double y, String name, String detail, String status,
                        boolean deceased, BufferedImage portrait, List<HorseStatsText.Segment> stats, boolean rare) {}
-    public record Line(double x1, double y1, double x2, double y2) {}
+    /** Corner points as x, y pairs. */
+    public record Line(double[] points) {}
+    /** A triangle and count above a card with older generations left out, or below one with younger generations left out. */
+    public record Marker(double x, double y, boolean older, int generations) {}
     public record Picture(String title, String footer, int width, int height, List<Card> cards, List<Line> lines,
-                          Legend legend) {}
+                          List<Marker> markers, Legend legend) {}
     /** Legend text and the word that replaces ♥ when the export font has no heart. Markers are drawn only when cards use them. */
     public record Legend(String higher, String lower, String hearts, String rare, boolean statMarkers, boolean rareMarkers) {
         public Legend(String higher, String lower, String hearts, String rare) { this(higher, lower, hearts, rare, true, true); }
@@ -39,10 +45,15 @@ public final class TreeImageExporter {
 
     private static int[] imageSize(TreeLayout.Result tree) {
         int width = (int) Math.ceil(Math.max(440, tree.maxX - tree.minX + MARGIN * 2)) * SCALE;
-        int height = (int) Math.ceil(tree.maxY - tree.minY + HEADER + MARGIN * 2) * SCALE;
+        int height = (int) Math.ceil(tree.maxY - tree.minY + header(tree) + MARGIN * 2) * SCALE;
         if (tree.nodes.isEmpty() || width <= 0 || height <= 0 || width > 16384 || height > 16384
                 || (long) width * height > MAX_PIXELS) throw new IllegalArgumentException("Tree is too large to export");
         return new int[]{width, height};
+    }
+
+    /** Room above the top cards for the title, the legend, and markers for older generations. */
+    private static int header(TreeLayout.Result tree) {
+        return tree.olderHidden.isEmpty() ? HEADER : HEADER + 24;
     }
 
     public static Picture prepare(TreeLayout.Result tree, String title, String footer,
@@ -53,23 +64,33 @@ public final class TreeImageExporter {
                                    Predicate<AnimalRecord> rare,
                                    Legend legend) {
         int[] size = imageSize(tree);
-        int width = size[0], height = size[1];
+        int width = size[0], height = size[1], header = header(tree);
         List<Card> cards = tree.nodes.stream().map(node -> new Card(
-                node.x - tree.minX + MARGIN, node.y - tree.minY + HEADER,
+                node.x - tree.minX + MARGIN, node.y - tree.minY + header,
                 node.record.name(), details.apply(node.record), status.apply(node.record),
                 node.record.deceased(), portraits.apply(node.record), List.copyOf(stats.apply(node.record)),
                 rare.test(node.record))).toList();
-        List<Line> lines = tree.edges.stream().map(edge -> new Line(
-                edge.from.x - tree.minX + MARGIN + TreeLayout.NODE_WIDTH / 2.0,
-                edge.from.y - tree.minY + HEADER + TreeLayout.NODE_HEIGHT,
-                edge.to.x - tree.minX + MARGIN + TreeLayout.NODE_WIDTH / 2.0,
-                edge.to.y - tree.minY + HEADER)).toList();
+        List<Line> lines = tree.edges.stream().map(edge -> {
+            double[] points = edge.route().clone();
+            for (int i = 0; i < points.length; i += 2) {
+                points[i] += MARGIN - tree.minX;
+                points[i + 1] += header - tree.minY;
+            }
+            return new Line(points);
+        }).toList();
+        List<Marker> markers = new ArrayList<>();
+        for (TreeLayout.Node node : tree.nodes) {
+            double centre = node.x - tree.minX + MARGIN + TreeLayout.NODE_WIDTH / 2.0, top = node.y - tree.minY + header;
+            Integer older = tree.olderHidden.get(node.id), younger = tree.youngerHidden.get(node.id);
+            if (older != null) markers.add(new Marker(centre, top, true, older));
+            if (younger != null) markers.add(new Marker(centre, top + TreeLayout.NODE_HEIGHT, false, younger));
+        }
         boolean marked = cards.stream().flatMap(card -> card.stats().stream())
                 .anyMatch(stat -> stat.trend() == Trend.BEATS_BOTH || stat.trend() == Trend.TRAILS_BOTH);
         boolean rareCards = cards.stream().anyMatch(Card::rare);
         Legend shown = legend == null ? null
                 : new Legend(legend.higher(), legend.lower(), legend.hearts(), legend.rare(), marked, rareCards);
-        return new Picture(title, footer, width, height, cards, lines, shown);
+        return new Picture(title, footer, width, height, cards, lines, List.copyOf(markers), shown);
     }
 
     public static BufferedImage render(Picture picture) {
@@ -89,13 +110,13 @@ public final class TreeImageExporter {
             g.setStroke(new BasicStroke(2));
             g.setColor(new Color(0x758D96));
             for (Line line : picture.lines()) {
-                int middle = (int) ((line.y1() + line.y2()) / 2);
-                g.drawLine((int) line.x1(), (int) line.y1(), (int) line.x1(), middle);
-                g.drawLine((int) line.x1(), middle, (int) line.x2(), middle);
-                g.drawLine((int) line.x2(), middle, (int) line.x2(), (int) line.y2());
+                double[] points = line.points();
+                for (int i = 2; i + 1 < points.length; i += 2)
+                    g.drawLine((int) points[i - 2], (int) points[i - 1], (int) points[i], (int) points[i + 1]);
             }
             String hearts = picture.legend() == null ? "hearts" : picture.legend().hearts();
             for (Card card : picture.cards()) drawCard(g, card, hearts);
+            for (Marker marker : picture.markers()) drawMarker(g, marker);
             g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
             g.setColor(new Color(0xA9BAC0));
             g.drawString(fit(g, picture.footer(), picture.width() / SCALE - MARGIN * 2),
@@ -106,9 +127,18 @@ public final class TreeImageExporter {
         return image;
     }
 
-    public static Path save(Picture picture, Path directory) throws IOException {
+    /** Saves as family-tree-{@code subject}-date.png, adding -2, -3, and so on when that name is taken. */
+    public static Path save(Picture picture, Path directory, String subject) throws IOException {
         Files.createDirectories(directory);
-        Path file = Files.createTempFile(directory, "family-tree-", ".png");
+        LocalDate today = LocalDate.now();
+        Path file = null;
+        for (int copy = 1; file == null; copy++) {
+            try {
+                file = Files.createFile(directory.resolve(fileName(subject, today, copy)));
+            } catch (FileAlreadyExistsException taken) {
+                if (copy >= 10_000) throw taken;
+            }
+        }
         try {
             if (!ImageIO.write(render(picture), "PNG", file.toFile())) throw new IOException("PNG writer unavailable");
             return file;
@@ -116,6 +146,33 @@ public final class TreeImageExporter {
             Files.deleteIfExists(file);
             throw failure;
         }
+    }
+
+    /** Letters and digits of any script stay; everything else, including path separators, becomes a hyphen. */
+    public static String fileName(String subject, LocalDate date, int copy) {
+        StringBuilder slug = new StringBuilder();
+        subject.codePoints().limit(48).forEach(point -> {
+            if (Character.isLetterOrDigit(point)) slug.appendCodePoint(point);
+            else if (slug.length() > 0 && slug.charAt(slug.length() - 1) != '-') slug.append('-');
+        });
+        while (slug.length() > 0 && slug.charAt(slug.length() - 1) == '-') slug.setLength(slug.length() - 1);
+        return "family-tree-" + (slug.length() == 0 ? "" : slug + "-") + date + (copy > 1 ? "-" + copy : "") + ".png";
+    }
+
+    private static void drawMarker(Graphics2D g, Marker marker) {
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        String text = "+" + marker.generations();
+        int width = 14 + g.getFontMetrics().stringWidth(text);
+        int x = (int) Math.round(marker.x() - width / 2.0);
+        int y = (int) Math.round(marker.older() ? marker.y() - 20 : marker.y() + 4);
+        g.setColor(new Color(0x101820));
+        g.fillRoundRect(x - 4, y, width + 8, 16, 6, 6);
+        g.setColor(new Color(0xD8B671));
+        g.drawRoundRect(x - 4, y, width + 8, 16, 6, 6);
+        int middle = x + 4;
+        g.fillPolygon(marker.older() ? new int[]{middle - 4, middle, middle + 4} : new int[]{middle - 4, middle + 4, middle},
+                marker.older() ? new int[]{y + 11, y + 4, y + 11} : new int[]{y + 4, y + 4, y + 11}, 3);
+        g.drawString(text, x + 12, y + 12);
     }
 
     private static void drawCard(Graphics2D g, Card card, String hearts) {

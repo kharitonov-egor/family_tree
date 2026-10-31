@@ -21,6 +21,7 @@ import com.egakh.familytree.util.HorseStatUnits.Trend;
 import com.egakh.familytree.util.VariantText;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -52,8 +54,21 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     private final Map<UUID, AnimalRecord> records = new HashMap<>();
     private final Map<UUID, List<UUID>> childIndex = new HashMap<>();
     private final Map<UUID, Integer> generations = new HashMap<>();
-    private static final int CANVAS_TOP = 106;
+    /** A species view shows its families a page at a time, so a farm of thousands opens at a readable zoom. */
+    private static final int FOREST_PAGE_CARDS = 40;
+    private int canvasTop = 106;
+    private TreeToolbar.Layout toolbar;
     private final TreeViewport viewport = new TreeViewport();
+    private List<List<UUID>> forestPages = List.of();
+    /** The index of each page's first family, then the number of families. */
+    private int[] pageFamilies = {0};
+    private int page;
+    private Button previousPage, nextPage;
+    private TreeToolbar.Slot pageSlot;
+    private EditBox find;
+    private int findIndex;
+    private final Set<UUID> olderShown = new HashSet<>();
+    private final Set<UUID> youngerShown = new HashSet<>();
     private final Set<UUID> collapsed = new HashSet<>();
     private TreeLayout.Result fullTree;
     private TreeLayout.Result tree;
@@ -67,11 +82,9 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     private Button exportButton;
     private Button parentsButton, folderButton;
     private java.nio.file.Path exportedFile;
-    private Component exportStatus = Component.empty();
+    private Component status = Component.empty();
     private boolean exporting;
     private PortraitCapture portraitCapture;
-    private int previousWidth;
-    private int previousHeight;
     private boolean dragging = false;
     private double lastMouseX;
     private double lastMouseY;
@@ -179,26 +192,11 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     @Override
     protected void init() {
         dragging = false;
-        if (fullTree == null) {
-            if (forestIds != null) {
-                fullTree = TreeLayout.layoutForest(forestIds, records, childIndex);
-            } else if (aggregateSpeciesId == null) {
-                fullTree = TreeLayout.layout(focusId, records, childIndex);
-            } else {
-                List<UUID> includedIds = snapshot.records().stream()
-                        .filter(r -> aggregateSpeciesId.equals(r.speciesId()))
-                        .map(AnimalRecord::id)
-                        .toList();
-                fullTree = TreeLayout.layoutForest(includedIds, records, childIndex);
-            }
-            tree = fullTree;
-            fitTree();
-        } else {
-            viewport.panX += (this.width - previousWidth) / 2.0;
-            viewport.panY += (this.height - previousHeight) / 2.0;
+        double centreX = Double.NaN, centreY = 0;
+        if (fullTree != null && toolbar != null) {
+            centreX = (canvasRight() / 2.0 - viewport.panX) / viewport.zoom;
+            centreY = ((canvasTop + canvasBottom()) / 2.0 - viewport.panY) / viewport.zoom;
         }
-        previousWidth = this.width;
-        previousHeight = this.height;
         this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"),
                         b -> onClose())
                 .bounds(8, 8, 60, 18).build());
@@ -216,77 +214,168 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                 this.minecraft.setScreen(new BreedingPlannerScreen(this, snapshot, selectedId, compareId));
         }).bounds(this.width - 76 - planWidth, 8, planWidth, 18).build());
         planButton.setTooltip(Tooltip.create(Component.translatable("familytree.planner.button.hint")));
-        int x = Math.max(8, (this.width - 304) / 2);
-        this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.tree.fit"),
-                b -> fitTree()).bounds(x, 32, 56, 18).build());
-        centerButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.tree.center"),
-                b -> centerSelected()).bounds(x + 60, 32, 78, 18).build());
-        branchButton = this.addRenderableWidget(Button.builder(Component.empty(),
-                b -> toggleBranch()).bounds(x + 142, 32, 92, 18).build());
-        expandAllButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.tree.expand_all"),
-                b -> {
-                    collapsed.clear();
-                    rebuildTree();
-                    fitTree();
-                }).bounds(x + 238, 32, 66, 18).build());
-        branchButton.setTooltip(Tooltip.create(Component.translatable("familytree.screen.tree.branch_hint")));
+        if (fullTree == null) buildTree();
+        addTools();
+        if (Double.isNaN(centreX)) fitTree();
+        else viewport.center(centreX, centreY, 0, canvasRight(), canvasTop, canvasBottom());
+        updateControls();
+    }
+
+    /** Lays the tool buttons out to fit the window: rows above the tree, or a column beside it in a short window. */
+    private void addTools() {
         boolean maps = MapWaypoints.available();
-        locateButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.locate.button"),
-                button -> {
-                    if (selectedId != null) {
-                        ClientTransport.send(new LocatePetRequest(selectedId));
-                        this.minecraft.setScreen(null);
-                    }
-                }).bounds(x, 56, maps ? 67 : 138, 18).build());
+        boolean paged = forestPages.size() > 1;
+        int pageText = 0;
+        for (int i = 0; paged && i < forestPages.size(); i++) pageText = Math.max(pageText, this.font.width(pageLabel(i)));
+        int[] widths = java.util.stream.IntStream.of(
+                toolWidth("familytree.screen.tree.fit"), toolWidth("familytree.screen.tree.center"),
+                toolWidth("familytree.screen.tree.collapse", "familytree.screen.tree.expand"),
+                toolWidth("familytree.screen.tree.expand_all"), toolWidth("familytree.locate.button"),
+                maps ? toolWidth("familytree.waypoint.button") : -1, toolWidth("familytree.export.button"),
+                toolWidth("familytree.parents.button"), toolWidth("familytree.refresh"),
+                toolWidth("familytree.export.open_folder"),
+                paged ? 48 + pageText + 8 : -1,
+                aggregateSpeciesId != null ? 110 : -1).filter(width -> width > 0).toArray();
+        toolbar = TreeToolbar.arrange(widths, this.width, this.height);
+        canvasTop = toolbar.canvasTop();
+        java.util.Iterator<TreeToolbar.Slot> slots = toolbar.slots().iterator();
+        tool(slots.next(), "familytree.screen.tree.fit", b -> fitTree());
+        centerButton = tool(slots.next(), "familytree.screen.tree.center", b -> centerSelected());
+        branchButton = tool(slots.next(), "familytree.screen.tree.collapse", b -> toggleBranch());
+        expandAllButton = tool(slots.next(), "familytree.screen.tree.expand_all", b -> {
+            collapsed.clear();
+            rebuildTree(null);
+        });
+        branchButton.setTooltip(Tooltip.create(Component.translatable("familytree.screen.tree.branch_hint")));
+        locateButton = tool(slots.next(), "familytree.locate.button", button -> {
+            if (selectedId != null) {
+                ClientTransport.send(new LocatePetRequest(selectedId));
+                this.minecraft.setScreen(null);
+            }
+        });
         waypointButton = null;
         if (maps) {
-            waypointButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.waypoint.button"),
-                    button -> {
-                        AnimalRecord selected = records.get(selectedId);
-                        if (selected == null) return;
-                        MapWaypoints.request(selected);
-                        this.minecraft.setScreen(null);
-                    }).bounds(x + 71, 56, 67, 18).build());
+            waypointButton = tool(slots.next(), "familytree.waypoint.button", button -> {
+                AnimalRecord selected = records.get(selectedId);
+                if (selected == null) return;
+                MapWaypoints.request(selected);
+                this.minecraft.setScreen(null);
+            });
             waypointButton.setTooltip(Tooltip.create(Component.translatable("familytree.waypoint.tooltip", MapWaypoints.targetNames())));
         }
-        exportButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.export.button"),
-                button -> exportTree()).bounds(x + 142, 56, 162, 18).build());
+        exportButton = tool(slots.next(), "familytree.export.button", button -> exportTree());
         exportButton.active = !exporting;
-        parentsButton = addRenderableWidget(Button.builder(Component.translatable("familytree.parents.button"), button -> {
+        parentsButton = tool(slots.next(), "familytree.parents.button", button -> {
             AnimalRecord selected = records.get(selectedId);
             if (selected != null) minecraft.setScreen(new ParentLinksScreen(this, snapshot, selected));
-        }).bounds(x, 80, 112, 18).build());
-        addRenderableWidget(Button.builder(Component.translatable("familytree.refresh"), button ->
-                com.egakh.familytree.client.FamilyTreeClient.requestSnapshot(snapshot.viewingAll()))
-                .bounds(x + 116, 80, 68, 18).build());
-        folderButton = addRenderableWidget(Button.builder(Component.translatable("familytree.export.open_folder"), button -> {
+        });
+        tool(slots.next(), "familytree.refresh", button ->
+                com.egakh.familytree.client.FamilyTreeClient.requestSnapshot(snapshot.viewingAll()));
+        folderButton = tool(slots.next(), "familytree.export.open_folder", button -> {
             if (exportedFile == null) return;
             //? if >=26.3 {
             /*com.mojang.blaze3d.Blaze3D.openPath(exportedFile.getParent());
             *///?} else {
             net.minecraft.util.Util.getPlatform().openFile(exportedFile.getParent().toFile());
             //?}
-        }).bounds(x + 188, 80, 116, 18).build());
+        });
         folderButton.active = exportedFile != null;
-        updateControls();
+        previousPage = nextPage = null;
+        pageSlot = null;
+        if (paged) {
+            TreeToolbar.Slot slot = slots.next();
+            previousPage = addRenderableWidget(Button.builder(Component.literal("<"), button -> turnPage(-1))
+                    .bounds(slot.x(), slot.y(), 20, 18).build());
+            nextPage = addRenderableWidget(Button.builder(Component.literal(">"), button -> turnPage(1))
+                    .bounds(slot.x() + slot.width() - 20, slot.y(), 20, 18).build());
+            pageSlot = slot;
+        }
+        if (aggregateSpeciesId != null) {
+            TreeToolbar.Slot slot = slots.next();
+            String previous = find == null ? "" : find.getValue();
+            find = new EditBox(this.font, slot.x() + 1, slot.y() + 1, slot.width() - 2, 16,
+                    Component.translatable("familytree.screen.tree.find"));
+            find.setMaxLength(64);
+            find.setValue(previous);
+            find.setHint(Component.translatable("familytree.screen.tree.find"));
+            find.setResponder(text -> findNext(false));
+            addRenderableWidget(find);
+        }
+    }
+
+    private int toolWidth(String... keys) {
+        int width = 0;
+        for (String key : keys) width = Math.max(width, this.font.width(Component.translatable(key)));
+        return Math.max(40, width + 16);
+    }
+
+    private Button tool(TreeToolbar.Slot slot, String key, Button.OnPress action) {
+        return addRenderableWidget(Button.builder(Component.translatable(key), action)
+                .bounds(slot.x(), slot.y(), slot.width(), 18).build());
+    }
+
+    private boolean singlePetTree() {
+        return focusId != null && aggregateSpeciesId == null && forestIds == null;
+    }
+
+    /** Lays out the whole tree for the current page and depth, then hides collapsed branches. */
+    private void buildTree() {
+        if (forestIds != null) {
+            fullTree = TreeLayout.layoutForest(forestIds, records, childIndex);
+        } else if (aggregateSpeciesId == null) {
+            fullTree = TreeLayout.layout(focusId, records, childIndex, Set.of(), olderShown, youngerShown);
+        } else {
+            List<UUID> includedIds = snapshot.records().stream()
+                    .filter(r -> aggregateSpeciesId.equals(r.speciesId()))
+                    .map(AnimalRecord::id)
+                    .toList();
+            List<List<UUID>> families = TreeLayout.families(includedIds, records, childIndex);
+            forestPages = TreeLayout.pages(families, FOREST_PAGE_CARDS);
+            pageFamilies = new int[forestPages.size() + 1];
+            for (int i = 0, family = 0; i < forestPages.size(); i++) {
+                pageFamilies[i] = family;
+                for (int cards = 0; cards < forestPages.get(i).size(); ) cards += families.get(family++).size();
+                pageFamilies[i + 1] = family;
+            }
+            page = Math.max(0, Math.min(page, forestPages.size() - 1));
+            fullTree = TreeLayout.layoutForest(forestPages.isEmpty() ? List.of() : forestPages.get(page), records, childIndex);
+        }
+        tree = fullTree;
+        if (collapsed.isEmpty()) return;
+        List<UUID> visible = TreeLayout.visibleIds(fullTree, collapsed);
+        if (singlePetTree()) {
+            Set<UUID> hidden = new HashSet<>(fullTree.byId.keySet());
+            visible.forEach(hidden::remove);
+            tree = TreeLayout.layout(focusId, records, childIndex, hidden, olderShown, youngerShown);
+        } else {
+            tree = TreeLayout.layoutForest(visible, records, childIndex);
+        }
+    }
+
+    private int canvasRight() {
+        return toolbar == null ? this.width : toolbar.canvasRight();
     }
 
     private int canvasBottom() {
-        return this.height - 32;
+        return toolbar == null ? this.height - 32 : toolbar.canvasBottom();
     }
 
     private boolean inCanvas(double x, double y) {
-        return x >= 0 && x < this.width && y >= CANVAS_TOP && y < canvasBottom();
+        return x >= 0 && x < canvasRight() && y >= canvasTop && y < canvasBottom();
     }
 
-    /** Fitting and centering keep cards above the stats panel. */
+    /** Fitting and centering keep cards above the stats panel, unless the panel would leave too little room. */
     private int treeBottom() {
         int panel = statsPanelHeight();
-        return panel == 0 ? canvasBottom() : canvasBottom() - panel - 6;
+        int reserved = canvasBottom() - panel - 6;
+        return panel == 0 || reserved - canvasTop < (canvasBottom() - canvasTop) * 3 / 5 ? canvasBottom() : reserved;
     }
 
     private void fitTree() {
-        if (tree != null) viewport.fit(tree, this.width, CANVAS_TOP, treeBottom());
+        if (tree == null) return;
+        TreeLayout.Node anchor = tree.byId.get(selectedId);
+        if (anchor == null && focusId != null) anchor = tree.byId.get(focusId);
+        viewport.fit(tree, anchor, 0, canvasRight(), canvasTop, treeBottom());
     }
 
     private void centerSelected() {
@@ -294,27 +383,86 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         if (selected == null) return;
         viewport.zoom = Math.max(1.0, viewport.zoom);
         viewport.center(selected.x + TreeLayout.NODE_WIDTH / 2.0,
-                selected.y + TreeLayout.NODE_HEIGHT / 2.0, this.width, CANVAS_TOP, treeBottom());
+                selected.y + TreeLayout.NODE_HEIGHT / 2.0, 0, canvasRight(), canvasTop, treeBottom());
     }
 
     private void toggleBranch() {
         if (selectedId == null) return;
         if (!collapsed.remove(selectedId)) collapsed.add(selectedId);
-        rebuildTree();
+        rebuildTree(selectedId);
     }
 
-    private void rebuildTree() {
-        TreeLayout.Node oldSelection = tree.byId.get(selectedId);
-        tree = collapsed.isEmpty() ? fullTree
-                : TreeLayout.layoutForest(TreeLayout.visibleIds(fullTree, collapsed), records, childIndex);
-        TreeLayout.Node newSelection = tree.byId.get(selectedId);
-        if (oldSelection != null && newSelection != null) {
-            viewport.panX += (oldSelection.x - newSelection.x) * viewport.zoom;
-            viewport.panY += (oldSelection.y - newSelection.y) * viewport.zoom;
-        } else if (newSelection == null) {
-            selectedId = null;
-        }
+    /** Lays the tree out again while the card {@code anchorId}, the selection, or any shown card stays still on screen. */
+    private void rebuildTree(UUID anchorId) {
+        TreeLayout.Node before = anchorId == null ? null : tree.byId.get(anchorId);
+        if (before == null) before = tree.byId.get(selectedId);
+        if (before == null && !tree.nodes.isEmpty()) before = tree.nodes.get(0);
+        buildTree();
+        TreeLayout.Node after = before == null ? null : tree.byId.get(before.id);
+        if (after != null) viewport.follow(before, after);
+        if (!tree.byId.containsKey(selectedId)) selectedId = null;
+        if (!tree.byId.containsKey(compareId)) compareId = null;
+        updateRelation();
         updateControls();
+    }
+
+    private void turnPage(int step) {
+        int target = Math.max(0, Math.min(forestPages.size() - 1, page + step));
+        if (target == page) return;
+        showPage(target);
+        fitTree();
+    }
+
+    private void showPage(int target) {
+        page = target;
+        collapsed.clear();
+        selectedId = null;
+        compareId = null;
+        buildTree();
+        updateRelation();
+        updateControls();
+    }
+
+    /** Finds animals of this species by name across every page; Enter moves to the next match. */
+    private void findNext(boolean advance) {
+        String query = find == null ? "" : find.getValue().trim().toLowerCase(Locale.ROOT);
+        if (query.isEmpty()) {
+            status = Component.empty();
+            return;
+        }
+        List<UUID> matches = new ArrayList<>();
+        for (List<UUID> ids : forestPages)
+            for (UUID id : ids)
+                if (records.get(id).name().toLowerCase(Locale.ROOT).contains(query)) matches.add(id);
+        if (matches.isEmpty()) {
+            status = Component.translatable("familytree.screen.tree.find_none", find.getValue().trim());
+            return;
+        }
+        findIndex = advance ? (findIndex + 1) % matches.size() : 0;
+        UUID match = matches.get(findIndex);
+        for (int i = 0; i < forestPages.size(); i++) {
+            if (i != page && forestPages.get(i).contains(match)) showPage(i);
+        }
+        if (!tree.byId.containsKey(match)) {
+            collapsed.clear();
+            buildTree();
+        }
+        selectedId = match;
+        updateRelation();
+        updateControls();
+        centerSelected();
+        status = Component.translatable("familytree.screen.tree.find_result", findIndex + 1, matches.size());
+    }
+
+    @Override
+    protected boolean onKeyPress(int key) {
+        boolean enter = key == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN
+                || key == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER;
+        if (enter && find != null && find.isFocused()) {
+            findNext(true);
+            return true;
+        }
+        return false;
     }
 
     private int planButtonWidth() {
@@ -339,6 +487,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         locateButton.active = centerButton.active && canManage && ClientTransport.canSend(LocatePetRequest.TYPE);
         if (waypointButton != null) waypointButton.active = centerButton.active && canManage
                 && (ClientTransport.canSend(WaypointRequest.TYPE) || selected.lastSeen() != null);
+        if (previousPage != null) previousPage.active = page > 0;
+        if (nextPage != null) nextPage.active = page < forestPages.size() - 1;
     }
 
     public void applyRename(AnimalRecord updated) {
@@ -358,7 +508,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         try {
             TreeImageExporter.requireExportable(shown);
         } catch (IllegalArgumentException tooLarge) {
-            exportStatus = Component.translatable("familytree.export.too_large");
+            status = singlePetTree() ? Component.translatable("familytree.export.too_large")
+                    : Component.translatable("familytree.export.family_too_large", shown.nodes.size());
             return;
         }
         // Cats, wolves, and horses keep their texture portraits. Every other species uses its in-game model.
@@ -373,7 +524,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         }
         exporting = true;
         exportButton.active = false;
-        exportStatus = Component.translatable("familytree.export.saving");
+        status = Component.translatable("familytree.export.saving");
         if (models.isEmpty()) {
             writeExport(shown, portraits);
             return;
@@ -390,6 +541,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         if (client == null) return;
         AnimalRecord focus = records.get(focusId);
         Component exportTitle = focus == null ? this.title : Component.translatable("familytree.screen.view.title", focus.name());
+        String fileSubject = focus == null ? this.title.getString() : focus.name();
         TreeImageExporter.Picture picture = TreeImageExporter.prepare(shown, exportTitle.getString(),
                 "Family Tree | modrinth.com/mod/familytree",
                 pet -> exportDetail(pet),
@@ -405,7 +557,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                         Component.translatable("familytree.export.legend.rare").getString()));
         CompletableFuture.supplyAsync(() -> {
             try {
-                return TreeImageExporter.save(picture, client.gameDirectory.toPath().resolve("screenshots/familytree"));
+                return TreeImageExporter.save(picture, client.gameDirectory.toPath().resolve("screenshots/familytree"), fileSubject);
             } catch (java.io.IOException failure) {
                 throw new java.util.concurrent.CompletionException(failure);
             }
@@ -415,8 +567,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
             if (failure == null) {
                 exportedFile = path;
                 folderButton.active = true;
-                exportStatus = Component.translatable("familytree.export.saved_file", path.getFileName().toString());
-            } else exportStatus = Component.translatable("familytree.export.failed");
+                status = Component.translatable("familytree.export.saved_file", path.getFileName().toString());
+            } else status = Component.translatable("familytree.export.failed");
             if (failure != null) com.egakh.familytree.FamilyTreeMod.LOGGER.warn("Could not export family tree", failure);
         }));
     }
@@ -430,27 +582,27 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     @Override
     public void tick() {
         super.tick();
-        if (portraitCapture != null && this.minecraft != null) portraitCapture.tick(this.minecraft, this.width);
+        if (portraitCapture != null && this.minecraft != null) portraitCapture.tick(this.minecraft, canvasRight());
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         gfx.fill(0, 0, this.width, this.height, 0xCC0F1115);
-        gfx.enableScissor(0, CANVAS_TOP, this.width, canvasBottom());
+        gfx.enableScissor(0, canvasTop, canvasRight(), canvasBottom());
+        Marker hovered = null;
         if (tree == null || tree.nodes.isEmpty()) {
             gfx.centeredText(this.font, Component.translatable("familytree.screen.empty"),
-                    this.width / 2, this.height / 2, 0xFFCCCCCC);
+                    canvasRight() / 2, this.height / 2, 0xFFCCCCCC);
         } else {
             for (TreeLayout.Edge e : tree.edges) {
-                if (!onCanvas(Math.min(e.from.x, e.to.x), Math.min(e.from.y, e.to.y),
-                        Math.abs(e.from.x - e.to.x) + TreeLayout.NODE_WIDTH, Math.abs(e.from.y - e.to.y) + TreeLayout.NODE_HEIGHT)) continue;
+                if (!routeOnCanvas(e)) continue;
                 if (relationPath.contains(e.from.id) && relationPath.contains(e.to.id)) continue;
-                TreeRenderer.drawEdge(gfx, e.from, e.to, viewport.panX, viewport.panY, viewport.zoom);
+                TreeRenderer.drawEdge(gfx, e, viewport.panX, viewport.panY, viewport.zoom);
             }
             // Highlighted links go on top, so crossing lines never hide the path.
             for (TreeLayout.Edge e : tree.edges) {
                 if (!relationPath.contains(e.from.id) || !relationPath.contains(e.to.id)) continue;
-                TreeRenderer.drawEdge(gfx, e.from, e.to, viewport.panX, viewport.panY, viewport.zoom,
+                TreeRenderer.drawEdge(gfx, e, viewport.panX, viewport.panY, viewport.zoom,
                         TreeRenderer.RELATION_COLOR, viewport.zoom >= 0.65 ? 2 : 1);
             }
             for (TreeLayout.Node n : tree.nodes) {
@@ -461,39 +613,108 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                         collapsed.contains(n.id), generations.getOrDefault(n.id, 0),
                         records::get, viewport.panX, viewport.panY, viewport.zoom);
             }
+            for (Marker marker : markers()) {
+                boolean over = inCanvas(mouseX, mouseY) && marker.contains(mouseX, mouseY);
+                if (over) hovered = marker;
+                drawMarker(gfx, marker, over);
+            }
         }
         drawStatsPanel(gfx);
         gfx.disableScissor();
-        gfx.fill(0, 0, this.width, CANVAS_TOP, 0xFF151A21);
+        gfx.fill(0, 0, this.width, canvasTop, 0xFF151A21);
+        if (toolbar != null && toolbar.side()) gfx.fill(canvasRight(), canvasTop, this.width, canvasBottom(), 0xFF151A21);
         gfx.fill(0, canvasBottom(), this.width, this.height, 0xFF151A21);
         AnimalRecord focus = records.get(focusId);
         Component currentTitle = focus == null ? this.title : Component.translatable("familytree.screen.view.title", focus.name());
         gfx.text(this.font, this.font.plainSubstrByWidth(currentTitle.getString(), Math.max(1, this.width - 160 - planButtonWidth())),
                 76, 13, 0xFFFFFFFF);
-        Component hint = exportStatus.getString().isEmpty() ? Component.translatable("familytree.screen.tree.controls_compare") : exportStatus;
-        gfx.text(this.font, this.font.plainSubstrByWidth(hint.getString(), Math.max(1, this.width - 64)),
-                8, this.height - 25, 0xFFB0B7C0);
-        Component panHint = Component.translatable("familytree.screen.tree.pan_controls");
-        gfx.text(this.font, this.font.plainSubstrByWidth(panHint.getString(), Math.max(1, this.width - 64)),
-                8, this.height - 13, 0xFFB0B7C0);
+        if (pageSlot != null) {
+            gfx.centeredText(this.font, pageLabel(page), pageSlot.x() + pageSlot.width() / 2, pageSlot.y() + 5, 0xFFE0E6EE);
+        }
+        Component hint = hovered != null
+                ? Component.translatable(hovered.older() ? "familytree.screen.tree.show_older" : "familytree.screen.tree.show_younger")
+                : status.getString().isEmpty() ? Component.translatable("familytree.screen.tree.controls_compare") : status;
         Component zoomLabel = Component.translatable("familytree.screen.tree.zoom", Math.round(viewport.zoom * 100));
+        int hintWidth = Math.max(1, this.width - 24 - this.font.width(zoomLabel));
+        if (toolbar != null && toolbar.compactFooter()) {
+            gfx.text(this.font, this.font.plainSubstrByWidth(hint.getString(), hintWidth), 8, this.height - 12, 0xFFB0B7C0);
+        } else {
+            gfx.text(this.font, this.font.plainSubstrByWidth(hint.getString(), hintWidth), 8, this.height - 25, 0xFFB0B7C0);
+            Component panHint = Component.translatable("familytree.screen.tree.pan_controls");
+            gfx.text(this.font, this.font.plainSubstrByWidth(panHint.getString(), hintWidth), 8, this.height - 13, 0xFFB0B7C0);
+        }
         gfx.text(this.font, zoomLabel, this.width - this.font.width(zoomLabel) - 8,
-                this.height - 14, 0xFFB0B7C0);
-        if (portraitCapture != null) portraitCapture.draw(gfx, this.font, this.width, CANVAS_TOP, canvasBottom());
+                this.height - (toolbar != null && toolbar.compactFooter() ? 12 : 14), 0xFFB0B7C0);
+        if (portraitCapture != null) portraitCapture.draw(gfx, this.font, canvasRight(), canvasTop, canvasBottom());
         renderWidgets(gfx, mouseX, mouseY, delta);
+    }
+
+    private Component pageLabel(int index) {
+        int first = pageFamilies[index] + 1, last = pageFamilies[index + 1], total = pageFamilies[forestPages.size()];
+        return first == last ? Component.translatable("familytree.screen.tree.page_one", first, total)
+                : Component.translatable("familytree.screen.tree.page", first, last, total);
+    }
+
+    /** A tab above a card whose older generations are left out, or below one whose younger generations are. */
+    private record Marker(UUID id, boolean older, String label, int x, int y, int width, int height) {
+        boolean contains(double mouseX, double mouseY) {
+            return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+        }
+    }
+
+    private List<Marker> markers() {
+        List<Marker> markers = new ArrayList<>();
+        if (tree == null) return markers;
+        int height = this.font.lineHeight + 3;
+        for (int pass = 0; pass < 2; pass++) {
+            boolean older = pass == 0;
+            for (Map.Entry<UUID, Integer> entry : (older ? tree.olderHidden : tree.youngerHidden).entrySet()) {
+                TreeLayout.Node node = tree.byId.get(entry.getKey());
+                if (node == null || !onCanvas(node.x, node.y - TreeLayout.WRAP_GAP, TreeLayout.NODE_WIDTH,
+                        TreeLayout.NODE_HEIGHT + TreeLayout.WRAP_GAP * 2)) continue;
+                String label = (older ? HorseStatsText.BEATS_MARKER : HorseStatsText.TRAILS_MARKER) + " +" + entry.getValue();
+                int width = this.font.width(label) + 8;
+                int cardX = (int) Math.round(node.x * viewport.zoom + viewport.panX);
+                int cardY = (int) Math.round(node.y * viewport.zoom + viewport.panY);
+                int x = cardX + TreeViewport.nodeWidth(viewport.zoom) / 2 - width / 2;
+                int y = older ? cardY - height - 1 : cardY + TreeViewport.nodeHeight(viewport.zoom) + 1;
+                markers.add(new Marker(node.id, older, label, x, y, width, height));
+            }
+        }
+        return markers;
+    }
+
+    private void drawMarker(GuiGraphicsExtractor gfx, Marker marker, boolean hovered) {
+        int border = hovered ? 0xFFFFD24A : 0xFFD9B25A;
+        gfx.fill(marker.x(), marker.y(), marker.x() + marker.width(), marker.y() + marker.height(), border);
+        gfx.fill(marker.x() + 1, marker.y() + 1, marker.x() + marker.width() - 1, marker.y() + marker.height() - 1,
+                hovered ? 0xFF2A3440 : 0xFF151A21);
+        gfx.text(this.font, marker.label(), marker.x() + 4, marker.y() + 2, border);
     }
 
     /** Large farm forests hold thousands of cards, so only cards on the canvas are drawn. */
     private boolean onCanvas(double x, double y, double width, double height) {
         double left = x * viewport.zoom + viewport.panX, top = y * viewport.zoom + viewport.panY;
-        return left < this.width && left + width * viewport.zoom >= 0
-                && top < canvasBottom() && top + height * viewport.zoom >= CANVAS_TOP;
+        return left < canvasRight() && left + width * viewport.zoom >= 0
+                && top < canvasBottom() && top + height * viewport.zoom >= canvasTop;
+    }
+
+    private boolean routeOnCanvas(TreeLayout.Edge edge) {
+        double[] route = edge.route();
+        double minX = Double.POSITIVE_INFINITY, maxX = Double.NEGATIVE_INFINITY, minY = Double.POSITIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < route.length; i += 2) {
+            minX = Math.min(minX, route[i]);
+            maxX = Math.max(maxX, route[i]);
+            minY = Math.min(minY, route[i + 1]);
+            maxY = Math.max(maxY, route[i + 1]);
+        }
+        return onCanvas(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 
     /** The relationship between the selected card and the Shift-clicked one, wrapped to the panel width. */
     private List<net.minecraft.util.FormattedCharSequence> relationLines() {
         if (relationText.isEmpty() || tree == null) return List.of();
-        int width = Math.max(80, Math.min(this.width - 28, 420));
+        int width = Math.max(80, Math.min(canvasRight() - 28, 420));
         List<net.minecraft.util.FormattedCharSequence> lines = new ArrayList<>();
         for (Component text : relationText) lines.addAll(this.font.split(text, width));
         return lines;
@@ -511,10 +732,10 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         String title = Component.translatable("familytree.kin.title", a.name(), b.name()).getString();
         int contentWidth = this.font.width(title);
         for (var line : lines) contentWidth = Math.max(contentWidth, this.font.width(line));
-        contentWidth = Math.min(contentWidth, Math.max(80, this.width - 28));
+        contentWidth = Math.min(contentWidth, Math.max(80, canvasRight() - 28));
         statsLeft = 8;
         statsBottom = canvasBottom() - 6;
-        statsTop = Math.max(CANVAS_TOP + 4, statsBottom - relationPanelHeight());
+        statsTop = Math.max(canvasTop + 4, statsBottom - relationPanelHeight());
         statsRight = statsLeft + contentWidth + 12;
         gfx.fill(statsLeft, statsTop, statsRight, statsBottom, 0xE8151A21);
         gfx.fill(statsLeft, statsTop, statsRight, statsTop + 1, TreeRenderer.RELATION_COLOR);
@@ -573,7 +794,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
 
     /** Short canvases, such as GUI scale 4 in a small window, get a one-line summary instead of the full panel. */
     private boolean compactStats(AnimalRecord pet) {
-        return fullStatsRows(pet) * (this.font.lineHeight + 2) * 3 > canvasBottom() - CANVAS_TOP;
+        return fullStatsRows(pet) * (this.font.lineHeight + 2) * 3 > canvasBottom() - canvasTop;
     }
 
     private int statsPanelHeight() {
@@ -583,7 +804,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         int lineHeight = this.font.lineHeight + 2;
         if (!compactStats(pet)) return fullStatsRows(pet) * lineHeight + 8;
         int width = this.font.width(pet.name() + ": ") + TreeRenderer.statsWidth(this.font, compactSegments(pet));
-        return (width <= this.width - 28 ? 1 : 2) * lineHeight + 8;
+        return (width <= canvasRight() - 28 ? 1 : 2) * lineHeight + 8;
     }
 
     private void drawStatsPanel(GuiGraphicsExtractor gfx) {
@@ -595,10 +816,10 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         AnimalRecord selected = statsSubject();
         if (selected == null) return;
         int lineHeight = this.font.lineHeight + 2;
-        int maxWidth = Math.max(80, this.width - 16);
+        int maxWidth = Math.max(80, canvasRight() - 16);
         statsLeft = 8;
         statsBottom = canvasBottom() - 6;
-        statsTop = Math.max(CANVAS_TOP + 4, statsBottom - statsPanelHeight());
+        statsTop = Math.max(canvasTop + 4, statsBottom - statsPanelHeight());
         if (compactStats(selected)) {
             String name = selected.name() + ": ";
             var segments = compactSegments(selected);
@@ -674,6 +895,14 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     @Override
     protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
         if (!isLeftButton(button) || !inCanvas(mouseX, mouseY)) return false;
+        if (!inStatsPanel(mouseX, mouseY)) {
+            for (Marker marker : markers()) {
+                if (!marker.contains(mouseX, mouseY)) continue;
+                (marker.older() ? olderShown : youngerShown).add(marker.id());
+                rebuildTree(marker.id());
+                return true;
+            }
+        }
         TreeLayout.Node hit = inStatsPanel(mouseX, mouseY) ? null : findNodeAt(mouseX, mouseY);
         if (hit != null && shiftClick) {
             if (hit.id.equals(compareId)) compareId = null;

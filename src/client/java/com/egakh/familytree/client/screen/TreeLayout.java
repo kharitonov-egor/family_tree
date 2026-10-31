@@ -4,9 +4,11 @@ import com.egakh.familytree.data.AnimalRecord;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,9 +20,14 @@ public final class TreeLayout {
     public static final int NODE_HEIGHT = 110;
     public static final int H_SPACING = 32;
     public static final int V_SPACING = 72;
+    /** Rows of one wrapped generation sit closer together than generations do. */
+    public static final int WRAP_GAP = 36;
     private static final int FOREST_EXTRA_SPACING = 56;
     private static final double FOREST_GAP = 96.0;
     private static final double MAX_SINGLE_ROW_WIDTH = 24 * (NODE_WIDTH + H_SPACING);
+    /** A generation with more cards than this wraps into several rows. */
+    static final int TREE_ROW_LIMIT = 10;
+    static final int FOREST_ROW_LIMIT = 24;
 
     public static final int MAX_ANCESTOR_GENERATIONS = 6;
     public static final int MAX_DESCENDANT_GENERATIONS = 6;
@@ -29,32 +36,76 @@ public final class TreeLayout {
         public final UUID id;
         public final AnimalRecord record;
         public final int generation;
+        /** Shown only as the other parent of a descendant, so the foal never looks like it had one parent. */
+        public final boolean partner;
         public double x;
         public double y;
+        private int row;
+        private Band band;
 
         public Node(UUID id, AnimalRecord record, int generation) {
+            this(id, record, generation, false);
+        }
+
+        Node(UUID id, AnimalRecord record, int generation, boolean partner) {
             this.id = id;
             this.record = record;
             this.generation = generation;
+            this.partner = partner;
         }
     }
 
     public static final class Edge {
         public final Node from;
         public final Node to;
+        private double[] route;
+
         public Edge(Node from, Node to) { this.from = from; this.to = to; }
+
+        /**
+         * Corner points as x, y pairs in layout coordinates, from the bottom of the parent's card to the top of the child's.
+         * Each segment is horizontal or vertical. Links into a wrapped generation run down its left side, and links out of one
+         * down its right side, so no link passes under a card.
+         */
+        public double[] route() {
+            if (route != null) return route;
+            double px = from.x + NODE_WIDTH / 2.0, py = from.y + NODE_HEIGHT;
+            double cx = to.x + NODE_WIDTH / 2.0, cy = to.y;
+            double middle = (py + cy) / 2;
+            return new double[]{px, py, px, middle, cx, middle, cx, cy};
+        }
     }
 
     public static final class Result {
         public final List<Node> nodes = new ArrayList<>();
         public final List<Edge> edges = new ArrayList<>();
         public final Map<UUID, Node> byId = new HashMap<>();
+        /** Cards whose ancestors go further back than the tree shows, with how many more generations there are. */
+        public final Map<UUID, Integer> olderHidden = new HashMap<>();
+        /** Cards whose descendants go further down than the tree shows, with how many more generations there are. */
+        public final Map<UUID, Integer> youngerHidden = new HashMap<>();
         public double minX, maxX, minY, maxY;
     }
 
+    private static final class Band {
+        final List<Node> nodes = new ArrayList<>();
+        int index;
+        int rows = 1;
+        double top;
+        double bottom;
+        double left;
+        double right;
+        double gap;
+    }
+
+    private record Link(UUID from, UUID to) {}
+
     private TreeLayout() {}
 
-    /** Collapsing a branch hides all its descendants, including descendants with another parent. */
+    /**
+     * Collapsing a branch hides all its descendants, including descendants with another parent, and partners left with no
+     * shown child. A collapsed card itself always stays, so its branch can be shown again.
+     */
     public static List<UUID> visibleIds(Result tree, Set<UUID> collapsed) {
         Map<UUID, List<UUID>> children = new HashMap<>();
         for (Edge edge : tree.edges) {
@@ -72,7 +123,59 @@ public final class TreeLayout {
                 pending.addAll(children.getOrDefault(id, List.of()));
             }
         }
+        for (Node node : tree.nodes) {
+            List<UUID> shown = children.getOrDefault(node.id, List.of());
+            if (node.partner && !collapsed.contains(node.id) && !shown.isEmpty() && hidden.containsAll(shown)) hidden.add(node.id);
+        }
         return tree.nodes.stream().map(node -> node.id).filter(id -> !hidden.contains(id)).toList();
+    }
+
+    /** Separate families, largest first, then by the earliest name in each. */
+    public static List<List<UUID>> families(Collection<UUID> ids,
+                                            Map<UUID, AnimalRecord> records,
+                                            Map<UUID, List<UUID>> childIndex) {
+        Set<UUID> included = new HashSet<>();
+        for (UUID id : ids) if (records.containsKey(id)) included.add(id);
+        Map<UUID, List<UUID>> neighbours = new HashMap<>();
+        for (UUID id : included) {
+            List<UUID> links = new ArrayList<>();
+            for (UUID parent : parents(records.get(id))) if (included.contains(parent)) links.add(parent);
+            for (UUID child : childIndex.getOrDefault(id, List.of())) if (included.contains(child)) links.add(child);
+            neighbours.put(id, links);
+        }
+        List<UUID> ordered = new ArrayList<>(included);
+        ordered.sort(Comparator.comparing((UUID id) -> records.get(id).name(), String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(UUID::toString));
+        Set<UUID> visited = new HashSet<>();
+        List<List<UUID>> families = new ArrayList<>();
+        for (UUID start : ordered) {
+            if (!visited.add(start)) continue;
+            List<UUID> family = new ArrayList<>();
+            family.add(start);
+            for (int i = 0; i < family.size(); i++) {
+                for (UUID next : neighbours.get(family.get(i))) {
+                    if (visited.add(next)) family.add(next);
+                }
+            }
+            families.add(family);
+        }
+        families.sort(Comparator.comparingInt((List<UUID> family) -> -family.size()));
+        return families;
+    }
+
+    /** Fills each page with whole families up to {@code limit} cards. A family larger than that gets a page of its own. */
+    public static List<List<UUID>> pages(List<List<UUID>> families, int limit) {
+        List<List<UUID>> pages = new ArrayList<>();
+        List<UUID> page = new ArrayList<>();
+        for (List<UUID> family : families) {
+            if (!page.isEmpty() && page.size() + family.size() > limit) {
+                pages.add(page);
+                page = new ArrayList<>();
+            }
+            page.addAll(family);
+        }
+        if (!page.isEmpty()) pages.add(page);
+        return pages;
     }
 
     public static Result layoutForest(List<UUID> includedIds,
@@ -81,58 +184,9 @@ public final class TreeLayout {
         Result result = new Result();
         if (includedIds.isEmpty()) return result;
 
-        Set<UUID> included = new HashSet<>(includedIds);
-        Map<UUID, List<UUID>> undirected = new HashMap<>();
-        for (UUID id : included) {
-            undirected.put(id, new ArrayList<>());
-        }
-        for (UUID id : included) {
-            AnimalRecord record = records.get(id);
-            if (record == null) continue;
-            if (record.parentA() != null && included.contains(record.parentA())) {
-                undirected.get(id).add(record.parentA());
-                undirected.get(record.parentA()).add(id);
-            }
-            if (record.parentB() != null && included.contains(record.parentB())) {
-                undirected.get(id).add(record.parentB());
-                undirected.get(record.parentB()).add(id);
-            }
-            for (UUID childId : childIndex.getOrDefault(id, List.of())) {
-                if (included.contains(childId)) {
-                    undirected.get(id).add(childId);
-                    undirected.get(childId).add(id);
-                }
-            }
-        }
-
-        Set<UUID> visited = new HashSet<>();
-        List<List<UUID>> components = new ArrayList<>();
-        for (UUID id : included) {
-            if (!visited.add(id)) continue;
-            List<UUID> component = new ArrayList<>();
-            List<UUID> queue = new ArrayList<>();
-            queue.add(id);
-            for (int i = 0; i < queue.size(); i++) {
-                UUID current = queue.get(i);
-                component.add(current);
-                for (UUID neighbor : undirected.getOrDefault(current, List.of())) {
-                    if (visited.add(neighbor)) {
-                        queue.add(neighbor);
-                    }
-                }
-            }
-            components.add(component);
-        }
-
-        double xOffset = 0.0;
-        double globalMinX = Double.POSITIVE_INFINITY;
-        double globalMaxX = Double.NEGATIVE_INFINITY;
-        double globalMinY = Double.POSITIVE_INFINITY;
-        double globalMaxY = Double.NEGATIVE_INFINITY;
-
         List<Result> layouts = new ArrayList<>();
         double rowWidth = -FOREST_GAP, widest = 0, area = 0;
-        for (List<UUID> component : components) {
+        for (List<UUID> component : families(includedIds, records, childIndex)) {
             Result componentLayout = layoutForestComponent(component, records, childIndex);
             if (componentLayout.nodes.isEmpty()) continue;
             layouts.add(componentLayout);
@@ -141,9 +195,9 @@ public final class TreeLayout {
             widest = Math.max(widest, width);
             area += (width + FOREST_GAP) * (height + FOREST_GAP);
         }
-        // A farm can hold hundreds of separate families. Past a few dozen cards, wrap them into rows instead of one strip.
-        double maxRowWidth = rowWidth <= MAX_SINGLE_ROW_WIDTH ? rowWidth : Math.max(widest, Math.sqrt(area) * 2);
-        double yOffset = 0.0, rowHeight = 0.0;
+        // A farm can hold hundreds of separate families. Past a few dozen cards, wrap them into rows about as wide as a screen.
+        double maxRowWidth = rowWidth <= MAX_SINGLE_ROW_WIDTH ? rowWidth : Math.max(widest, Math.sqrt(area) * 1.6);
+        double xOffset = 0.0, yOffset = 0.0, rowHeight = 0.0;
 
         for (Result componentLayout : layouts) {
             double componentWidth = componentLayout.maxX - componentLayout.minX;
@@ -153,114 +207,372 @@ public final class TreeLayout {
                 rowHeight = 0.0;
             }
             rowHeight = Math.max(rowHeight, componentLayout.maxY - componentLayout.minY);
+            double dx = xOffset - componentLayout.minX, dy = yOffset - componentLayout.minY;
             for (Node node : componentLayout.nodes) {
-                node.x += xOffset - componentLayout.minX;
-                node.y += yOffset - componentLayout.minY;
+                node.x += dx;
+                node.y += dy;
                 result.nodes.add(node);
                 result.byId.put(node.id, node);
-                globalMinX = Math.min(globalMinX, node.x);
-                globalMaxX = Math.max(globalMaxX, node.x + NODE_WIDTH);
-                globalMinY = Math.min(globalMinY, node.y);
-                globalMaxY = Math.max(globalMaxY, node.y + NODE_HEIGHT);
             }
-            result.edges.addAll(componentLayout.edges);
+            for (Edge edge : componentLayout.edges) {
+                for (int i = 0; i < edge.route.length; i += 2) {
+                    edge.route[i] += dx;
+                    edge.route[i + 1] += dy;
+                }
+                result.edges.add(edge);
+            }
             xOffset += componentWidth + FOREST_GAP;
         }
-
-        if (result.nodes.isEmpty()) {
-            result.minX = result.maxX = result.minY = result.maxY = 0.0;
-        } else {
-            result.minX = globalMinX;
-            result.maxX = globalMaxX;
-            result.minY = globalMinY;
-            result.maxY = globalMaxY;
-        }
-
+        measure(result);
         return result;
     }
 
     public static Result layout(UUID focusId,
                                 Map<UUID, AnimalRecord> records,
                                 Map<UUID, List<UUID>> childIndex) {
+        return layout(focusId, records, childIndex, Set.of(), Set.of(), Set.of());
+    }
+
+    /**
+     * One animal's ancestors above it and descendants below, six generations each way. The generation limit restarts at
+     * cards in {@code olderShown} or {@code youngerShown}, and cards in {@code hidden} are left out.
+     */
+    public static Result layout(UUID focusId,
+                                Map<UUID, AnimalRecord> records,
+                                Map<UUID, List<UUID>> childIndex,
+                                Set<UUID> hidden,
+                                Set<UUID> olderShown,
+                                Set<UUID> youngerShown) {
         Result r = new Result();
         AnimalRecord focusRecord = records.get(focusId);
         if (focusRecord == null) return r;
 
-        Map<Integer, List<Node>> byGen = new HashMap<>();
-        Set<UUID> seen = new HashSet<>();
+        Map<Integer, Band> bands = new HashMap<>();
+        Set<Link> linked = new HashSet<>();
+        Node focusNode = add(r, bands, new Node(focusId, focusRecord, 0));
 
-        Node focusNode = new Node(focusId, focusRecord, 0);
-        r.nodes.add(focusNode);
-        r.byId.put(focusId, focusNode);
-        byGen.computeIfAbsent(0, k -> new ArrayList<>()).add(focusNode);
-        seen.add(focusId);
-
-        // Walk ancestors up
-        List<Node> currentLevel = List.of(focusNode);
-        for (int gen = 1; gen <= MAX_ANCESTOR_GENERATIONS; gen++) {
+        Map<UUID, Integer> generationsLeft = new HashMap<>();
+        generationsLeft.put(focusId, MAX_ANCESTOR_GENERATIONS);
+        List<Node> limitedUp = new ArrayList<>();
+        List<Node> level = List.of(focusNode);
+        while (!level.isEmpty()) {
             List<Node> next = new ArrayList<>();
-            for (Node n : currentLevel) {
-                addParent(n.record.parentA(), records, gen, r, byGen, seen, n, next, true);
-                addParent(n.record.parentB(), records, gen, r, byGen, seen, n, next, true);
-            }
-            if (next.isEmpty()) break;
-            currentLevel = next;
-        }
-
-        // Walk descendants down
-        currentLevel = List.of(focusNode);
-        for (int gen = 1; gen <= MAX_DESCENDANT_GENERATIONS; gen++) {
-            List<Node> next = new ArrayList<>();
-            for (Node parent : currentLevel) {
-                List<UUID> children = childIndex.getOrDefault(parent.id, List.of());
-                for (UUID childId : children) {
-                    Node existing = r.byId.get(childId);
-                    if (existing != null) {
-                        r.edges.add(new Edge(parent, existing));
+            for (Node child : level) {
+                int left = generationsLeft.get(child.id);
+                if (left == 0) {
+                    if (!olderShown.contains(child.id)) {
+                        limitedUp.add(child);
                         continue;
                     }
-                    if (!seen.add(childId)) continue;
-                    AnimalRecord rec = records.get(childId);
-                    if (rec == null) continue;
-                    Node child = new Node(childId, rec, -gen);
-                    r.nodes.add(child);
-                    r.byId.put(childId, child);
-                    byGen.computeIfAbsent(-gen, k -> new ArrayList<>()).add(child);
-                    r.edges.add(new Edge(parent, child));
-                    next.add(child);
+                    left = MAX_ANCESTOR_GENERATIONS;
+                }
+                for (UUID parentId : parents(child.record)) {
+                    AnimalRecord parent = records.get(parentId);
+                    if (parent == null) continue;
+                    Node node = r.byId.get(parentId);
+                    if (node == null) {
+                        node = add(r, bands, new Node(parentId, parent, child.generation + 1));
+                        generationsLeft.put(parentId, left - 1);
+                        next.add(node);
+                    }
+                    link(r, linked, node, child);
                 }
             }
-            if (next.isEmpty()) break;
-            currentLevel = next;
+            level = next;
         }
 
-        // Layout: each generation row centered, spaced horizontally
-        r.minX = Double.POSITIVE_INFINITY;
-        r.maxX = Double.NEGATIVE_INFINITY;
-        r.minY = Double.POSITIVE_INFINITY;
-        r.maxY = Double.NEGATIVE_INFINITY;
+        generationsLeft.clear();
+        generationsLeft.put(focusId, MAX_DESCENDANT_GENERATIONS);
+        Map<UUID, Node> reachedFrom = new LinkedHashMap<>();
+        List<Node> limitedDown = new ArrayList<>();
+        level = List.of(focusNode);
+        while (!level.isEmpty()) {
+            List<Node> next = new ArrayList<>();
+            for (Node parent : level) {
+                int left = generationsLeft.get(parent.id);
+                if (left == 0) {
+                    if (!youngerShown.contains(parent.id)) {
+                        limitedDown.add(parent);
+                        continue;
+                    }
+                    left = MAX_DESCENDANT_GENERATIONS;
+                }
+                for (UUID childId : childIndex.getOrDefault(parent.id, List.of())) {
+                    AnimalRecord child = records.get(childId);
+                    if (child == null) continue;
+                    Node node = r.byId.get(childId);
+                    if (node == null) {
+                        node = add(r, bands, new Node(childId, child, parent.generation - 1));
+                        generationsLeft.put(childId, left - 1);
+                        reachedFrom.put(childId, parent);
+                        next.add(node);
+                    }
+                    link(r, linked, parent, node);
+                }
+            }
+            level = next;
+        }
 
-        for (Map.Entry<Integer, List<Node>> e : byGen.entrySet()) {
-            int gen = e.getKey();
-            List<Node> row = e.getValue();
-            int count = row.size();
-            int rowWidth = count * NODE_WIDTH + Math.max(0, count - 1) * H_SPACING;
-            double startX = -rowWidth / 2.0;
-            double y = -gen * (NODE_HEIGHT + V_SPACING);
-            for (int i = 0; i < count; i++) {
-                Node n = row.get(i);
-                n.x = startX + i * (NODE_WIDTH + H_SPACING);
-                n.y = y;
-                r.minX = Math.min(r.minX, n.x);
-                r.maxX = Math.max(r.maxX, n.x + NODE_WIDTH);
-                r.minY = Math.min(r.minY, n.y);
-                r.maxY = Math.max(r.maxY, n.y + NODE_HEIGHT);
+        Map<UUID, Node> partnerOf = new HashMap<>();
+        for (Map.Entry<UUID, Node> entry : reachedFrom.entrySet()) {
+            Node child = r.byId.get(entry.getKey());
+            Node shownParent = entry.getValue();
+            for (UUID parentId : parents(child.record)) {
+                if (parentId.equals(shownParent.id)) continue;
+                AnimalRecord parent = records.get(parentId);
+                if (parent == null) continue;
+                Node node = r.byId.get(parentId);
+                if (node == null) {
+                    node = new Node(parentId, parent, shownParent.generation, true);
+                    List<Node> row = bands.get(shownParent.generation).nodes;
+                    int index = row.indexOf(shownParent) + 1;
+                    while (index < row.size() && partnerOf.get(row.get(index).id) == shownParent) index++;
+                    row.add(index, node);
+                    partnerOf.put(parentId, shownParent);
+                    r.nodes.add(node);
+                    r.byId.put(parentId, node);
+                }
+                link(r, linked, node, child);
             }
         }
-        if (r.nodes.isEmpty()) {
-            r.minX = r.maxX = r.minY = r.maxY = 0;
+
+        for (Node node : limitedUp) {
+            boolean more = false;
+            for (UUID parentId : parents(node.record)) {
+                if (!records.containsKey(parentId)) continue;
+                Node shown = r.byId.get(parentId);
+                if (shown == null) more = true;
+                else link(r, linked, shown, node);
+            }
+            if (more) r.olderHidden.put(node.id, generationsAbove(node.id, records, r.byId.keySet()));
         }
+        for (Node node : limitedDown) {
+            boolean more = false;
+            for (UUID childId : childIndex.getOrDefault(node.id, List.of())) {
+                if (!records.containsKey(childId)) continue;
+                Node shown = r.byId.get(childId);
+                if (shown == null) more = true;
+                else link(r, linked, node, shown);
+            }
+            if (more) r.youngerHidden.put(node.id, generationsBelow(node.id, records, childIndex, r.byId.keySet()));
+        }
+
+        if (!hidden.isEmpty()) removeHidden(r, bands, hidden);
+        List<Band> placed = new ArrayList<>();
+
+        List<Integer> order = new ArrayList<>(bands.keySet());
+        order.sort(Comparator.reverseOrder());
+        double top = 0;
+        int index = 0;
+        for (int generation : order) {
+            Band band = bands.get(generation);
+            if (band.nodes.isEmpty()) continue;
+            band.index = index++;
+            placed.add(band);
+            band.gap = H_SPACING;
+            if (band.nodes.size() > TREE_ROW_LIMIT) {
+                placeGrid(band, top, 0);
+            } else {
+                double width = band.nodes.size() * NODE_WIDTH + (band.nodes.size() - 1) * H_SPACING;
+                placeRow(band, top);
+                for (int i = 0; i < band.nodes.size(); i++) band.nodes.get(i).x = -width / 2 + i * (NODE_WIDTH + H_SPACING);
+                measureBand(band);
+            }
+            top = band.bottom + V_SPACING;
+        }
+        route(r.edges, placed);
+        measure(r);
         return r;
+    }
+
+    private static Node add(Result r, Map<Integer, Band> bands, Node node) {
+        r.nodes.add(node);
+        r.byId.put(node.id, node);
+        bands.computeIfAbsent(node.generation, key -> new Band()).nodes.add(node);
+        return node;
+    }
+
+    private static void link(Result r, Set<Link> linked, Node parent, Node child) {
+        if (linked.add(new Link(parent.id, child.id))) r.edges.add(new Edge(parent, child));
+    }
+
+    private static void removeHidden(Result r, Map<Integer, Band> bands, Set<UUID> hidden) {
+        Set<UUID> dropped = new HashSet<>();
+        for (Node node : r.nodes) if (hidden.contains(node.id)) dropped.add(node.id);
+        r.nodes.removeIf(node -> dropped.contains(node.id));
+        r.edges.removeIf(edge -> dropped.contains(edge.from.id) || dropped.contains(edge.to.id));
+        for (UUID id : dropped) {
+            r.byId.remove(id);
+            r.olderHidden.remove(id);
+            r.youngerHidden.remove(id);
+        }
+        for (Band band : bands.values()) band.nodes.removeIf(node -> dropped.contains(node.id));
+    }
+
+    private static List<UUID> parents(AnimalRecord record) {
+        List<UUID> parents = new ArrayList<>(2);
+        if (record == null) return parents;
+        if (record.parentA() != null) parents.add(record.parentA());
+        if (record.parentB() != null && !record.parentB().equals(record.parentA())) parents.add(record.parentB());
+        return parents;
+    }
+
+    /** How many generations of ancestors the tree leaves out above a card, counting each at its nearest distance. */
+    static int generationsAbove(UUID id, Map<UUID, AnimalRecord> records, Set<UUID> shown) {
+        Set<UUID> seen = new HashSet<>(shown);
+        seen.add(id);
+        List<UUID> level = List.of(id);
+        int count = 0;
+        while (true) {
+            List<UUID> next = new ArrayList<>();
+            for (UUID child : level) {
+                for (UUID parent : parents(records.get(child))) {
+                    if (records.containsKey(parent) && seen.add(parent)) next.add(parent);
+                }
+            }
+            if (next.isEmpty()) return count;
+            count++;
+            level = next;
+        }
+    }
+
+    static int generationsBelow(UUID id, Map<UUID, AnimalRecord> records, Map<UUID, List<UUID>> childIndex, Set<UUID> shown) {
+        Set<UUID> seen = new HashSet<>(shown);
+        seen.add(id);
+        List<UUID> level = List.of(id);
+        int count = 0;
+        while (true) {
+            List<UUID> next = new ArrayList<>();
+            for (UUID parent : level) {
+                for (UUID child : childIndex.getOrDefault(parent, List.of())) {
+                    if (records.containsKey(child) && seen.add(child)) next.add(child);
+                }
+            }
+            if (next.isEmpty()) return count;
+            count++;
+            level = next;
+        }
+    }
+
+    private static void placeRow(Band band, double top) {
+        band.rows = 1;
+        for (Node node : band.nodes) {
+            node.y = top;
+            node.row = 0;
+            node.band = band;
+        }
+        band.top = top;
+        band.bottom = top + NODE_HEIGHT;
+    }
+
+    /** Wraps a wide generation into balanced rows centered on {@code center}, roughly 1.6 times as wide as tall. */
+    private static void placeGrid(Band band, double top, double center) {
+        int count = band.nodes.size();
+        int columns = Math.max(6, (int) Math.ceil(Math.sqrt(count * 1.6)));
+        int rows = (count + columns - 1) / columns;
+        columns = (count + rows - 1) / rows;
+        double pitch = NODE_WIDTH + band.gap;
+        double gridWidth = columns * pitch - band.gap;
+        double left = center - gridWidth / 2;
+        band.rows = rows;
+        band.top = top;
+        for (int i = 0; i < count; i++) {
+            Node node = band.nodes.get(i);
+            int row = i / columns, column = i % columns;
+            int inRow = Math.min(columns, count - row * columns);
+            node.row = row;
+            node.band = band;
+            node.x = left + (columns - inRow) * pitch / 2 + column * pitch;
+            node.y = top + row * (NODE_HEIGHT + WRAP_GAP);
+        }
+        band.bottom = top + rows * NODE_HEIGHT + (rows - 1) * WRAP_GAP;
+        measureBand(band);
+    }
+
+    private static void measureBand(Band band) {
+        band.left = Double.POSITIVE_INFINITY;
+        band.right = Double.NEGATIVE_INFINITY;
+        for (Node node : band.nodes) {
+            band.left = Math.min(band.left, node.x);
+            band.right = Math.max(band.right, node.x + NODE_WIDTH);
+        }
+    }
+
+    /** {@code bands} runs top to bottom. A link that skips generations runs down a lane left of every band it passes. */
+    private static void route(List<Edge> edges, List<Band> bands) {
+        for (Edge edge : edges) {
+            Node parent = edge.from, child = edge.to;
+            Band from = parent.band, to = child.band;
+            if (from == null || to == null || to.top <= from.bottom) continue;
+            double px = parent.x + NODE_WIDTH / 2.0, cx = child.x + NODE_WIDTH / 2.0;
+            double exit = from.bottom + V_SPACING / 2.0;
+            List<Double> points = new ArrayList<>(List.of(px, parent.y + NODE_HEIGHT));
+            double x = px;
+            if (parent.row < from.rows - 1) {
+                double below = parent.y + NODE_HEIGHT + WRAP_GAP / 3.0;
+                x = from.right + from.gap / 2;
+                points.addAll(List.of(px, below, x, below));
+            }
+            points.addAll(List.of(x, exit));
+            if (to.index > from.index + 1) {
+                double lane = to.left - to.gap / 2;
+                for (int i = from.index + 1; i < to.index; i++) lane = Math.min(lane, bands.get(i).left - bands.get(i).gap / 2);
+                double entry = child.row == 0 ? to.top - V_SPACING / 2.0 : child.y - WRAP_GAP / 3.0;
+                points.addAll(List.of(lane, exit, lane, entry, cx, entry, cx, child.y));
+            } else if (child.row == 0) {
+                points.addAll(List.of(cx, exit, cx, child.y));
+            } else {
+                double above = child.y - WRAP_GAP / 3.0, lane = to.left - to.gap / 2;
+                points.addAll(List.of(lane, exit, lane, above, cx, above, cx, child.y));
+            }
+            edge.route = simplify(points);
+        }
+    }
+
+    private static double[] simplify(List<Double> points) {
+        List<Double> kept = new ArrayList<>();
+        for (int i = 0; i < points.size(); i += 2) {
+            double x = points.get(i), y = points.get(i + 1);
+            int n = kept.size();
+            if (n >= 2 && kept.get(n - 2) == x && kept.get(n - 1) == y) continue;
+            if (n >= 4) {
+                double ax = kept.get(n - 4), ay = kept.get(n - 3), bx = kept.get(n - 2), by = kept.get(n - 1);
+                if ((ax == bx && bx == x) || (ay == by && by == y)) {
+                    kept.set(n - 2, x);
+                    kept.set(n - 1, y);
+                    continue;
+                }
+            }
+            kept.add(x);
+            kept.add(y);
+        }
+        double[] route = new double[kept.size()];
+        for (int i = 0; i < route.length; i++) route[i] = kept.get(i);
+        return route;
+    }
+
+    private static void measure(Result result) {
+        if (result.nodes.isEmpty()) {
+            result.minX = result.maxX = result.minY = result.maxY = 0.0;
+            return;
+        }
+        result.minX = Double.POSITIVE_INFINITY;
+        result.maxX = Double.NEGATIVE_INFINITY;
+        result.minY = Double.POSITIVE_INFINITY;
+        result.maxY = Double.NEGATIVE_INFINITY;
+        for (Node node : result.nodes) {
+            result.minX = Math.min(result.minX, node.x);
+            result.maxX = Math.max(result.maxX, node.x + NODE_WIDTH);
+            result.minY = Math.min(result.minY, node.y);
+            result.maxY = Math.max(result.maxY, node.y + NODE_HEIGHT);
+        }
+        for (Edge edge : result.edges) {
+            double[] route = edge.route();
+            for (int i = 0; i < route.length; i += 2) {
+                result.minX = Math.min(result.minX, route[i]);
+                result.maxX = Math.max(result.maxX, route[i]);
+            }
+        }
     }
 
     private static Result layoutForestComponent(List<UUID> componentIds,
@@ -278,12 +590,7 @@ public final class TreeLayout {
             AnimalRecord record = records.get(id);
             if (record == null) continue;
             List<UUID> parents = new ArrayList<>(2);
-            if (record.parentA() != null && included.contains(record.parentA())) {
-                parents.add(record.parentA());
-            }
-            if (record.parentB() != null && included.contains(record.parentB())) {
-                parents.add(record.parentB());
-            }
+            for (UUID parent : parents(record)) if (included.contains(parent)) parents.add(parent);
             parentIds.put(id, parents);
             remainingParents.put(id, parents.size());
             if (parents.isEmpty()) {
@@ -297,6 +604,7 @@ public final class TreeLayout {
             generationById.put(fallback, 0);
         }
 
+        Set<UUID> queued = new HashSet<>(queue);
         for (int i = 0; i < queue.size(); i++) {
             UUID parentId = queue.get(i);
             int parentGen = generationById.getOrDefault(parentId, 0);
@@ -305,7 +613,7 @@ public final class TreeLayout {
                 int childGen = Math.max(generationById.getOrDefault(childId, 0), parentGen + 1);
                 generationById.put(childId, childGen);
                 remainingParents.computeIfPresent(childId, (id, count) -> Math.max(0, count - 1));
-                if (remainingParents.getOrDefault(childId, 0) == 0 && !queue.contains(childId)) {
+                if (remainingParents.getOrDefault(childId, 0) == 0 && queued.add(childId)) {
                     queue.add(childId);
                 }
             }
@@ -325,14 +633,13 @@ public final class TreeLayout {
             result.byId.put(id, node);
             byGen.computeIfAbsent(node.generation, k -> new ArrayList<>()).add(node);
         }
+        Set<Link> linked = new HashSet<>();
         for (UUID id : componentIds) {
             Node parentNode = result.byId.get(id);
             if (parentNode == null) continue;
             for (UUID childId : childIndex.getOrDefault(id, List.of())) {
                 Node childNode = result.byId.get(childId);
-                if (childNode != null) {
-                    result.edges.add(new Edge(parentNode, childNode));
-                }
+                if (childNode != null) link(result, linked, parentNode, childNode);
             }
         }
 
@@ -355,22 +662,30 @@ public final class TreeLayout {
             }
         }
 
-        result.minX = Double.POSITIVE_INFINITY;
-        result.maxX = Double.NEGATIVE_INFINITY;
-        result.minY = Double.POSITIVE_INFINITY;
-        result.maxY = Double.NEGATIVE_INFINITY;
-
+        double rowGap = H_SPACING + FOREST_EXTRA_SPACING;
+        double top = 0;
+        List<Band> bands = new ArrayList<>();
         for (int generation = 0; generation <= maxGeneration; generation++) {
             List<Node> row = byGen.get(generation);
             if (row == null || row.isEmpty()) continue;
+            Band band = new Band();
+            band.index = bands.size();
+            bands.add(band);
+            band.nodes.addAll(row);
+            band.gap = rowGap;
 
-            double rowGap = H_SPACING + FOREST_EXTRA_SPACING;
-            double y = generation * (NODE_HEIGHT + V_SPACING);
             List<Double> desiredCenters = new ArrayList<>(row.size());
             for (int i = 0; i < row.size(); i++) {
                 Node node = row.get(i);
                 desiredCenters.add(desiredCenter(node, i, rowGap, parentIds, childIndex, included, generationById, result.byId));
             }
+            double desiredMid = desiredCenters.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            if (row.size() > FOREST_ROW_LIMIT) {
+                placeGrid(band, top, desiredMid);
+                top = band.bottom + V_SPACING;
+                continue;
+            }
+            placeRow(band, top);
 
             List<Placement> placements = new ArrayList<>(row.size());
             for (int i = 0; i < row.size(); i++) {
@@ -385,28 +700,20 @@ public final class TreeLayout {
                 double targetLeft = placement.desiredCenter - NODE_WIDTH / 2.0;
                 double left = Math.max(targetLeft, cursor);
                 placement.node.x = left;
-                placement.node.y = y;
                 cursor = left + NODE_WIDTH + rowGap;
                 minLeft = Math.min(minLeft, left);
                 maxRight = Math.max(maxRight, left + NODE_WIDTH);
             }
 
-            double desiredMid = placements.stream().mapToDouble(placement -> placement.desiredCenter).average().orElse(0.0);
-            double actualMid = (minLeft + maxRight) / 2.0;
-            double shift = desiredMid - actualMid;
-            for (Placement placement : placements) {
-                placement.node.x += shift;
-                result.minX = Math.min(result.minX, placement.node.x);
-                result.maxX = Math.max(result.maxX, placement.node.x + NODE_WIDTH);
-                result.minY = Math.min(result.minY, placement.node.y);
-                result.maxY = Math.max(result.maxY, placement.node.y + NODE_HEIGHT);
-            }
+            double shift = desiredMid - (minLeft + maxRight) / 2.0;
+            for (Placement placement : placements) placement.node.x += shift;
+            measureBand(band);
+            top = band.bottom + V_SPACING;
         }
 
-        if (result.nodes.isEmpty()) {
-            result.minX = result.maxX = result.minY = result.maxY = 0.0;
-        }
-
+        route(result.edges, bands);
+        for (Edge edge : result.edges) edge.route = edge.route();
+        measure(result);
         return result;
     }
 
@@ -540,28 +847,4 @@ public final class TreeLayout {
     }
 
     private record Placement(Node node, double desiredCenter) {}
-
-    private static void addParent(UUID parentId,
-                                  Map<UUID, AnimalRecord> records,
-                                  int gen,
-                                  Result r,
-                                  Map<Integer, List<Node>> byGen,
-                                  Set<UUID> seen,
-                                  Node child,
-                                  List<Node> next,
-                                  boolean ancestor) {
-        if (parentId == null) return;
-        AnimalRecord rec = records.get(parentId);
-        if (rec == null) return;
-        Node existing = r.byId.get(parentId);
-        if (existing == null) {
-            if (!seen.add(parentId)) return;
-            existing = new Node(parentId, rec, gen);
-            r.nodes.add(existing);
-            r.byId.put(parentId, existing);
-            byGen.computeIfAbsent(gen, k -> new ArrayList<>()).add(existing);
-            next.add(existing);
-        }
-        r.edges.add(new Edge(existing, child));
-    }
 }

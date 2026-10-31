@@ -38,7 +38,7 @@ class TreeImageExporterTest {
         assertNull(picture.legend());
         willow.setTreeName("Changed after export started");
         assertTrue(picture.cards().stream().anyMatch(c -> c.name().equals("Willow")));
-        Path file = TreeImageExporter.save(picture, directory.resolve("images"));
+        Path file = TreeImageExporter.save(picture, directory.resolve("images"), "Moss");
         var image = ImageIO.read(file.toFile());
         assertEquals(picture.width(), image.getWidth());
         assertEquals(picture.height(), image.getHeight());
@@ -46,8 +46,11 @@ class TreeImageExporterTest {
         assertNotEquals(image.getRGB(0, 0), image.getRGB(
                 (int) (firstCard.x() + 10) * TreeImageExporter.SCALE,
                 (int) (firstCard.y() + 10) * TreeImageExporter.SCALE));
-        Path second = TreeImageExporter.save(picture, directory.resolve("images"));
+        Path second = TreeImageExporter.save(picture, directory.resolve("images"), "Moss");
         assertNotEquals(file, second);
+        String today = java.time.LocalDate.now().toString();
+        assertEquals("family-tree-Moss-" + today + ".png", file.getFileName().toString());
+        assertEquals("family-tree-Moss-" + today + "-2.png", second.getFileName().toString());
     }
 
     @Test void horseCardsCarryStatsAndDrawMarkersForFoalsThatBeatOrTrailBothParents() throws Exception {
@@ -68,7 +71,7 @@ class TreeImageExporterTest {
         var foal = picture.cards().stream().filter(card -> card.name().equals("Ember")).findFirst().orElseThrow();
         assertEquals(stats, foal.stats());
         assertTrue(picture.cards().stream().filter(card -> card != foal).allMatch(card -> card.stats().isEmpty()));
-        var image = ImageIO.read(TreeImageExporter.save(picture, directory.resolve("horses")).toFile());
+        var image = ImageIO.read(TreeImageExporter.save(picture, directory.resolve("horses"), "Comet").toFile());
         assertTrue(contains(image, foal, 0x6FD26F), "Missing the higher-than-both-parents marker");
         assertTrue(contains(image, foal, 0xE86B6B), "Missing the lower-than-both-parents marker");
     }
@@ -107,7 +110,7 @@ class TreeImageExporterTest {
         assertTrue(picture.legend().rareMarkers());
         var rare = picture.cards().stream().filter(TreeImageExporter.Card::rare).toList();
         assertEquals(List.of("Bluebell"), rare.stream().map(TreeImageExporter.Card::name).toList());
-        var image = ImageIO.read(TreeImageExporter.save(picture, directory.resolve("axolotls")).toFile());
+        var image = ImageIO.read(TreeImageExporter.save(picture, directory.resolve("axolotls"), "Bluebell").toFile());
         assertTrue(contains(image, rare.get(0), 0xFFC94A), "Missing the rare star");
         var plain = picture.cards().stream().filter(card -> !card.rare()).findFirst().orElseThrow();
         assertFalse(contains(image, plain, 0xFFC94A), "A common variant has a star");
@@ -124,6 +127,42 @@ class TreeImageExporterTest {
         double width = tree.maxX - tree.minX, height = tree.maxY - tree.minY;
         assertTrue(width < 20 * height, "Forest is " + width + " wide and " + height + " tall");
         assertEquals(300, tree.nodes.stream().map(node -> node.x + "," + node.y).distinct().count(), "Cards overlap");
+    }
+
+    @Test void fileNamesUseTheSubjectAndDateAndStayValidOnEverySystem() {
+        var day = java.time.LocalDate.of(2026, 10, 31);
+        assertEquals("family-tree-Comet-2026-10-31.png", TreeImageExporter.fileName("Comet", day, 1));
+        assertEquals("family-tree-Comet-2026-10-31-3.png", TreeImageExporter.fileName("\"Comet\"", day, 3));
+        assertEquals("family-tree-Sir-Fluff-a-lot-2026-10-31.png", TreeImageExporter.fileName("Sir Fluff/a:lot?", day, 1));
+        assertEquals("family-tree-Снежок-2026-10-31.png", TreeImageExporter.fileName("Снежок", day, 1));
+        assertEquals("family-tree-2026-10-31.png", TreeImageExporter.fileName("../..", day, 1));
+        assertTrue(TreeImageExporter.fileName("x".repeat(500), day, 1).length() < 80);
+    }
+
+    @Test void deepTreesMarkHiddenGenerationsInTheImage() throws Exception {
+        Map<UUID, AnimalRecord> records = new LinkedHashMap<>();
+        Map<UUID, List<UUID>> children = new HashMap<>();
+        AnimalRecord line = pet("Deep 1", null, null);
+        records.put(line.id(), line);
+        for (int generation = 2; generation <= 10; generation++) {
+            AnimalRecord next = pet("Deep " + generation, line, null);
+            records.put(next.id(), next);
+            children.computeIfAbsent(line.id(), id -> new ArrayList<>()).add(next.id());
+            line = next;
+        }
+        var tree = TreeLayout.layout(line.id(), records, children);
+        var picture = TreeImageExporter.prepare(tree, "Deep 10", "Family Tree",
+                p -> "", p -> "Alive", p -> null, p -> List.of(), p -> false, null);
+        assertEquals(1, picture.markers().size());
+        assertTrue(picture.markers().get(0).older());
+        assertEquals(3, picture.markers().get(0).generations());
+        var image = ImageIO.read(TreeImageExporter.save(picture, directory.resolve("deep"), "Deep 10").toFile());
+        var marker = picture.markers().get(0);
+        boolean gold = false;
+        for (int x = (int) (marker.x() - 20) * TreeImageExporter.SCALE; x < (marker.x() + 20) * TreeImageExporter.SCALE; x++)
+            for (int y = (int) (marker.y() - 20) * TreeImageExporter.SCALE; y < marker.y() * TreeImageExporter.SCALE; y++)
+                if ((image.getRGB(x, y) & 0xFFFFFF) == 0xD8B671) gold = true;
+        assertTrue(gold, "Missing the older-generations marker above the top card");
     }
 
     private static AnimalRecord pet(String name, AnimalRecord a, AnimalRecord b) {
