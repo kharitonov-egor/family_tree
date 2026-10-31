@@ -141,11 +141,12 @@ public final class FamilyTreeCommand {
     /** Players without the client mod get the chest menu. Players with it are reminded of their key. */
     private static int runRoot(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
-        if (player != null && FamilyTreeServerSettings.vanillaMenu() && !ServerTransport.canSend(player, SnapshotPagePayload.TYPE)
+        boolean clientMod = player != null && ServerTransport.canSend(player, SnapshotPagePayload.TYPE);
+        if (player != null && !clientMod && FamilyTreeServerSettings.vanillaMenu()
                 && ServerPetAccess.allowed(source, FamilyTreePermission.MENU))
             return Menus.open(player);
         ServerText.success(source, () -> Component.translatable("familytree.command.usage"), false);
-        if (player != null) ServerText.success(source, () -> Component.translatable("familytree.command.menu_hint",
+        if (clientMod) ServerText.success(source, () -> Component.translatable("familytree.command.menu_hint",
                 Component.keybind("key.familytree.open_tree")), false);
         if (ServerPetAccess.allowed(source, FamilyTreePermission.RELOAD) || ServerPetAccess.allowed(source, FamilyTreePermission.SETTINGS))
             ServerText.success(source, () -> Component.translatable("familytree.command.admin_usage"), false);

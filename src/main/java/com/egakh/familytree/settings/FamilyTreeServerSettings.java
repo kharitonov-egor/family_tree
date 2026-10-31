@@ -63,7 +63,7 @@ public final class FamilyTreeServerSettings {
 
         Map<String, String> written = new LinkedHashMap<>();
         for (String key : properties.stringPropertyNames()) written.put(key, properties.getProperty(key).trim());
-        String rendered = parsed.settings().render(written, parsed.rejected(), parsed.unknown());
+        String rendered = parsed.settings().fileText(written, parsed.rejected(), parsed.unknown());
         if (!rendered.equals(text)) {
             try {
                 Files.createDirectories(path.getParent());

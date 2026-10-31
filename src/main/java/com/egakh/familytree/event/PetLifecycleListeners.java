@@ -152,8 +152,9 @@ public final class PetLifecycleListeners {
 
     /**
      * Records a birth of animals other than pets. A player's breeding brings the baby and both parents into the
-     * history, owned by the breeder. Without a player, only families already in the history continue, so wild
-     * animals stay out. The baby belongs to its parents' owner when they have one.
+     * history. Each new parent belongs to the player who fed it, or to the breeder when nobody fed it. Without a
+     * player, only families already in the history continue, so wild animals stay out. The baby belongs to its
+     * first parent's owner, or to the breeder when neither parent has one.
      */
     public static void recordBirth(ServerLevel world, Animal parentA, Animal parentB, Animal child,
                                    UUID breeder, String breederName) {
@@ -175,8 +176,11 @@ public final class PetLifecycleListeners {
             return;
         }
 
-        AnimalRecord a = recordParent(world, state, parentA, parentB, breeder, breederName);
-        AnimalRecord b = recordParent(world, state, parentB, parentA, breeder, breederName);
+        ServerPlayer feederA = parentA.getLoveCause(), feederB = parentB.getLoveCause();
+        AnimalRecord a = recordParent(world, state, parentA, parentB, feederA != null ? feederA.getUUID() : breeder,
+                feederA != null ? feederA.getName().getString() : breederName);
+        AnimalRecord b = recordParent(world, state, parentB, parentA, feederB != null ? feederB.getUUID() : breeder,
+                feederB != null ? feederB.getName().getString() : breederName);
         AnimalRecord owner = a.ownerId() != null ? a : b.ownerId() != null ? b : null;
         AnimalRecord record = newRecord(world, state, child);
         record.setParents(parentA.getUUID(), parentB.getUUID());
@@ -198,8 +202,10 @@ public final class PetLifecycleListeners {
             noticeFarmLimit(world, state, breeder.getUUID(), "familytree.farm.limit_parents");
             return;
         }
-        recordParent(world, state, parentA, parentB, breeder.getUUID(), breeder.getName().getString());
-        recordParent(world, state, parentB, parentA, breeder.getUUID(), breeder.getName().getString());
+        for (Animal parent : new Animal[]{parentA, parentB}) {
+            ServerPlayer feeder = parent.getLoveCause() != null ? parent.getLoveCause() : breeder;
+            recordParent(world, state, parent, parent == parentA ? parentB : parentA, feeder.getUUID(), feeder.getName().getString());
+        }
     }
 
     private static AnimalRecord recordParent(ServerLevel world, FamilyTreeState state, Animal parent, Animal mate,

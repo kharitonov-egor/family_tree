@@ -46,7 +46,7 @@ class ServerSettingsTest {
     private static String rewrite(String text) throws IOException {
         Properties properties = load(text);
         ServerSettings.Parsed parsed = ServerSettings.parse(properties);
-        return parsed.settings().render(written(properties), parsed.rejected(), parsed.unknown());
+        return parsed.settings().fileText(written(properties), parsed.rejected(), parsed.unknown());
     }
 
     @Test void aDefault130FileLoadsAsTheDefaultsWithoutProblems() throws IOException {
@@ -81,7 +81,7 @@ class ServerSettingsTest {
     }
 
     @Test void theGeneratedFileDocumentsEverySettingWithItsDefaultAndAllowedValues() {
-        String text = ServerSettings.DEFAULT.render(Map.of(), Set.of(), Set.of());
+        String text = ServerSettings.DEFAULT.fileText(Map.of(), Set.of(), Set.of());
         Set<String> keys = new HashSet<>();
         for (ServerSettings.Setting setting : ServerSettings.SETTINGS) {
             assertTrue(keys.add(setting.key()), "Duplicate setting " + setting.key());
@@ -94,7 +94,7 @@ class ServerSettingsTest {
     }
 
     @Test void theGeneratedFileLoadsBackToTheDefaultsAndRewritesToItself() throws IOException {
-        String text = ServerSettings.DEFAULT.render(Map.of(), Set.of(), Set.of());
+        String text = ServerSettings.DEFAULT.fileText(Map.of(), Set.of(), Set.of());
         ServerSettings.Parsed parsed = ServerSettings.parse(load(text));
         assertEquals(ServerSettings.DEFAULT, parsed.settings());
         assertEquals(List.of(), parsed.problems());

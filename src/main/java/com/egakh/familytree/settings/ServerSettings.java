@@ -108,7 +108,7 @@ public record ServerSettings(ViewPolicy viewPolicy, int operatorLevel, OwnerActi
     public static final List<Setting> SETTINGS = List.of(
             new Setting(VIEW, "viewPolicy", List.of(
                     "Who may browse every player's pets. Browsing never grants editing or coordinates.",
-                    "OP_ONLY_ALL: operators. EVERYONE_ALL: every player. OWN_ONLY: nobody; each player sees their own pets.",
+                    "OP_ONLY_ALL lets operators do this, EVERYONE_ALL every player, and OWN_ONLY nobody.",
                     "This is the default for the familytree.others.view permission node."),
                     "OP_ONLY_ALL, EVERYONE_ALL, OWN_ONLY", s -> s.viewPolicy.name()),
             new Setting(VIEW, "operatorLevel", List.of(
@@ -216,22 +216,22 @@ public record ServerSettings(ViewPolicy viewPolicy, int operatorLevel, OwnerActi
     private static final List<String> HEADER = List.of(
             "Family Tree server settings",
             "",
-            "Family Tree reads this file when the server starts and on /familytree reload, which needs the",
-            "familytree.reload permission. It reports values it can't use in the log and to the admin who reloaded,",
-            "uses the default for them, and keeps your text here so you can fix it. It rewrites this file to add",
-            "missing settings and these comments, so comments you add are not kept.",
+            "Family Tree reads this file when the server starts and on /familytree reload, which needs the "
+                    + "familytree.reload permission. It reports values it can't use in the log and to the admin who "
+                    + "reloaded, uses the default for them, and keeps your text here so you can fix it. It rewrites this "
+                    + "file to add missing settings and these comments, so comments you add are not kept.",
             "",
-            "A permission mod such as LuckPerms can grant or deny each familytree.* permission node per player or",
-            "group. The settings below decide what players get when no permission mod sets a node.",
-            "Datapacks can add species to the familytree:tracked and familytree:ignored entity type tags.");
+            "A permission mod such as LuckPerms can grant or deny each familytree.* permission node per player or "
+                    + "group. The settings below decide what players get when no permission mod sets a node. Datapacks "
+                    + "can add species to the familytree:tracked and familytree:ignored entity type tags.");
 
     /**
      * The file text for these settings. Values the admin wrote that Family Tree couldn't use keep their text,
      * and unknown keys stay at the end, so a typo is never silently lost.
      */
-    public String render(Map<String, String> written, Set<String> rejected, Set<String> unknown) {
+    public String fileText(Map<String, String> written, Set<String> rejected, Set<String> unknown) {
         StringBuilder out = new StringBuilder();
-        for (String line : HEADER) out.append(line.isEmpty() ? "#" : "# " + line).append('\n');
+        for (String line : HEADER) comment(out, line);
         String section = null;
         for (Setting setting : SETTINGS) {
             if (!setting.section().equals(section)) {
@@ -239,9 +239,8 @@ public record ServerSettings(ViewPolicy viewPolicy, int operatorLevel, OwnerActi
                 out.append("\n# ").append("=".repeat(4)).append(' ').append(section).append(' ').append("=".repeat(4)).append('\n');
             }
             out.append('\n');
-            for (String line : setting.comment()) out.append("# ").append(line).append('\n');
-            out.append("# Allowed: ").append(setting.allowed()).append(". Default: ")
-                    .append(display(setting.defaultValue())).append('\n');
+            for (String line : setting.comment()) comment(out, line);
+            comment(out, "Allowed: " + setting.allowed() + ". Default: " + display(setting.defaultValue()));
             String value = rejected.contains(setting.key()) && written.containsKey(setting.key())
                     ? written.get(setting.key()) : setting.value().apply(this);
             out.append(escapeKey(setting.key())).append('=').append(escapeValue(value)).append('\n');
@@ -252,6 +251,26 @@ public record ServerSettings(ViewPolicy viewPolicy, int operatorLevel, OwnerActi
             for (String key : unknown) out.append(escapeKey(key)).append('=').append(escapeValue(written.getOrDefault(key, ""))).append('\n');
         }
         return out.toString();
+    }
+
+    private static final int COMMENT_WIDTH = 96;
+
+    /** Writes a comment line, wrapped at word boundaries so the file reads well in narrow editors. */
+    private static void comment(StringBuilder out, String text) {
+        if (text.isEmpty()) {
+            out.append("#\n");
+            return;
+        }
+        StringBuilder line = new StringBuilder();
+        for (String word : text.split(" ")) {
+            if (line.length() > 0 && line.length() + 1 + word.length() > COMMENT_WIDTH) {
+                out.append("# ").append(line).append('\n');
+                line.setLength(0);
+            }
+            if (line.length() > 0) line.append(' ');
+            line.append(word);
+        }
+        out.append("# ").append(line).append('\n');
     }
 
     private static String display(String value) {

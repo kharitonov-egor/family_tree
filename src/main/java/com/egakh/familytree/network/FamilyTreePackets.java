@@ -73,7 +73,7 @@ public final class FamilyTreePackets {
         }
         FamilyTreeState state = FamilyTreeState.get(player.level().getServer());
         AnimalRecord pet = state.get(packet.petId());
-        if (!ServerPetAccess.allowed(player, FamilyTreePermission.LOCATE) || !ServerPetAccess.canManage(player.createCommandSourceStack(), pet)) {
+        if (denied(player, FamilyTreePermission.LOCATE) || !ServerPetAccess.canManage(player.createCommandSourceStack(), pet)) {
             ServerTransport.send(player, WaypointResult.failed(packet.requestId(), WaypointResult.Status.NOT_ALLOWED));
             return;
         }
@@ -104,6 +104,10 @@ public final class FamilyTreePackets {
     }
 
     public static void rename(RenamePetRequest packet, ServerPlayer player) {
+        if (denied(player, FamilyTreePermission.RENAME)) {
+            ServerTransport.send(player, new RenamePetResult(packet.requestId(), PetRenaming.Result.NOT_ALLOWED.ordinal(), Optional.empty()));
+            return;
+        }
         RenameOutcome outcome = applyRename(player, packet.petId(), packet.name());
         ServerTransport.send(player, new RenamePetResult(packet.requestId(), outcome.result().ordinal(),
                 outcome.result() == PetRenaming.Result.SUCCESS ? Optional.of(outcome.record()) : Optional.empty()));
@@ -123,6 +127,10 @@ public final class FamilyTreePackets {
     }
 
     public static void link(LinkParentsRequest packet, ServerPlayer player) {
+        if (denied(player, FamilyTreePermission.PARENTS)) {
+            ServerTransport.send(player, new LinkParentsResult(packet.requestId(), ParentLinks.Result.NOT_ALLOWED.ordinal()));
+            return;
+        }
         ServerTransport.send(player, new LinkParentsResult(packet.requestId(),
                 applyLink(player, packet.child(), packet.parentA(), packet.parentB(), packet.clear()).ordinal()));
     }

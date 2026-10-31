@@ -35,6 +35,8 @@ public final class NeoForgeEntrypoint {
         modBus.addListener(this::registerPackets);
         NeoForgePermissions permissions = new NeoForgePermissions();
         NeoForge.EVENT_BUS.addListener(permissions::register);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, permissions::loggedIn);
+        NeoForge.EVENT_BUS.addListener(permissions::loggedOut);
         ServerPetAccess.configure(permissions);
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> FamilyTreeCommand.register(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((ServerStartingEvent event) -> FamilyTreeServerSettings.load());

@@ -35,6 +35,8 @@ public final class ForgeEntrypoint {
         IEventBus events = MinecraftForge.EVENT_BUS;
         ForgePermissions permissions = new ForgePermissions();
         events.addListener(permissions::register);
+        events.addListener(EventPriority.LOWEST, permissions::loggedIn);
+        events.addListener(permissions::loggedOut);
         ServerPetAccess.configure(permissions);
         events.addListener((RegisterCommandsEvent event) -> FamilyTreeCommand.register(event.getDispatcher()));
         events.addListener((ServerStartingEvent event) -> FamilyTreeServerSettings.load());

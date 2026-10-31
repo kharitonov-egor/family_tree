@@ -40,6 +40,12 @@ import java.util.stream.Collectors;
 public final class LinkingTool {
 
     private static final Map<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
+    private static final Map<UUID, LastUse> LAST_USE = new ConcurrentHashMap<>();
+
+    /**
+     * A client without Family Tree sends two interaction packets for one click, and Fabric's callback sees both.
+     */
+    private record LastUse(UUID entity, long tick) {}
 
     private LinkingTool() {}
 
@@ -53,6 +59,8 @@ public final class LinkingTool {
             return InteractionResult.PASS;
         }
 
+        LastUse use = new LastUse(entity.getUUID(), level.getGameTime());
+        if (use.equals(LAST_USE.put(sp.getUUID(), use))) return InteractionResult.SUCCESS_SERVER;
         FamilyTreeState state = FamilyTreeState.get(level);
         if (state.readOnly()) return InteractionResult.SUCCESS_SERVER;
         if (!ServerPetAccess.allowed(sp, FamilyTreePermission.LINKING_STICK)) {
@@ -290,8 +298,8 @@ public final class LinkingTool {
     }
 
     private enum Mode { NONE, LINK, UNLINK }
-    public static void disconnect(UUID player) { SESSIONS.remove(player); }
-    public static void stop() { SESSIONS.clear(); }
+    public static void disconnect(UUID player) { SESSIONS.remove(player); LAST_USE.remove(player); }
+    public static void stop() { SESSIONS.clear(); LAST_USE.clear(); }
 
     private static final class Session {
         final List<UUID> pets = new ArrayList<>();
