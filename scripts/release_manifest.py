@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tomllib
@@ -10,7 +11,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {'fabric': ['1.20.1', '1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10', '1.21.11',
-                      '26.1.1', '26.1.2', '26.2', '26.3'],
+                      '26.1.1', '26.1.2', '26.2', '26.3', '26.4-snapshot-6'],
            'neoforge': ['1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10', '1.21.11', '26.2', '26.3'],
            'forge': ['1.20.1']}
 NEOFORGE = {'1.21.1': '21.1.252', '1.21.4': '21.4.161', '1.21.5': '21.5.101', '1.21.8': '21.8.57',
@@ -18,11 +19,19 @@ NEOFORGE = {'1.21.1': '21.1.252', '1.21.4': '21.4.161', '1.21.5': '21.5.101', '1
 FORGE = {'1.20.1': '47.1.0'}
 # Earlier patches the Fabric 1.21.8 and 1.21.10 jars ran on. build.gradle declares the same ranges.
 ALSO_RUNS_ON = {'1.21.8': ['1.21.6', '1.21.7'], '1.21.10': ['1.21.9']}
+# Snapshot builds stay out of releases unless --snapshots asks for them, and then publish as alpha.
+SNAPSHOTS = {'26.4-snapshot-6'}
+
+
+def fabric_game_version(mc):
+    """Fabric Loader reads 26.1-snapshot-1 as 26.1-alpha.1 and 26.1-pre-1 as 26.1-pre.1."""
+    return re.sub(r'-(pre|rc)-(\d+)$', r'-\1.\2', re.sub(r'-snapshot-(\d+)$', r'-alpha.\1', mc))
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--snapshots', action='store_true', help='Also verify and copy snapshot builds as alpha files')
     args = parser.parse_args()
     properties = dict(line.split('=', 1) for line in (ROOT / 'gradle.properties').read_text().splitlines()
                       if '=' in line and not line.startswith('#'))
@@ -35,6 +44,8 @@ def main():
     files = []
     for loader, targets in TARGETS.items():
         for mc in targets:
+            if mc in SNAPSHOTS and not args.snapshots:
+                continue
             release_version = f'{version}+{mc}' + ('' if loader == 'fabric' else f'-{loader}')
             base = ROOT / ('versions' if loader == 'fabric' else f'{loader}/build') / mc
             folder = base / ('build/libs' if loader == 'fabric' else 'libs')
@@ -50,7 +61,7 @@ def main():
                 if loader == 'fabric':
                     metadata = json.loads(jar.read('fabric.mod.json'))
                     assert metadata['version'] == release_version
-                    predicate = '=' + mc if len(game_versions) == 1 else f'>={game_versions[0]} <={mc}'
+                    predicate = '=' + fabric_game_version(mc) if len(game_versions) == 1 else f'>={game_versions[0]} <={mc}'
                     assert metadata['depends']['minecraft'] == predicate
                     dependencies = [{'project_id': 'P7dR8mSH', 'dependency_type': 'required'}]
                     minimum_loader = metadata['depends']['fabricloader']
@@ -85,7 +96,7 @@ def main():
             files.append({'filename': path.name, 'version': release_version, 'minecraft': mc,
                 'game_versions': game_versions, 'loader': loader,
                 'minimum_loader': minimum_loader, 'java': java, 'dependencies': dependencies,
-                'release_type': 'beta' if loader == 'neoforge' and mc == '26.3' else 'release',
+                'release_type': 'alpha' if mc in SNAPSHOTS else 'beta' if loader == 'neoforge' and mc == '26.3' else 'release',
                 'sha512': hashlib.sha512(destination.read_bytes()).hexdigest(), 'size': destination.stat().st_size})
             source = folder / f'familytree-{release_version}-sources.jar'
             shutil.copyfile(source, output / source.name)

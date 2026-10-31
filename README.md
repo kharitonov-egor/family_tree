@@ -45,6 +45,8 @@ Choose the file that matches both your Minecraft version and mod loader.
 | 26.3 | Fabric | 25 or newer | Fabric API for 26.3 |
 | 26.3 | NeoForge 26.3.0.37-beta or newer within 26.3 | 25 or newer | Beta loader |
 
+Minecraft 26.4 is in snapshots. The source builds a Fabric jar for 26.4-snapshot-6 for testing, and no file is published for it. A 26.4 file follows the game's release.
+
 Put the matching jar in `mods/`. Fabric builds use Fabric Loader 0.19.3 for testing. They also run on Quilt Loader 0.30.1 or newer with Fabric API. NeoForge and Forge builds do not need Fabric API.
 
 Install Family Tree on the server for tracking and on your client for the screens. In singleplayer, one installation does both. Use the same Family Tree version on both sides. Players without the client mod can still join and type `/familytree` to browse in chest menus. See [Players without the client mod](#players-without-the-client-mod).
@@ -204,7 +206,7 @@ Install JDK 25, JDK 21, and JDK 17, then use the included Gradle wrapper. The 1.
 ./gradlew -p forge build -Pminecraft=1.20.1
 ```
 
-Fabric jars are in `versions/<minecraft>/build/libs/`, NeoForge jars in `neoforge/build/<minecraft>/libs/`, and Forge jars in `forge/build/<minecraft>/libs/`. `buildAll` runs the shared tests for all twenty targets. Stonecutter generates Fabric sources for each version. NeoForge and Forge compile the generated sources for their selected target with their own event and networking entrypoints. Do not edit generated files under `versions/`.
+Fabric jars are in `versions/<minecraft>/build/libs/`, NeoForge jars in `neoforge/build/<minecraft>/libs/`, and Forge jars in `forge/build/<minecraft>/libs/`. `buildAll` runs the shared tests for all twenty-one targets, including the Fabric 26.4-snapshot-6 build, which `./gradlew :26.4-snapshot-6:build` builds alone and which needs Fabric Loader 0.20.1. Stonecutter generates Fabric sources for each version. NeoForge and Forge compile the generated sources for their selected target with their own event and networking entrypoints. Do not edit generated files under `versions/`.
 
 See [runtime validation](docs/testing.md) for the separate server smoke tests and client demo. [CLAUDE.md](CLAUDE.md) covers the source layout and save compatibility rules.
 

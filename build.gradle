@@ -57,7 +57,7 @@ if (fabricApiVersion == null) {
 }
 // The 1.21.8 and 1.21.10 jars also declare earlier patches they ran on. ALSO_RUNS_ON in release_manifest.py must match.
 def minecraftRanges = ['1.21.8': '>=1.21.6 <=1.21.8', '1.21.10': '>=1.21.9 <=1.21.10']
-// Fabric Loader reads 26.4-snapshot-6 as 26.4-alpha.6 and 26.4-pre-1 as 26.4-pre.1.
+// Fabric Loader reads 26.1-snapshot-1 as 26.1-alpha.1 and 26.1-pre-1 as 26.1-pre.1.
 def fabricGameVersion = mcVersion.replaceFirst(/-snapshot-(\d+)$/, '-alpha.$1').replaceFirst(/-(pre|rc)-(\d+)$/, '-$1.$2')
 def minecraftDep = minecraftRanges[mcVersion] ?: "=${fabricGameVersion}"
 // Fabric API for 26.4 requires Loader 0.20.0. Other targets keep the tested minimum from gradle.properties.
