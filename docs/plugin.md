@@ -115,9 +115,9 @@ Datapack tags work as in the mod: a datapack can add species to the `familytree:
 
 ## Players with the client mod
 
-The plugin registers the mod's network channels and answers with the bytes the mod's server would send, so a player with the client mod can open the browser with **H**, open trees, rename, add parents, locate pets, use **Find existing pets**, and add map waypoints. `/familytree` prints the command list for them, and `/familytree menu` still opens the chest menu. A test checks every payload the plugin writes against the expected bytes in the mod's own `WireFormatTest`.
+The plugin registers the mod's network channels and answers with the bytes the mod's server would send, so a player with the client mod gets its screens: the browser on **H**, trees, rename, Add parents, Locate, **Find existing pets**, and map waypoints. `/familytree` prints the command list for them, and `/familytree menu` still opens the chest menu. A test checks every payload the plugin writes against the expected bytes in the mod's own `WireFormatTest`.
 
-Use the client mod release that matches the plugin's version. Family Tree 1.3.0's Fabric client for 26.3 joined a Paper 26.3 server with the plugin and used the browser, the tree, rename, Locate, and Find existing pets.
+Use the client mod release that matches the plugin's version. Family Tree 1.3.0's Fabric client for 26.3 joined a Paper 26.3 server with the plugin and used the browser, the tree, rename, Locate, and Find existing pets. Add parents and waypoints from the mod's screens use the same code and checks as the chest menu and Locate, but weren't tried from a modded client, and no map mod was installed.
 
 ## Differences from the mod
 
@@ -153,3 +153,18 @@ Results on October 31, 2026, with the plugin built from this branch:
 
 | Server | Smoke | Client check |
 | --- | --- | --- |
+RESULTS_TABLE_PLACEHOLDER
+
+The smoke runs also covered loading a history the mod wrote: Paper 1.21.11 started on a world seeded with the mod's 1.21.11 smoke file and kept all 14 records, and a restart kept all 20 after the smoke added six. In the other direction, Family Tree 1.3.0 on a Fabric 26.3 server listed all 10 records of a history the plugin wrote on Paper 26.3, with tree names, parents, generations, and wool colors.
+
+## Publishing
+
+`scripts/release_manifest.py` checks the plugin jar along with the mod jars: the license, the icon, `plugin.yml`'s version and `api-version`, the 15 language files and the plugin's own strings, Java 17 bytecode, and no development classes. It copies the jar and its sources jar into `build/releases/<version>/` and adds a manifest entry with the `paper`, `spigot`, and `purpur` loaders and the tested game versions in `PLUGIN_GAME_VERSIONS`. The `bukkit` loader is left out because CraftBukkit without Spigot lacks the chat API the plugin uses.
+
+**Modrinth.** `scripts/publish_modrinth.py --manifest` uploads the plugin to the existing project, `CVQKDAe7`, as one version named "Family Tree <version> for Paper and Spigot". Modrinth shows a project with plugin loaders in its plugin search too, and those downloads count toward the same project. Nothing needs to be created first.
+
+**CurseForge.** CurseForge keeps Bukkit plugins in a separate section, so the plugin needs a new project there. `publish_curseforge.py` skips the plugin jar for that reason. Egor would create a project under Bukkit Plugins with the name, summary, description, logo, MIT license, and categories, and wait for CurseForge's approval. The upload script would then need that project's ID and CurseForge's Bukkit game version IDs, which its game versions API lists under a separate type. Downloads there count separately from the mod project.
+
+**Hangar.** Hangar, at hangar.papermc.io, is PaperMC's own plugin repository, and many Paper and Purpur admins browse it first. Egor would sign in, create a project with a name, category, description, and license, and choose the Paper platform with the tested versions. Hangar lists Paper only; Spigot admins use other sites. Hangar has an API that accepts version uploads with an API key, so a `publish_hangar.py` could upload the jar from the release manifest the way the Modrinth script does.
+
+SpigotMC's resource list is where most Spigot admins look, but it has no upload API, so each release would be posted by hand.
