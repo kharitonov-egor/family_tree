@@ -19,6 +19,7 @@ import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.AnimalCategory;
 import com.egakh.familytree.util.CloseRelation;
+import com.egakh.familytree.util.RelationText;
 import com.egakh.familytree.util.DeathMessages;
 import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.Kinship;
@@ -420,7 +421,7 @@ final class MenuSession {
         for (RelativesResult.Relative relative : result.relatives()) {
             CloseRelation relation = CloseRelation.byOrdinal(relative.relation());
             if (relation == null) continue;
-            ServerText.send(player, Component.literal("  ").append(relation.label(relative.name())));
+            ServerText.send(player, Component.literal("  ").append(RelationText.label(relation, relative.name())));
             RelativeMarkers.mark(player, relative.id(), relation.color());
         }
     }

@@ -15,6 +15,7 @@ public final class Cooldowns {
     private final RequestLimiter<UUID> discovery = limiter(ServerSettings.Cooldowns::scan);
     private final RequestLimiter<UUID> locate = limiter(ServerSettings.Cooldowns::locate);
     private final RequestLimiter<UUID> edit = limiter(ServerSettings.Cooldowns::edit);
+    private final RequestLimiter<UUID> relatives = limiter(ServerSettings.Cooldowns::relatives);
     private final RequestLimiter<String> serverScan = limiter(ServerSettings.Cooldowns::serverScan);
 
     public Cooldowns(Supplier<ServerSettings> settings) {
@@ -28,6 +29,7 @@ public final class Cooldowns {
     public boolean open(UUID player) { return open.allow(player); }
     public boolean locate(UUID player) { return locate.allow(player); }
     public boolean edit(UUID player) { return edit.allow(player); }
+    public boolean relatives(UUID player) { return relatives.allow(player); }
 
     /** Commands and discovery share the player's cooldown and the server's. */
     public boolean scan(UUID player) {
@@ -39,5 +41,6 @@ public final class Cooldowns {
         discovery.remove(player);
         locate.remove(player);
         edit.remove(player);
+        relatives.remove(player);
     }
 }

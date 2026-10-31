@@ -58,7 +58,8 @@ final class BungeeRenderer implements TextRenderer {
             if (!args.isEmpty()) translatable.setWith(args);
             component = translatable;
         }
-        if (text.color() != null) component.setColor(ChatColor.of(text.color().name()));
+        ChatColor color = color(text);
+        if (color != null) component.setColor(color);
         if (text.bold() != null) component.setBold(text.bold());
         if (text.italic() != null) component.setItalic(text.italic());
         if (text.underlined() != null) component.setUnderlined(text.underlined());
@@ -68,18 +69,24 @@ final class BungeeRenderer implements TextRenderer {
         return component;
     }
 
+    private static ChatColor color(Text text) {
+        if (text.rgb() != null) return ChatColor.of(String.format("#%06X", text.rgb()));
+        return text.color() == null ? null : ChatColor.of(text.color().name());
+    }
+
     /** Legacy text starts with a color code, which also turns off the italics Minecraft gives custom item names. */
     static String legacy(Text text) {
         StringBuilder out = new StringBuilder();
-        appendLegacy(out, text, Text.Color.WHITE, false, false);
+        appendLegacy(out, text, ChatColor.WHITE, false, false);
         return out.toString();
     }
 
-    private static void appendLegacy(StringBuilder out, Text text, Text.Color inheritedColor, boolean inheritedBold, boolean inheritedUnderline) {
-        Text.Color color = text.color() != null ? text.color() : inheritedColor;
+    private static void appendLegacy(StringBuilder out, Text text, ChatColor inheritedColor, boolean inheritedBold, boolean inheritedUnderline) {
+        ChatColor own = color(text);
+        ChatColor color = own != null ? own : inheritedColor;
         boolean bold = text.bold() != null ? text.bold() : inheritedBold;
         boolean underline = text.underlined() != null ? text.underlined() : inheritedUnderline;
-        String prefix = ChatColor.of(color.name()).toString() + (bold ? ChatColor.BOLD : "") + (underline ? ChatColor.UNDERLINE : "");
+        String prefix = color.toString() + (bold ? ChatColor.BOLD : "") + (underline ? ChatColor.UNDERLINE : "");
         if (text.literal() != null || text.keybind() != null) {
             String value = text.literal() != null ? text.literal() : text.keybind();
             if (!value.isEmpty()) out.append(prefix).append(value);

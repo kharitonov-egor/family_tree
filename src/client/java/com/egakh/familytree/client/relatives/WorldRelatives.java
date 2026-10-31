@@ -8,6 +8,7 @@ import com.egakh.familytree.network.payloads.OpenFamilyTreeRequest;
 import com.egakh.familytree.network.payloads.RelativesRequest;
 import com.egakh.familytree.network.payloads.RelativesResult;
 import com.egakh.familytree.util.CloseRelation;
+import com.egakh.familytree.util.RelationText;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -168,7 +169,7 @@ public final class WorldRelatives {
         for (RelativesResult.Relative relative : result.relatives()) {
             CloseRelation relation = CloseRelation.byOrdinal(relative.relation());
             if (relation != null) highlights.put(relative.id(),
-                    new Highlight(relation.color(), relation.label(relative.name()), relation));
+                    new Highlight(relation.color(), RelationText.label(relation, relative.name()), relation));
         }
         highlights.put(result.target(), new Highlight(RelationStyle.FOCUS, RelationStyle.focusLabel(result.targetName()), null));
         return highlights;

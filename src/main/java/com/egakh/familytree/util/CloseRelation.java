@@ -1,16 +1,13 @@
 package com.egakh.familytree.util;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.TextColor;
-
 import java.util.Locale;
 
 /**
  * The relations the in-world highlight names. It reads {@link Kinship} so the world labels and the breeding planner
  * agree on who is related. Aunts, uncles, and cousins stay dark, so a pen of one big family doesn't light up whole.
  * Colors come from the Okabe-Ito palette, which stays distinguishable with the common kinds of color blindness, and
- * every label names the relation too, so color is never the only cue.
+ * every label names the relation too, so color is never the only cue. {@link RelationText} builds the labels, so this
+ * class stays free of Minecraft classes and the plugin compiles it too.
  */
 public enum CloseRelation {
     /** Closest first. The network sends the ordinal, so add new relations at the end. */
@@ -34,13 +31,6 @@ public enum CloseRelation {
             case GRANDPARENT -> 0xF0E442;
             case GRANDCHILD -> 0xCC79A7;
         };
-    }
-
-    /** "Parent · Clover", with the relation in its color. */
-    public MutableComponent label(String name) {
-        return Component.translatable("familytree.relatives.label",
-                Component.translatable(translationKey()).withStyle(style -> style.withColor(TextColor.fromRgb(color()))),
-                Component.literal(name));
     }
 
     public String translationKey() {
