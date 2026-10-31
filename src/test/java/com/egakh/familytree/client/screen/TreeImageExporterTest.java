@@ -70,7 +70,7 @@ class TreeImageExporterTest {
         assertEquals(Map.of("Clover", false, "Lamb", true), marked.cards().stream()
                 .collect(java.util.stream.Collectors.toMap(TreeImageExporter.Card::name, TreeImageExporter.Card::missingParent)));
         assertTrue(marked.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "the note wraps above the footer");
-        var image = ImageIO.read(TreeImageExporter.save(marked, directory.resolve("marked")).toFile());
+        var image = ImageIO.read(TreeImageExporter.save(marked, directory.resolve("marked"), "Lamb").toFile());
         assertEquals(marked.height(), image.getHeight());
     }
 
