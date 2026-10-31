@@ -14,6 +14,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.saveddata.SavedData;
 //? if >=1.21.5 {
 import net.minecraft.world.level.saveddata.SavedDataType;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,6 +48,7 @@ public class FamilyTreeState extends SavedData {
     private Dynamic<?> protectedData;
     private boolean initialized;
     private boolean readOnly;
+    private Path unreadableFile;
     private int unnamedFarmRecords = -1;
     private int countedLearnedVersion;
     private final Set<UUID> farmLimitNotified = ConcurrentHashMap.newKeySet();
@@ -199,19 +202,24 @@ public class FamilyTreeState extends SavedData {
     public boolean readOnly() { return readOnly; }
     public int preservedRecordCount() { return rejectedRecords.size(); }
 
+    /** The history file Family Tree could not read. While it is set, nothing is recorded or written over it. */
+    public Path unreadableFile() { return unreadableFile; }
+
+    @Override
+    public boolean isDirty() {
+        return unreadableFile == null && super.isDirty();
+    }
+
     public Path backup(MinecraftServer server) throws IOException {
-        return backup(server, "before-prune-", true);
+        return backup(server, "before-prune", true);
     }
 
     /** Automatic cleanup writes compact JSON, since it can run many times in a long-lived world. */
     public Path backup(MinecraftServer server, String prefix, boolean pretty) throws IOException {
         Path directory = server.getWorldPath(LevelResource.ROOT).resolve("familytree-backups");
-        Files.createDirectories(directory);
-        Path file = Files.createTempFile(directory, prefix, ".json");
         var json = CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, this).getOrThrow();
         var gson = pretty ? new com.google.gson.GsonBuilder().setPrettyPrinting().create() : new com.google.gson.Gson();
-        Files.writeString(file, gson.toJson(json));
-        return file;
+        return BackupFiles.write(directory, prefix, ".json", gson.toJson(json));
     }
 
     //? if >=26.1 {
@@ -258,7 +266,8 @@ public class FamilyTreeState extends SavedData {
         *///?}
         if (!state.initialized) {
             state.initialized = true;
-            FamilyTreeState legacyState = tryLoadLegacy(server);
+            FamilyTreeState legacyState = loadWithoutMinecraft(savedFile(server),
+                    server.getWorldPath(LevelResource.ROOT).resolve("data").resolve(LEGACY_STATE_KEY + ".dat"), state);
             if (legacyState != null) {
                 storage.set(TYPE, legacyState);
                 legacyState.setDirty();
@@ -275,27 +284,54 @@ public class FamilyTreeState extends SavedData {
         return get(serverLevel.getServer());
     }
 
-    private static FamilyTreeState tryLoadLegacy(MinecraftServer server) {
-        Path legacyPath = server.getWorldPath(LevelResource.ROOT)
-                .resolve("data")
-                .resolve(LEGACY_STATE_KEY + ".dat");
-        if (!Files.exists(legacyPath)) {
-            return null;
-        }
+    /** The file Minecraft reads and writes for this state. */
+    private static Path savedFile(MinecraftServer server) {
+        Path data = DimensionType.getStorageFolder(Level.OVERWORLD, server.getWorldPath(LevelResource.ROOT)).resolve("data");
+        //? if >=26.1 {
+        return data.resolve(STATE_ID.getNamespace()).resolve(STATE_ID.getPath() + ".dat");
+        //?} else {
+        /*return data.resolve(LEGACY_STATE_KEY + ".dat");
+        *///?}
+    }
 
-        try (InputStream in = Files.newInputStream(legacyPath)) {
-            CompoundTag root = NbtIo.readCompressed(in, net.minecraft.nbt.NbtAccounter.unlimitedHeap());
-            CompoundTag data = root.get("records") == null ? root.getCompoundOrEmpty("data") : root;
-            if (data.get("records") == null) return null;
-            Path backup = legacyPath.resolveSibling("familytree.dat.migration-backup");
-            if (!Files.exists(backup)) Files.copy(legacyPath, backup);
-            FamilyTreeState imported = CODEC.parse(NbtOps.INSTANCE, data).getOrThrow();
-            FamilyTreeMod.LOGGER.info("Imported legacy Family Tree data. Original file preserved at {}", backup);
-            return imported;
+    /**
+     * Minecraft hands back a fresh state when the file is missing and also when reading it failed, and saves that
+     * empty state over the file. When the file exists, read it here; 26.x worlds without it import the older file.
+     * If neither read works, {@code fresh} is locked so it never writes, and the next start tries again.
+     */
+    static FamilyTreeState loadWithoutMinecraft(Path saved, Path legacy, FamilyTreeState fresh) {
+        Path source = Files.exists(saved) ? saved : legacy;
+        if (!Files.exists(source)) return null;
+        try {
+            FamilyTreeState loaded = readFile(source);
+            Path backup = source.resolveSibling(source.getFileName() + ".migration-backup");
+            if (!Files.exists(backup)) Files.copy(source, backup);
+            if (source.equals(saved)) FamilyTreeMod.LOGGER.warn("Minecraft could not read Family Tree data at {}, so Family Tree read it directly. Original file preserved at {}", source, backup);
+            else FamilyTreeMod.LOGGER.info("Imported legacy Family Tree data. Original file preserved at {}", backup);
+            return loaded;
         } catch (IOException | RuntimeException failure) {
-            FamilyTreeMod.LOGGER.error("Could not import legacy Family Tree data at {}", legacyPath, failure);
+            fresh.lock(source, failure);
             return null;
         }
+    }
+
+    static FamilyTreeState readFile(Path file) throws IOException {
+        CompoundTag root;
+        try (InputStream in = Files.newInputStream(file)) {
+            root = NbtIo.readCompressed(in, net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+        }
+        CompoundTag data = root.get("records") == null && root.get("data_version") == null ? root.getCompoundOrEmpty("data") : root;
+        if (data.get("records") == null && data.get("data_version") == null) throw new IOException("No Family Tree records in " + file);
+        return CODEC.parse(NbtOps.INSTANCE, data).getOrThrow();
+    }
+
+    void lock(Path file, Exception cause) {
+        readOnly = true;
+        unreadableFile = file;
+        Path copy = BackupFiles.keepUnreadable(file, LocalDateTime.now());
+        FamilyTreeMod.LOGGER.error("Family Tree could not read its history at {}. It will not record, edit, or save anything "
+                + "until the file is repaired or restored, so the file stays as it is. {}", file,
+                copy == null ? "Copying it failed." : "A copy is at " + copy + ".", cause);
     }
 
     public Map<UUID, java.util.List<UUID>> buildChildIndex() {

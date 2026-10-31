@@ -21,6 +21,7 @@ import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.util.KinshipText;
 import com.egakh.familytree.util.PetNames;
 import com.egakh.familytree.util.HorseStatUnits.Trend;
+import com.egakh.familytree.util.MissingParents;
 import com.egakh.familytree.util.VariantText;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -619,8 +620,10 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         if (client == null) return;
         AnimalRecord focus = records.get(focusId);
         String fileSubject = focus == null ? currentTitle(false).getString() : focus.name();
+        boolean gaps = shown.nodes.stream().anyMatch(node -> MissingParents.hasMissingParent(node.record, records::get));
         TreeImageExporter.Picture picture = TreeImageExporter.prepare(shown, currentTitle(false).getString(),
-                "Family Tree | modrinth.com/mod/familytree",
+                (gaps ? Component.translatable("familytree.export.parent_missing").getString() + "\n" : "")
+                        + "Family Tree | modrinth.com/mod/familytree",
                 pet -> exportDetail(pet),
                 pet -> pet.deceased()
                         ? Component.translatable("familytree.export.remembered", pet.deathWorldDay() == null ? "?" : pet.deathWorldDay()).getString()
@@ -631,7 +634,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                 new TreeImageExporter.Legend(Component.translatable("familytree.export.legend.higher").getString(),
                         Component.translatable("familytree.export.legend.lower").getString(),
                         Component.translatable("familytree.export.hearts").getString(),
-                        Component.translatable("familytree.export.legend.rare").getString()));
+                        Component.translatable("familytree.export.legend.rare").getString()),
+                pet -> MissingParents.hasMissingParent(pet, records::get));
         CompletableFuture.supplyAsync(() -> {
             try {
                 return TreeImageExporter.save(picture, client.gameDirectory.toPath().resolve("screenshots/familytree"), fileSubject);
@@ -693,6 +697,8 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                         n.id.equals(selectedId), n.id.equals(compareId) || relationPath.contains(n.id),
                         collapsed.contains(n.id), viewport.panX, viewport.panY, viewport.zoom, minTextScale);
                 if (n == hoveredCard) hoveredCut = cut;
+                if (MissingParents.hasMissingParent(n.record, records::get))
+                    TreeRenderer.drawMissingParent(gfx, this.font, n, viewport.panX, viewport.panY, viewport.zoom);
             }
             for (Marker marker : markers()) {
                 boolean over = inCanvas(mouseX, mouseY) && marker.contains(mouseX, mouseY);
@@ -720,7 +726,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         }
         Component hint = hovered != null
                 ? Component.translatable(hovered.older() ? "familytree.screen.tree.show_older" : "familytree.screen.tree.show_younger")
-                : status.getString().isEmpty() ? Component.translatable("familytree.screen.tree.controls_compare") : status;
+                : status.getString().isEmpty() ? selectionHint() : status;
         Component zoomLabel = Component.translatable("familytree.screen.tree.zoom", Math.round(viewport.zoom * 100));
         int hintWidth = Math.max(1, this.width - 24 - this.font.width(zoomLabel));
         if (toolbar != null && toolbar.compactFooter()) {
@@ -797,6 +803,15 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         gfx.fill(marker.x() + 1, marker.y() + 1, marker.x() + marker.width() - 1, marker.y() + marker.height() - 1,
                 hovered ? 0xFF2A3440 : 0xFF151A21);
         gfx.text(this.font, marker.label(), marker.x() + 4, marker.y() + 2, border);
+    }
+
+    /** A snapshot of every animal lacks a parent only when it was removed; otherwise it may belong to another player. */
+    private Component selectionHint() {
+        AnimalRecord selected = records.get(selectedId);
+        if (!MissingParents.hasMissingParent(selected, records::get))
+            return Component.translatable("familytree.screen.tree.controls_compare");
+        return Component.translatable(snapshot.viewingAll() ? "familytree.screen.tree.parent_removed"
+                : "familytree.screen.tree.parent_hidden", selected.name());
     }
 
     /** Large farm forests hold thousands of cards, so only cards on the canvas are drawn. */

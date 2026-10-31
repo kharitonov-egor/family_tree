@@ -1,9 +1,11 @@
 package com.egakh.familytree.plugin;
 
+import com.egakh.familytree.permissions.FamilyTreePermission;
 import com.egakh.familytree.plugin.command.FamilyTreeCommand;
 import com.egakh.familytree.plugin.menu.MenuManager;
 import com.egakh.familytree.plugin.network.ClientBridge;
 import com.egakh.familytree.plugin.storage.FamilyTreeStore;
+import com.egakh.familytree.plugin.storage.SaveQueue;
 import com.egakh.familytree.plugin.storage.StoreFiles;
 import com.egakh.familytree.plugin.text.Messages;
 import com.egakh.familytree.plugin.text.TextRenderer;
@@ -20,6 +22,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.WorldSaveEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -28,8 +31,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -49,7 +50,7 @@ public final class FamilyTreePlugin extends JavaPlugin implements Listener {
     private MenuManager menus;
     private ClientBridge bridge;
     private FamilyTreeCommand command;
-    private ExecutorService writer;
+    private SaveQueue saves;
 
     @Override
     public void onEnable() {
@@ -61,16 +62,12 @@ public final class FamilyTreePlugin extends JavaPlugin implements Listener {
                 sender -> bridge != null && sender instanceof Player player && bridge.hasClientMod(player)
                         && com.egakh.familytree.plugin.network.Payloads.hidesIsolates(player.getListeningPluginChannels()));
         cooldowns = new Cooldowns(this::settings);
-        writer = Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "Family Tree save");
-            thread.setDaemon(true);
-            return thread;
-        });
 
         World main = Bukkit.getWorlds().get(0);
         Path levelRoot = levelRoot(main.getWorldFolder().toPath());
         files = StoreFiles.forLevel(levelRoot, Files.isDirectory(levelRoot.resolve("dimensions/minecraft/overworld")));
         store = files.load(getLogger());
+        saves = new SaveQueue(files, getLogger());
         getLogger().info("Family Tree loaded " + store.all().size() + " records from " + files.file()
                 + (store.readOnly() ? " (read-only)" : "") + ". Text: " + renderer.description() + ".");
 
@@ -91,7 +88,7 @@ public final class FamilyTreePlugin extends JavaPlugin implements Listener {
         later(() -> {
             if (settings().discoverPetsOnLoad()) tracker.scanLoadedPets(record -> true);
         });
-        getServer().getScheduler().runTaskTimer(this, () -> save(false), AUTOSAVE_TICKS, AUTOSAVE_TICKS);
+        getServer().getScheduler().runTaskTimer(this, this::save, AUTOSAVE_TICKS, AUTOSAVE_TICKS);
     }
 
     @Override
@@ -99,14 +96,12 @@ public final class FamilyTreePlugin extends JavaPlugin implements Listener {
         if (menus != null) menus.closeAll();
         if (bridge != null) bridge.unregister();
         if (linkingStick != null) linkingStick.clear();
-        if (store != null && files != null) save(true);
-        if (writer != null) {
-            writer.shutdown();
-            try {
-                if (!writer.awaitTermination(30, TimeUnit.SECONDS)) getLogger().severe("Family Tree could not finish saving within 30 seconds");
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-            }
+        if (saves == null) return;
+        save();
+        try {
+            if (!saves.finish(30, TimeUnit.SECONDS)) getLogger().severe("Family Tree could not finish saving within 30 seconds");
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -129,9 +124,9 @@ public final class FamilyTreePlugin extends JavaPlugin implements Listener {
         return loaded.problems();
     }
 
-    /** Encodes on the main thread, then writes on a background thread. Shutdown writes on the calling thread. */
-    public void save(boolean now) {
-        if (!store.dirty()) return;
+    /** Encodes on the main thread, then writes on the save thread after any older write still queued. */
+    public void save() {
+        if (saves == null || !store.dirty()) return;
         byte[] bytes;
         try {
             bytes = StoreFiles.encode(store, dataVersion());
@@ -141,16 +136,9 @@ public final class FamilyTreePlugin extends JavaPlugin implements Listener {
         }
         store.markSaved();
         FamilyTreeStore saved = store;
-        Runnable write = () -> {
-            try {
-                files.write(bytes);
-            } catch (IOException | RuntimeException failure) {
-                getLogger().log(Level.SEVERE, "Could not save Family Tree history to " + files.file(), failure);
-                if (isEnabled()) getServer().getScheduler().runTask(this, saved::markDirty);
-            }
-        };
-        if (now || writer.isShutdown()) write.run();
-        else writer.execute(write);
+        saves.submit(bytes, () -> {
+            if (isEnabled()) getServer().getScheduler().runTask(this, saved::markDirty);
+        });
     }
 
     @SuppressWarnings("deprecation")
@@ -160,7 +148,14 @@ public final class FamilyTreePlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onWorldSave(WorldSaveEvent event) {
-        if (event.getWorld().equals(Bukkit.getWorlds().get(0))) save(false);
+        if (event.getWorld().equals(Bukkit.getWorlds().get(0))) save();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        Path unreadable = store.unreadableFile();
+        if (unreadable == null || files == null || !access.allowed(event.getPlayer(), FamilyTreePermission.RELOAD)) return;
+        chat.fail(event.getPlayer(), "familytree.save.unreadable", files.shown(unreadable));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

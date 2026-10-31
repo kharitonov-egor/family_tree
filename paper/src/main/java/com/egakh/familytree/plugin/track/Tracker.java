@@ -253,7 +253,7 @@ public final class Tracker {
         }
         Path backup;
         try {
-            backup = state.backup(plugin.files().backups(), "before-farm-cleanup-", false);
+            backup = state.backup(plugin.files().backups(), "before-farm-cleanup", false);
         } catch (IOException | RuntimeException failure) {
             plugin.getLogger().log(java.util.logging.Level.SEVERE, "Farm record cleanup canceled because the backup failed", failure);
             return 0;

@@ -27,7 +27,7 @@ Only the owner or an operator may locate, rename, link, or change a pet's age. P
 
 The linking stick uses `/familytree confirmlink` and `/familytree cancellink` through clickable chat buttons. Pending selections expire after two minutes. Clicking an animal other than a pet that isn't in the history adds it for you, unless the server doesn't record its species.
 
-Select a pet in the tree and use Add parents for a picker with a confirmation step. Pairing allows horse and donkey parents for a mule. Prune writes a JSON backup in the world before deleting records and cancels if the backup fails.
+Select a pet in the tree and use Add parents for a picker with a confirmation step. Pairing allows horse and donkey parents for a mule. Prune first says how many records it would remove; run the same command again with `confirm` at the end, such as `/familytree prune farm confirm`, to remove them. It then writes a JSON backup named by date and time in the world's `familytree-backups/` folder and cancels if the backup fails. Children of a removed animal keep its ID as a parent, and their trees mark the missing parent.
 
 ## Chest menu
 

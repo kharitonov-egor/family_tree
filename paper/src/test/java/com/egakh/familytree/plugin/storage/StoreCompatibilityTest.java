@@ -183,7 +183,7 @@ class StoreCompatibilityTest {
         FamilyTreeStore store = FamilyTreeStore.empty();
         store.put(new AnimalRecord(new UUID(0, 1), "minecraft:wolf", "Rex", true, null, null,
                 3, 4, true, 9L, null, null, null, null, null, null));
-        Path backup = store.backup(temp.resolve("familytree-backups"), "before-prune-", true);
+        Path backup = store.backup(temp.resolve("familytree-backups"), "before-prune", true);
         var json = com.google.gson.JsonParser.parseString(Files.readString(backup)).getAsJsonObject();
         assertEquals(1, json.get("data_version").getAsInt());
         var record = json.getAsJsonArray("records").get(0).getAsJsonObject();
@@ -191,6 +191,7 @@ class StoreCompatibilityTest {
         assertTrue(record.get("name_auto").getAsBoolean());
         assertTrue(record.get("deceased").getAsBoolean());
         assertEquals(9, record.get("death_world_day").getAsLong());
-        assertTrue(backup.getFileName().toString().startsWith("before-prune-"));
+        assertTrue(backup.getFileName().toString().matches("before-prune-\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.json"),
+                backup.getFileName().toString());
     }
 }

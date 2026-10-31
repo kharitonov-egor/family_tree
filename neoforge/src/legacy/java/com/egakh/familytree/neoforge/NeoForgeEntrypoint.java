@@ -56,6 +56,9 @@ public final class NeoForgeEntrypoint {
                 event.setCanceled(true);
             }
         });
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) -> {
+            if (event.getEntity() instanceof ServerPlayer player) com.egakh.familytree.data.SaveNotice.joined(player);
+        });
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) -> {
             FamilyTreePackets.disconnect(event.getEntity().getUUID()); LinkingTool.disconnect(event.getEntity().getUUID());
         });

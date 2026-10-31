@@ -9,6 +9,7 @@ import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.FamilyTreeSnapshotPayload;
 import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.util.KinshipText;
+import com.egakh.familytree.util.MissingParents;
 import com.egakh.familytree.util.PetNames;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -147,6 +148,8 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
             paragraph(KinshipText.inbreeding(PlanText.baby(plan.foalSpecies), plan.inbreeding), TEXT);
             paragraph(Component.translatable("familytree.planner.inbreeding.note"), MUTED);
         }
+        if (MissingParents.hasMissingAncestor(first, records::get) || MissingParents.hasMissingAncestor(second, records::get))
+            paragraph(Component.translatable("familytree.planner.ancestors_missing"), MUTED);
         gap();
         if (!plan.stats.isEmpty()) {
             heading(Component.translatable("familytree.planner.stats", PlanText.baby(plan.foalSpecies)));

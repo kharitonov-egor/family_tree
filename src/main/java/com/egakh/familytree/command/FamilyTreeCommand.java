@@ -96,9 +96,11 @@ public final class FamilyTreeCommand {
                 .then(Commands.literal("prune")
                         .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.PRUNE))
                         .then(Commands.literal("deceased")
-                                .executes(ctx -> runPruneDeceased(ctx.getSource())))
+                                .executes(ctx -> runPruneDeceased(ctx.getSource(), false))
+                                .then(Commands.literal("confirm").executes(ctx -> runPruneDeceased(ctx.getSource(), true))))
                         .then(Commands.literal("farm")
-                                .executes(ctx -> runPruneFarm(ctx.getSource())))
+                                .executes(ctx -> runPruneFarm(ctx.getSource(), false))
+                                .then(Commands.literal("confirm").executes(ctx -> runPruneFarm(ctx.getSource(), true))))
                         .then(Commands.literal("species")
                                 .then(Commands.argument("species_id", StringArgumentType.greedyString())
                                         .executes(ctx -> runPruneSpecies(
@@ -379,27 +381,43 @@ public final class FamilyTreeCommand {
         return result.totalTouched();
     }
 
-    private static int runPruneDeceased(CommandSourceStack source) {
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        if (!backupBeforePrune(source, state)) return 0;
-        int removed = state.removeMatching(AnimalRecord::deceased);
-        ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
-        return removed;
+    private static int runPruneDeceased(CommandSourceStack source, boolean confirmed) {
+        return runPrune(source, AnimalRecord::deceased, "deceased", confirmed);
     }
 
-    private static int runPruneFarm(CommandSourceStack source) {
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        if (!backupBeforePrune(source, state)) return 0;
-        int removed = state.removeMatching(record -> record.deceased() && FarmRecords.unnamedFarm(record));
-        ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
-        return removed;
+    private static int runPruneFarm(CommandSourceStack source, boolean confirmed) {
+        return runPrune(source, record -> record.deceased() && FarmRecords.unnamedFarm(record), "farm", confirmed);
     }
 
-    private static int runPruneSpecies(CommandSourceStack source, String speciesId) {
-        String normalized = speciesId.trim();
+    private static int runPruneSpecies(CommandSourceStack source, String argument) {
+        PruneRequest request = PruneRequest.species(argument);
+        return runPrune(source, record -> record.speciesId().equalsIgnoreCase(request.species()),
+                "species " + request.species(), request.confirmed());
+    }
+
+    /** The first run only counts the records and asks for {@code confirm}, which backs up and then removes them. */
+    private static int runPrune(CommandSourceStack source, java.util.function.Predicate<AnimalRecord> which,
+                                String what, boolean confirmed) {
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        if (state.readOnly()) {
+            ServerText.failure(source, Component.translatable("familytree.command.read_only"));
+            return 0;
+        }
+        long matching = state.all().stream().filter(which).count();
+        if (matching == 0) {
+            ServerText.failure(source, Component.translatable("familytree.command.prune.none"));
+            return 0;
+        }
+        if (!confirmed) {
+            String command = "/familytree prune " + what + " confirm";
+            Component link = Component.literal(command).withStyle(s -> s
+                    .withColor(ChatFormatting.AQUA)
+                    .withClickEvent(new ClickEvent.SuggestCommand(command)));
+            ServerText.success(source, () -> Component.translatable("familytree.command.prune.confirm", matching, link), false);
+            return 0;
+        }
         if (!backupBeforePrune(source, state)) return 0;
-        int removed = state.removeMatching(record -> record.speciesId().equalsIgnoreCase(normalized));
+        int removed = state.removeMatching(which);
         ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
         return removed;
     }
