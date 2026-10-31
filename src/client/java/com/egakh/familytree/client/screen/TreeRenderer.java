@@ -211,24 +211,28 @@ public final class TreeRenderer {
         return y;
     }
 
-    public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Node parent, TreeLayout.Node child,
-                                double panX, double panY, double zoom) {
-        drawEdge(gfx, parent, child, panX, panY, zoom, EDGE_COLOR, 1);
+    public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Edge edge, double panX, double panY, double zoom) {
+        drawEdge(gfx, edge, panX, panY, zoom, EDGE_COLOR, 1);
     }
 
-    public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Node parent, TreeLayout.Node child,
+    public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Edge edge,
                                 double panX, double panY, double zoom, int color, int thickness) {
-        int scaledNodeWidth = TreeViewport.nodeWidth(zoom);
-        int scaledNodeHeight = TreeViewport.nodeHeight(zoom);
-        int px = (int) Math.round(parent.x * zoom + panX + scaledNodeWidth / 2.0);
-        int py = (int) Math.round(parent.y * zoom + panY + scaledNodeHeight);
-        int cx = (int) Math.round(child.x * zoom + panX + scaledNodeWidth / 2.0);
-        int cy = (int) Math.round(child.y * zoom + panY);
-
-        int midY = (py + cy) / 2;
-        drawHLine(gfx, Math.min(px, cx), Math.max(px, cx), midY, color, thickness);
-        drawVLine(gfx, px, py, midY, color, thickness);
-        drawVLine(gfx, cx, midY, cy, color, thickness);
+        double[] route = edge.route();
+        int count = route.length / 2;
+        int[] xs = new int[count], ys = new int[count];
+        for (int i = 0; i < count; i++) {
+            xs[i] = (int) Math.round(route[i * 2] * zoom + panX);
+            ys[i] = (int) Math.round(route[i * 2 + 1] * zoom + panY);
+        }
+        // Both ends reach a pixel into the cards, which are drawn on top, so rounding never leaves a gap.
+        if (count > 1) {
+            ys[0] += ys[1] >= ys[0] ? -1 : 1;
+            ys[count - 1] += ys[count - 2] <= ys[count - 1] ? 1 : -1;
+        }
+        for (int i = 1; i < count; i++) {
+            if (ys[i] == ys[i - 1]) drawHLine(gfx, Math.min(xs[i], xs[i - 1]), Math.max(xs[i], xs[i - 1]), ys[i], color, thickness);
+            else drawVLine(gfx, xs[i], ys[i - 1], ys[i], color, thickness);
+        }
     }
 
     private static void drawHLine(GuiGraphicsExtractor gfx, int x1, int x2, int y, int color, int thickness) {
