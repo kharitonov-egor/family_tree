@@ -415,8 +415,10 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
 
     private void drawStatus(GuiGraphicsExtractor gfx) {
         if (status == null || statusTicks <= 0) return;
-        String text = trimToWidth(status.getString(), this.width - 32);
-        gfx.text(this.font, text, (this.width - this.font.width(text)) / 2, this.height - 12, statusColor);
+        String text = trimToWidth(status.getString(), this.width - 40);
+        int x = (this.width - this.font.width(text)) / 2;
+        gfx.fill(x - 4, this.height - 14, x + this.font.width(text) + 4, this.height - 2, 0xC0101418);
+        gfx.text(this.font, text, x, this.height - 12, statusColor);
     }
 
     @Override
