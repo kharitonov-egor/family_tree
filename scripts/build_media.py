@@ -102,16 +102,124 @@ def page(game_directory, recording, start):
     outputs.append(still(shots / 'media-sheep-variant.png', 'sheep-variant'))
     outputs.append(still(shots / 'media-jade.png', 'jade-tooltip', crop=(400, 0, 1200, 660), scale=1))
     outputs.append(still(shots / 'media-waypoint-world.png', 'journeymap-waypoint'))
-    outputs.append(still(shots / 'media-browser-search.png', 'browser-search'))
     if (shots / 'media-panda-variant.png').exists():
         outputs.append(still(shots / 'media-panda-variant.png', 'panda-variant'))
     export = Image.open(newest_export(game_directory)).convert('RGB')
     export.save(MEDIA / 'horse-family-export.png', optimize=True)
-    export.resize((800, round(export.height * 800 / export.width)), Image.Resampling.LANCZOS).save(
-        MEDIA / 'horse-family-export-small.webp', quality=90, method=6)
-    outputs += [MEDIA / 'horse-family-export.png', MEDIA / 'horse-family-export-small.webp']
+    outputs.append(MEDIA / 'horse-family-export.png')
     for path in outputs:
         print(f'{path.relative_to(ROOT)}: {path.stat().st_size // 1024} KiB')
+
+
+def server_page(shots, recording, start):
+    """Packages the two-player server capture: GUI-scale-2 screens halved, chest menus kept at full size."""
+    MEDIA.mkdir(parents=True, exist_ok=True)
+    def label(image, text):
+        out = Image.new('RGB', (image.width, image.height + 26), '#151b22')
+        ImageDraw.Draw(out).text((10, 5), text, font=font(15), fill='#e8e2d4')
+        out.paste(image, (0, 26))
+        return out
+    both = Image.open(shots / 'both-restart.png').convert('RGB')
+    top = label(both.crop((0, 0, 1600, 1000)).resize((800, 500), Image.Resampling.BOX),
+                'Alex, with Family Tree on the client: the tree screen')
+    bottom = label(both.crop((2000, 200, 2800, 700)), 'Kai, unmodded Minecraft 1.21.1: /familytree chest menu, same family')
+    stack = Image.new('RGB', (800, top.height + bottom.height + 4), '#0b0f14')
+    stack.paste(top, (0, 0))
+    stack.paste(bottom, (0, top.height + 4))
+    outputs = [MEDIA / 'server-two-players.webp']
+    stack.save(outputs[0], quality=88, method=6)
+    outputs.append(still(shots / 'k-book2.png', 'server-family-book', crop=(500, 0, 1300, 500), scale=1))
+    outputs.append(still(shots / 'k-viewonly-info.png', 'server-view-only', crop=(560, 200, 1360, 700), scale=1))
+    webp, gif = MEDIA / 'server-chest-menu.webp', MEDIA / 'server-chest-menu.gif'
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{start:.2f}', '-t', '11.4', '-i', str(recording),
+                    '-vf', 'fps=10,crop=800:560:400:150', '-c:v', 'libwebp_anim', '-quality', '70', '-compression_level', '6',
+                    '-loop', '0', str(webp)], check=True)
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{start:.2f}', '-t', '11.4', '-i', str(recording),
+                    '-vf', 'fps=8,crop=800:560:400:150,scale=640:-2:flags=area,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];'
+                           '[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle', '-loop', '0', str(gif)], check=True)
+    for path in outputs + [webp, gif]:
+        print(f'{path.relative_to(ROOT)}: {path.stat().st_size // 1024} KiB')
+
+
+def bold(size):
+    for path in ['/usr/share/fonts/truetype/clear-sans/ClearSans-Bold.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf']:
+        if Path(path).exists():
+            return ImageFont.truetype(path, size)
+    return font(size)
+
+
+def frames(recording, start, duration, crop=None, fps=30):
+    """Decodes part of a recording into RGB images at the clip's frame rate."""
+    vf = f'fps={fps}' + (f',crop={crop}' if crop else '')
+    raw = subprocess.run(['ffmpeg', '-loglevel', 'error', '-ss', f'{start:.2f}', '-t', f'{duration:.2f}', '-i', str(recording),
+                          '-vf', vf, '-f', 'image2pipe', '-vcodec', 'png', '-'], check=True, capture_output=True).stdout
+    images, marker = [], b'\x89PNG\r\n\x1a\n'
+    for chunk in raw.split(marker)[1:]:
+        images.append(Image.open(__import__('io').BytesIO(marker + chunk)).convert('RGB'))
+    return images
+
+
+def drift(image, count, zoom=0.06):
+    """A slow push-in on a still, so screenshots read as part of the clip."""
+    out = []
+    for i in range(count):
+        scale = 1 + zoom * i / max(1, count - 1)
+        w, h = image.width / scale, image.height / scale
+        box = ((image.width - w) / 2, (image.height - h) / 2, (image.width + w) / 2, (image.height + h) / 2)
+        out.append(image.resize(image.size, Image.Resampling.LANCZOS, box=box))
+    return out
+
+
+def showcase(page_directory, recording, start, server_recording, server_start, server_shots):
+    """Builds the 1080p landscape and vertical launch clips from the -Pmedia scene and the server capture."""
+    marks = timeline(page_directory / 'media-timeline.txt', start)
+    shots = page_directory / 'screenshots'
+    fps = 30
+    segments = [
+        ('Breed your animals.', frames(recording, marks['pair Clover x Pippin'] + 0.6, 5.0, fps=fps)),
+        ('Every baby joins the family tree.', frames(recording, marks['tree pan'] + 0.2, 7.5, fps=fps)),
+        ('See if a foal beat its parents.', drift(Image.open(shots / 'media-foal-stats.png').convert('RGB'), 3 * fps)),
+        ('Find out where its colors came from.', drift(Image.open(ROOT / 'build/media/run6/screenshots/media-panda-variant.png').convert('RGB'), 3 * fps)),
+        ('Works on servers, even without the mod.', frames(server_recording, server_start + 0.4, 5.5, crop='800:560:400:150', fps=fps)),
+        ('Export the family as a PNG.', drift(Image.open(newest_export(page_directory)).convert('RGB'), int(2.5 * fps), zoom=0.03)),
+    ]
+    note = 'Automated scenes with vanilla breeding, and a two-player server. Minecraft 26.3 and 1.21.1.'
+    out = ROOT / 'build/implementation/showcase'
+    for layout in ('landscape', 'vertical'):
+        directory = out / layout
+        shutil.rmtree(directory, ignore_errors=True)
+        directory.mkdir(parents=True)
+        index = 0
+        for caption, images in segments:
+            for image in images:
+                if layout == 'landscape':
+                    canvas = Image.new('RGB', (1920, 1080), '#0e1419')
+                    scale = min(1920 / image.width, 960 / image.height)
+                    shown = image.resize((round(image.width * scale), round(image.height * scale)), Image.Resampling.LANCZOS)
+                    canvas.paste(shown, ((1920 - shown.width) // 2, 1080 - 60 - shown.height))
+                    draw = ImageDraw.Draw(canvas)
+                    centered(draw, caption, 14, 1920, bold(48), '#f4ecd8')
+                    centered(draw, note + '  modrinth.com/mod/familytree', 1080 - 44, 1920, font(24), '#9fb0b8')
+                else:
+                    canvas = Image.new('RGB', (1080, 1920), '#0e1419')
+                    draw = ImageDraw.Draw(canvas)
+                    centered(draw, 'Family Tree', 170, 1080, bold(84), '#f4ecd8')
+                    centered(draw, 'for Minecraft', 270, 1080, font(40), '#c9bfa8')
+                    scale = min(1080 / image.width, 900 / image.height)
+                    shown = image.resize((round(image.width * scale), round(image.height * scale)), Image.Resampling.LANCZOS)
+                    canvas.paste(shown, ((1080 - shown.width) // 2, 400 + (900 - shown.height) // 2))
+                    centered(draw, caption, 1370, 1080, bold(50), '#f4ecd8')
+                    centered(draw, 'modrinth.com/mod/familytree', 1700, 1080, font(38), '#c9bfa8')
+                    centered(draw, 'Automated scenes with vanilla breeding,', 1790, 1080, font(26), '#8d9ea6')
+                    centered(draw, 'and a two-player server.', 1828, 1080, font(26), '#8d9ea6')
+                canvas.save(directory / f'{index:05}.png')
+                index += 1
+        name = 'family-tree-showcase' + ('' if layout == 'landscape' else '-vertical')
+        target = ROOT / 'docs/launch' / f'{name}.mp4'
+        target.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', str(directory / '%05d.png'),
+                        '-c:v', 'libx264', '-crf', '24', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', str(target)], check=True)
+        print(f'{target.relative_to(ROOT)}: {index / fps:.1f} s, {target.stat().st_size // 1024} KiB')
 
 
 def main():
@@ -122,7 +230,17 @@ def main():
     parser.add_argument('--page', type=Path, help='Package the -Pmedia scene from this game directory')
     parser.add_argument('--recording', type=Path, help='Screen recording of the -Pmedia run')
     parser.add_argument('--recording-start', type=int, help='Epoch milliseconds when the recording started')
+    parser.add_argument('--showcase', action='store_true', help='With --page, also build the launch clips')
+    parser.add_argument('--server-recording', type=Path, help="Recording of the unmodded client's chest menu")
+    parser.add_argument('--server-start', type=float, help='Seconds into that recording where the menu walkthrough starts')
+    parser.add_argument('--server-shots', type=Path, help='Screenshots from scripts/server_media.py; packages the server media')
     args = parser.parse_args()
+    if args.server_shots:
+        server_page(args.server_shots, args.server_recording, args.server_start)
+        return
+    if args.showcase:
+        showcase(args.page, args.recording, args.recording_start, args.server_recording, args.server_start, None)
+        return
     if args.page:
         page(args.page, args.recording, args.recording_start)
         return

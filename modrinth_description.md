@@ -1,60 +1,84 @@
-# Keep your first wolf in the family tree after it's gone
+# See who bred whom
 
-Family Tree records your Minecraft pets and the animals you breed, with their parents and descendants. Keep deceased pets in the family, find a missing pet's last known location, and export a tree as a PNG.
+![Panning and zooming across four generations of horses in the Family Tree screen](media:tree-tour)
 
-Install the matching file in singleplayer and press **H**. On a server, install Family Tree on the server for tracking and on your client for the screens. Use the same mod version on both sides. Players without the client mod can still use `/familytree`; see below. Fabric builds also need Fabric API and Fabric Loader 0.19.3 or newer. They run on Quilt Loader 0.30.1 or newer too, with Fabric API.
+*Four generations of horses in Minecraft 26.3. Vanilla AI bred every foal in an automated scene. The script tamed and named the eight founders and grew each foal up before the next generation.*
 
-![A pet family exported as a PNG](https://cdn.modrinth.com/data/CVQKDAe7/images/4f59a55c92124812e4c90f47cb8d795a8dd218e4.png)
+Family Tree records the parents of every animal you breed. Each foal, puppy, lamb, and cub joins a tree with both parents, so you can follow a line back through the generations, check whether a foal beat its parents' speed, jump, and health, and see where a pink lamb or a brown panda got its color. Press **H** to open it.
 
-Moss stays in Clover's tree after his death. This export comes from the automated vanilla-wolf scene below.
+It runs in singleplayer and on servers. Players who join a server without the mod can still browse their families with `/familytree`.
 
-![Vanilla wolves breed, then their family tree exports as a PNG](https://cdn.modrinth.com/data/CVQKDAe7/images/1abf61e1f198af7518de096a7d8a5919d5e53391.webp)
+Install the file for your Minecraft version and loader from the [table below](#choose-the-matching-file). Fabric builds need Fabric API and Fabric Loader 0.19.3 or newer. They also run on Quilt Loader 0.30.1 or newer with Fabric API.
 
-A 20-second automated scene in Minecraft 26.2. Vanilla feeding and AI breeding produce the actual puppy; Family Tree records the parents and keeps the deceased parent.
+## Works on servers
 
-## Works on servers without the client mod
+![Alex's tree screen above Kai's chest menu, both showing Pepper's family on one server](media:server-two-players)
 
-Players who join with an unmodded client type `/familytree` and get a chest menu. It lists their pets with spawn egg icons, names, age, and status, with filters for status and species and a name search. Click a pet to see its parents, grandparents, and children, then click a relative to move through the family. Owners can locate the pet in chat, rename it in an anvil, add parents with a picker, and read the family as a written book.
+*A Fabric 1.21.1 dedicated server running Family Tree 1.3.0, with two players online at once. Alex has the mod. Kai joined with unmodded Minecraft. Both views were taken after the server restarted.*
 
-The menus use the same permissions and cooldowns as the screens and never show coordinates. Items in them can't be taken, moved, or copied. Text follows each player's Minecraft language. Server owners can turn the menu off with `vanillaMenu=false` or add command names such as `commandAliases=pets` in `config/familytree-server.properties`. Players with the client mod keep the full screens.
+Install Family Tree on the server. It keeps every player's animals in the world save, and each player chooses how to look at them:
+
+- Players with Family Tree on their client press **H** for the full screens: the tree, search, horse stats, and PNG export.
+- Players without it type `/familytree` and get chest menus. They list the player's animals with filters and a name search, show each animal's parents, grandparents, and children, and turn a family into a written book. Menu text follows each player's game language.
+
+![Kai clicks Pepper in the chest menu, sees its parents and grandparents, then opens Biscuit](media:server-chest-menu)
+
+*Kai's unmodded client on the same server, with real clicks. The server console summoned and named the three wild wolves and grew Biscuit up. The players tamed and fed the wolves themselves, and vanilla AI bred Biscuit and Pepper.*
+
+Families can cross owners. In the images above, Alex's wolf Biscuit and Kai's wolf Juno had a puppy, Pepper, and both players see the whole family. Only an animal's owner or an operator can rename it, change its parents, or locate it. Everyone else gets a view-only page without coordinates. Items in the menus can't be taken, moved, or copied.
+
+![Kai's view of Alex's wolf, with no Locate, Rename, or Add parents](media:server-view-only)
+
+History lives in the world save, so it survives restarts and Family Tree updates. Pruning writes a JSON backup before it deletes anything, and Family Tree never deletes pets or named animals on its own.
+
+Server settings live in `config/familytree-server.properties`:
+
+- `viewPolicy` sets who can browse whose animals. With the default, `OP_ONLY_ALL`, players see their own animals and operators see everyone's. `EVERYONE_ALL` lets every player browse every family, as on the server above. `OWN_ONLY` limits everyone, operators included, to their own animals.
+- `vanillaMenu=false` turns the chest menus off. `commandAliases=pets,ft` adds `/pets` and `/ft`.
+- `trackFarmAnimals`, `trackWildlife`, `trackModdedAnimals`, `trackedSpecies`, and `ignoredSpecies` choose which animals join.
+- `farmRecordLimit`, 5,000 by default, caps unnamed farm animals. `autoPruneFarmRecords` is off by default. When on, it backs up the history and removes the oldest deceased unnamed farm animals.
+
+Use the same Family Tree version on the server and on modded clients.
 
 ## Breed better horses
 
-Every horse card shows speed, jump height, and health beside its parents. A green triangle marks a stat higher than both parents, and a red triangle marks one lower than both. Sort your horses by speed, jump, or health, and export the family with its stats.
+![Clover and Pippin breed after golden carrots, and the foal appears](media:horse-breeding)
 
-![A horse family exported with speed, jump, and health](https://cdn.modrinth.com/data/CVQKDAe7/images/e3b88ce556bec5416e211ad4238e962badac4f97.png)
+![Ember's stats beside both parents: a green triangle for jump and a red one for health](media:foal-stats)
 
-An automated scene in Minecraft 26.3. Two tamed horses ate golden carrots, and vanilla AI bred them. Ember's jump is lower than both parents'.
+*From the same automated 26.3 scene. The script led each pair together and fed them golden carrots; vanilla AI bred them. Ember jumps higher than both parents and has less health than either.*
 
-Stats cover horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Speed is in blocks per second, jump in blocks, and health in hearts. Llamas also show chest slots.
+Every horse card shows speed, jump height, and health. A green ▲ marks a stat higher than both parents, and a red ▼ marks one lower than both. Select a foal to compare each value with its parents', and sort the browser by speed, jump, or health to pick the next pair. Speed is in blocks per second, jump in blocks, and health in hearts.
 
-## Every animal you breed
+Stats cover horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Llamas also show chest slots. Horse and donkey parents can link to a mule.
+
+## Every animal you breed, and where its colors came from
+
+![A pink lamb's tree: a white and a red parent, and a note that their wool colors mixed](media:sheep-variant)
+
+![Cocoa, a brown panda whose parents each carried the brown gene hidden](media:panda-variant)
+
+*Automated 26.3 scenes where the player fed the animals and vanilla AI bred them. The pandas come from a separate run of the same scene, and the cub got its name from a name tag.*
 
 Breed cows, sheep, pigs, chickens, rabbits, goats, foxes, axolotls, frogs, bees, turtles, pandas, ocelots, hoglins, striders, sniffers, armadillos, or breedable animals from other mods, and the baby joins the tree with both parents. A name tag or the linking stick adds any other animal. Wild animals stay out until a player breeds, names, or adds them.
 
-Cards and exports show each animal's variant: wool color, axolotl, mooshroom, frog, and llama colors, panda genes, rabbit and fox types, and cow, pig, and chicken variants on 1.21.5 and newer. A gold ★ marks a blue axolotl, a brown mooshroom, or a brown panda. Select a baby to see how it got its variant, such as two wool colors mixing or a panda showing a gene its parents carried hidden.
+Cards and exports show each animal's variant: wool color, axolotl, mooshroom, frog, and llama colors, panda genes, rabbit and fox types, and cow, pig, and chicken variants on 1.21.5 and newer. A gold ★ marks a blue axolotl, a brown mooshroom, or a brown panda. Select a baby to see how it got its variant, such as two wool colors mixing or a panda showing a gene both parents carried hidden.
 
-![A pink lamb and its red and white parents exported as a PNG](https://raw.githubusercontent.com/kharitonov-egor/family_tree/main/docs/sheep-family-export.png)
+Pets join on their own: tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses, plus tamed nautiluses and zombie nautiluses on 1.21.11 and newer. Camels and skeleton trap horses join once a player rides or breeds them. Parrots have individual records and cannot breed in vanilla Minecraft.
 
-An automated scene in Minecraft 26.3. Two sheep named with name tags ate wheat, and vanilla AI bred a pink lamb.
+## Find any animal
 
-Servers choose which animals join in `config/familytree-server.properties` and can cap unnamed farm animals at a limit, 5,000 by default. Pets and named animals are always recorded. Cleanup of old unnamed farm animals is off unless the server turns it on, and it saves a backup first.
+![Switching between the Pets, Farm, and Wildlife tabs, then searching for blue](media:browser-tabs)
 
-## Start with the pets already in your world
+*The search finds a blue sheep and a blue axolotl. The axolotl was spawned blue for the scene and named with a name tag; it was not bred.*
 
-Visit your pets or choose **Find existing pets** to check loaded tamed animals. Older parents are unknown because Minecraft does not retain them. Open a pet, select it, and choose **Add parents** to record a family you remember. Breed pets while the mod is installed to record new children's parents automatically.
+Tabs separate pets, farm animals, wildlife, and modded animals once you have more than one kind. Search by name, species, or variant, filter living or deceased animals, and open one animal's tree or a whole species. Portraits show each animal's in-game model, so they match coats and wool colors. Tree names leave the animal's name tag unchanged.
 
-Pets join on their own: tamed wolves, cats, parrots, horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses, plus tamed nautiluses and zombie nautiluses on 1.21.11 and newer. Camels and skeleton trap horses join once a player rides or breeds them. Parrots have individual records and cannot breed in vanilla Minecraft. Horse and donkey parents can link to a mule.
-
-## Browse, find, and share
-
-Search by name, species, or variant, filter living or deceased animals, and open one animal's tree or a whole species. Tabs separate pets, farm animals, wildlife, and modded animals once you have more than one kind. Portraits show each animal's in-game model, so they match coats and wool colors. Wolves in 1.20.1 have one coat. Tree names leave the animal's name tag unchanged. Use **Refresh** to load births and edits that happened while the screen was open.
-
-**Locate pet** reports coordinates and dimension in chat. Unloaded pets show their last recorded location and day. The mod does not load chunks or teleport pets.
-
-**Export family tree** saves a PNG under `screenshots/familytree/`. Choose **Open folder** to find it. Export includes the displayed family beyond the screen edges. Hidden branches stay hidden. A focused tree shows up to six generations in either direction; the species view includes its recorded families. Exports omit player names and coordinates, and nothing uploads automatically.
+**Locate pet** reports coordinates and dimension in chat. Unloaded pets show their last recorded location and day. The mod does not load chunks or teleport pets. Animals that die keep their place in the tree, with the day and cause.
 
 ## Works with Jade, WTHIT, JourneyMap, Xaero's Minimap, and Mod Menu
+
+![A Jade tooltip on Nova: Family Tree name, parents, generation, and stats beside the parents' values](media:jade-tooltip)
 
 All optional. Family Tree doesn't bundle them and runs without them.
 
@@ -62,13 +86,21 @@ All optional. Family Tree doesn't bundle them and runs without them.
 - **JourneyMap and Xaero's Minimap.** **Waypoint** in a pet's tree adds a waypoint at the pet in JourneyMap. With Xaero's Minimap it shares the position in chat, and Xaero's **Add** link opens its waypoint form with the pet's name and position filled in. Tested with both on Fabric 26.3 and 1.21.8, NeoForge 1.21.1 and 1.21.4, and Forge 1.20.1.
 - **Mod Menu**, and the Config button in NeoForge's and Forge's mod list, open Family Tree's settings.
 
-Tooltips and waypoints follow Family Tree's permissions. They show only pets the player could open in Family Tree, and they never reveal other players' pet coordinates.
+![A JourneyMap waypoint beam over the paddock, added from Nova's tree](media:journeymap-waypoint)
 
-**For pack authors:** install Jade or WTHIT on the server too, so it sends family details for every animal a player looks at. The map and Mod Menu features are client-side. Settings are in `config/familytree-client.properties` on clients and `config/familytree-server.properties` on the server. WTHIT has no Minecraft 26.3 build yet.
+Tooltips and waypoints follow Family Tree's permissions. They show only animals the player could open in Family Tree, and they never reveal other players' pet coordinates. On a server, install Jade or WTHIT there too, so it sends family details for every animal a player looks at. WTHIT has no Minecraft 26.3 build yet.
 
-## Tell the developer what you think
+## Export the family as a PNG
 
-**Send feedback** in the Family Tree screen opens a form for a message, with an optional contact field if you'd like a reply. The form lists everything that will be sent: your message, the contact if given, the Family Tree, Minecraft, and loader versions, and the game language. Nothing is sent until you press **Send**, and Family Tree never sends anything on its own or in the background. The feedback server uses your IP address only to limit spam and leaves it out of the email.
+![Nova's four generations exported as a PNG with each horse's speed, jump, and health](media:horse-family-export)
+
+**Export family tree** saves a PNG under `screenshots/familytree/`, and **Open folder** shows it. The image includes the displayed family beyond the screen edges, at a fixed readable scale. Hidden branches stay hidden. A focused tree shows up to six generations in either direction. Exports omit player names and coordinates, and nothing uploads automatically.
+
+## Start with the animals you already have
+
+Visit your pets or choose **Find existing pets** to check loaded tamed animals. Minecraft does not keep older parentage, so their parents start unknown. Open a pet, select it, and choose **Add parents** to record parents you know. Breed while the mod is installed, and new babies get their parents automatically.
+
+The linking stick also works. Rename a stick to `familytree`, right-click two parents and a child, then confirm in chat. Links require distinct animals and cannot create ancestry loops.
 
 ## Choose the matching file
 
@@ -92,13 +124,7 @@ NeoForge and Forge builds do not need Fabric API. Players without Family Tree on
 
 Family Tree is translated into Simplified and Traditional Chinese, Japanese, Korean, Russian, Ukrainian, German, French, Italian, Spanish, Brazilian Portuguese, Polish, and Turkish. The translations are machine-made. Corrections are welcome as [GitHub issues](https://github.com/kharitonov-egor/family_tree/issues) or pull requests.
 
-![Choose and confirm known parents](https://cdn.modrinth.com/data/CVQKDAe7/images/ffa335f35d20cab921cdea37992bf823d38bd70f.webp)
-
-## Permissions and existing history
-
-Owners and operators can edit and locate their pets. The server can allow everyone to browse all families through `viewPolicy=EVERYONE_ALL` in `config/familytree-server.properties`. Public browsing does not reveal other players' pet coordinates or grant editing access.
-
-The linking stick remains available. Rename a stick to `familytree`, right-click two parents and a child, then confirm in chat. Links require distinct pets and cannot create ancestry loops.
+## Commands and history
 
 Commands correct ages and birth days, inspect records, and manage history. Name-based edits reject duplicate names and offer UUID choices. Operator pruning writes a backup first. See the [command guide](https://github.com/kharitonov-egor/family_tree/blob/main/docs/commands.md).
 
@@ -106,10 +132,14 @@ Version 1.3.0 preserves existing history and adds one optional field that record
 
 The new 1.3.0 builds for 1.21.4, 1.21.5, 1.21.8, and 1.21.10 ran in real game instances before release. The [release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.3.0/docs/releases/1.3.0.md) describe the changes.
 
+## Tell the developer what you think
+
+**Send feedback** in the Family Tree screen opens a form for a message, with an optional contact field if you'd like a reply. The form lists everything that will be sent: your message, the contact if given, the Family Tree, Minecraft, and loader versions, and the game language. Nothing is sent until you press **Send**, and Family Tree never sends anything on its own or in the background. The feedback server uses your IP address only to limit spam and leaves it out of the email.
+
 [Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.3.0/docs/releases/1.3.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
 
 ## Making a video or adding it to a pack?
 
-Try a short demo: tame two wolves, breed them, press **H**, open the puppy's tree, and export it. [Download the landscape clip](https://github.com/kharitonov-egor/family_tree/releases/download/v1.1.0/family-tree-gameplay.mp4) or [vertical clip](https://github.com/kharitonov-egor/family_tree/releases/download/v1.1.0/family-tree-gameplay-vertical.mp4). Both show an automated scene with actual vanilla breeding.
+The [creator guide](https://github.com/kharitonov-egor/family_tree/blob/main/docs/creator-guide.md) has demo ideas and a 25-second showcase clip in [landscape](https://github.com/kharitonov-egor/family_tree/raw/main/docs/launch/family-tree-showcase.mp4) and [vertical](https://github.com/kharitonov-egor/family_tree/raw/main/docs/launch/family-tree-showcase-vertical.mp4) formats. The clips show the automated scenes and the server described above.
 
 Naturalist 2.0.7 on NeoForge 1.21.1 was tested: bred deer joined the tree with both parents, and their portraits rendered. Other animal mods have not been tested. For a pack trial, check breeding, saved history after a restart, ownership permissions, and client export in a disposable world.

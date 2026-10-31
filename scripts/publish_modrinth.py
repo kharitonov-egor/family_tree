@@ -85,7 +85,7 @@ def main():
             (args.manifest.parent / 'modrinth-published.json').write_text(json.dumps(published, indent=2) + '\n')
             print('Verified Modrinth version:', item['version'], version['id'])
     if args.media:
-        sync_gallery(api, json.loads(args.media.read_text()), args.prune_gallery)
+        sync_gallery(api, published_media(args.media), args.prune_gallery)
     if args.fix_archive:
         for version_id in ['9j4QmEV4', 'tJWEkJby', 'jKecFBLl']:
             version = api.request('GET', f'version/{version_id}')
@@ -104,13 +104,18 @@ def main():
         print('Updated icon:', api.request('GET', f'project/{PROJECT}')['icon_url'])
     if args.update_page:
         page = json.loads((ROOT / 'docs/modrinth_page.json').read_text())
-        body = page_body(api, json.loads((ROOT / 'docs/media.json').read_text()))
+        body = page_body(api, published_media(ROOT / 'docs/media.json'))
         api.request('PATCH', f'project/{PROJECT}', {'title': page['title'], 'description': page['summary'],
             'categories': page['categories'], 'additional_categories': page['additional_categories'], 'body': body})
         project = api.request('GET', f'project/{PROJECT}')
         assert project['body'] == body and project['title'] == page['title'] and project['description'] == page['summary']
         assert sorted(project['categories']) == sorted(page['categories'])
         print('Verified project page:', 'https://modrinth.com/mod/familytree')
+
+
+def published_media(path):
+    """Media for features that haven't shipped carry hold_until with the release that ships them, and stay off the page."""
+    return [item for item in json.loads(path.read_text()) if 'hold_until' not in item]
 
 
 def gallery_url(item):

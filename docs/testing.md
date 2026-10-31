@@ -184,6 +184,32 @@ The `26.4-snapshot-6` target ran these checks on 2026-10-31. [The runbook](relea
 
 The demo runners press buttons through `Button.onPress` and send no mouse events. A real client is the only check for clicks on browser rows and the tree canvas. Run 26.x clients with `SDL_VIDEODRIVER=x11` and without `WAYLAND_DISPLAY`, write `onboardAccessibility:false` to `options.txt` before `--join-server`, and set `white-list=false` on 26.x dedicated servers, which enable the whitelist by default.
 
+## Page media
+
+The Modrinth and CurseForge pages, the README, and the launch clips use media from two captures. `docs/media.json` lists every gallery item with its caption, and `python scripts/publish_modrinth.py --media docs/media.json --prune-gallery --update-page` uploads it, deletes gallery items missing from it, and fills the `media:<key>` links in `modrinth_description.md` with the gallery's CDN URLs. `python scripts/curseforge_description.py` writes the CurseForge copy with GitHub-hosted images and GIF animations.
+
+### Singleplayer scene
+
+Make a superflat Minecraft 26.3 world with the vanilla server (`level-type=minecraft\:flat`, `generate-structures=false`) and copy it to `build/demo-26.3/saves/Family Tree demo/`. Set `guiScale:2` in `build/demo-26.3/options.txt`; halving a 1600x1000 screenshot then keeps Minecraft's font at its sharp 1x size. Record the Xvfb display while the scene runs:
+
+```sh
+ffmpeg -f x11grab -draw_mouse 0 -framerate 20 -video_size 1600x1000 -i :61.0 -c:v libx264 -preset ultrafast -crf 12 -pix_fmt yuv444p build/media/rec.mkv &
+date +%s%3N > build/media/rec.start
+env -u WAYLAND_DISPLAY SDL_VIDEODRIVER=x11 DISPLAY=:61 ./gradlew :26.3:runDemo -Pdemo -Pmedia -Pintegrations=jade,journeymap -PdemoUser=Alex --no-parallel
+```
+
+`MediaCapture` tames and names eight horses, leads one pair at a time together, and feeds them golden carrots. Vanilla AI breeds every foal. Between generations it names each foal with a name tag, grows it up, and tames it, until four generations end in Nova. It then breeds sheep one pair at a time, because sheep in love pair with the nearest partner and breed through fences, and feeds pandas that carry the brown gene hidden. A blue axolotl is spawned blue. The browser, tree, export, Jade, and JourneyMap shots follow, and `media-timeline.txt` records when each shot starts. A brown cub is a 1 in 4 chance per birth, so `-PmediaOnly=pandas` repeats only the panda part. Then:
+
+```sh
+python scripts/build_media.py --page build/demo-26.3 --recording build/media/rec.mkv --recording-start $(cat build/media/rec.start)
+```
+
+### Two players on a server
+
+`scripts/server_media.py` drives a Fabric 1.21.1 dedicated server in `build/server-media/server/` with the release jar, Fabric API, and `viewPolicy=EVERYONE_ALL`, plus two portablemc clients: Alex with Family Tree and Kai unmodded. Both windows share one 3200x1000 Xvfb screen on `:61`. A two-screen Xvfb crashed when a client closed, and GLFW then fell back to the desktop's Wayland session, so the script gives each client a private `XDG_RUNTIME_DIR` and `XDG_SESSION_TYPE=x11`.
+
+The console summons three wild wolves with names. The players tame them with bones (`tame`), Alex feeds his pair beef, and vanilla AI breeds a puppy that Alex names with a name tag. The console grows it up, then Alex and Kai each feed one wolf and vanilla AI breeds Pepper, which Kai names. The screenshots cover Alex's tree screen, Kai's `/familytree` list, family, book, and a view-only page for Alex's wolf, and both views after `server stop`, `server start`, and both clients rejoining. `python scripts/build_media.py --server-shots build/server-media/shots --server-recording <Kai's recording> --server-start <seconds>` packages them, and `--showcase` with the singleplayer inputs renders the launch clips in `docs/launch/`.
+
 ## Release packaging
 
 After testing and committing source, run `python scripts/release_manifest.py`. It checks Minecraft metadata, Java class versions, license, icon, and development-class exclusions, then copies the tested artifacts and records hashes under `build/releases/<mod-version>/`. Publish those files with `scripts/publish_modrinth.py --manifest <path-to-manifest>`. Snapshot targets stay out of the manifest unless `--snapshots` is passed, which marks them alpha. The publisher rejects files whose hashes changed after verification.
