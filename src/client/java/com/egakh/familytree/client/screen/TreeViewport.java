@@ -13,7 +13,7 @@ final class TreeViewport {
 
     /**
      * Fits the tree inside the canvas. When it is too large to fit at {@link #MIN_FIT_ZOOM}, centers on {@code anchor}, or
-     * shows the top left of the tree without one, and returns false.
+     * puts the first card of the top row in the top left corner without one, and returns false.
      */
     boolean fit(TreeLayout.Result tree, TreeLayout.Node anchor, int left, int right, int top, int bottom) {
         if (tree.nodes.isEmpty()) return true;
@@ -29,10 +29,14 @@ final class TreeViewport {
         }
         if (anchor != null) {
             center(anchor.x + TreeLayout.NODE_WIDTH / 2.0, anchor.y + TreeLayout.NODE_HEIGHT / 2.0, left, right, top, bottom);
-        } else {
-            panX = left + padding - tree.minX * zoom;
-            panY = top + padding - tree.minY * zoom;
+            return false;
         }
+        TreeLayout.Node first = tree.nodes.get(0);
+        for (TreeLayout.Node node : tree.nodes) {
+            if (node.y < first.y || (node.y == first.y && node.x < first.x)) first = node;
+        }
+        panX = left + padding - first.x * zoom;
+        panY = top + padding - first.y * zoom;
         return false;
     }
 

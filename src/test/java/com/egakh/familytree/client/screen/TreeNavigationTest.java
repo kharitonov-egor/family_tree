@@ -78,8 +78,17 @@ class TreeNavigationTest {
         assertEquals(138, (anchor.y + TreeLayout.NODE_HEIGHT / 2.0) * camera.zoom + camera.panY, 0.001);
 
         assertFalse(camera.fit(tree, null, 0, 320, 58, 218));
-        assertTrue(tree.minX * camera.zoom + camera.panX > 0);
-        assertTrue(tree.minY * camera.zoom + camera.panY > 58);
+        TreeLayout.Node first = tree.nodes.stream().min(java.util.Comparator.comparingDouble((TreeLayout.Node node) -> node.y)
+                .thenComparingDouble(node -> node.x)).orElseThrow();
+        assertEquals(13, first.x * camera.zoom + camera.panX, 0.001);
+        assertEquals(71, first.y * camera.zoom + camera.panY, 0.001);
+    }
+
+    @Test
+    void aPageOfFortyUnrelatedPetsFitsAWindowAtTheReadableZoom() {
+        for (int i = 0; i < 40; i++) pet(null, null);
+        TreeViewport camera = new TreeViewport();
+        assertTrue(camera.fit(forest(), null, 0, 800, 76, 468), "Fit zoomed to " + camera.zoom);
     }
 
     @Test

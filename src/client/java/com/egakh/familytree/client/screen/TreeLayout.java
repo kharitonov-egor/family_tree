@@ -191,8 +191,8 @@ public final class TreeLayout {
             widest = Math.max(widest, width);
             area += (width + FOREST_GAP) * (height + FOREST_GAP);
         }
-        // A farm can hold hundreds of separate families. Past a few dozen cards, wrap them into rows instead of one strip.
-        double maxRowWidth = rowWidth <= MAX_SINGLE_ROW_WIDTH ? rowWidth : Math.max(widest, Math.sqrt(area) * 2);
+        // A farm can hold hundreds of separate families. Past a few dozen cards, wrap them into rows about as wide as a screen.
+        double maxRowWidth = rowWidth <= MAX_SINGLE_ROW_WIDTH ? rowWidth : Math.max(widest, Math.sqrt(area) * 1.6);
         double xOffset = 0.0, yOffset = 0.0, rowHeight = 0.0;
 
         for (Result componentLayout : layouts) {
