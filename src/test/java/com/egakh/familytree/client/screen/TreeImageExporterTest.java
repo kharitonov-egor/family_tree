@@ -67,7 +67,8 @@ class TreeImageExporterTest {
         var marked = TreeImageExporter.prepare(tree, "Lamb", note + "\nFamily Tree",
                 p -> "", p -> "Alive", p -> null, p -> List.of(), p -> false, null,
                 p -> com.egakh.familytree.util.MissingParents.hasMissingParent(p, records::get));
-        assertEquals(List.of(false, true), marked.cards().stream().map(TreeImageExporter.Card::missingParent).toList());
+        assertEquals(Map.of("Clover", false, "Lamb", true), marked.cards().stream()
+                .collect(java.util.stream.Collectors.toMap(TreeImageExporter.Card::name, TreeImageExporter.Card::missingParent)));
         assertTrue(marked.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "the note wraps above the footer");
         var image = TreeImageExporter.render(marked);
         assertEquals(marked.height(), image.getHeight());

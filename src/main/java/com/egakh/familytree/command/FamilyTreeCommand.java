@@ -27,6 +27,8 @@ import com.egakh.familytree.util.VariantText;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -93,19 +95,7 @@ public final class FamilyTreeCommand {
                         .executes(ctx -> denied(ctx.getSource(), FamilyTreePermission.SCAN) ? 0 : runScan(ctx.getSource())))
                 .then(Commands.literal("confirmlink").executes(ctx -> LinkingTool.confirm(ctx.getSource())))
                 .then(Commands.literal("cancellink").executes(ctx -> LinkingTool.cancel(ctx.getSource())))
-                .then(Commands.literal("prune")
-                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.PRUNE))
-                        .then(Commands.literal("deceased")
-                                .executes(ctx -> runPruneDeceased(ctx.getSource(), false))
-                                .then(Commands.literal("confirm").executes(ctx -> runPruneDeceased(ctx.getSource(), true))))
-                        .then(Commands.literal("farm")
-                                .executes(ctx -> runPruneFarm(ctx.getSource(), false))
-                                .then(Commands.literal("confirm").executes(ctx -> runPruneFarm(ctx.getSource(), true))))
-                        .then(Commands.literal("species")
-                                .then(Commands.argument("species_id", StringArgumentType.greedyString())
-                                        .executes(ctx -> runPruneSpecies(
-                                                ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "species_id"))))))
+                .then(pruneCommand())
                 .then(Commands.literal("breed")
                         .then(Commands.argument("first", StringArgumentType.string())
                                 .then(Commands.argument("second", StringArgumentType.string())
@@ -381,6 +371,25 @@ public final class FamilyTreeCommand {
         return result.totalTouched();
     }
 
+    /**
+     * The node is checked in the body, so a denied player gets Family Tree's message instead of an unknown command.
+     * Plain Brigadier builders keep this testable: loading {@code Commands} needs Minecraft's registries.
+     */
+    static LiteralArgumentBuilder<CommandSourceStack> pruneCommand() {
+        return LiteralArgumentBuilder.<CommandSourceStack>literal("prune")
+                .then(LiteralArgumentBuilder.<CommandSourceStack>literal("deceased")
+                        .executes(ctx -> runPruneDeceased(ctx.getSource(), false))
+                        .then(LiteralArgumentBuilder.<CommandSourceStack>literal("confirm")
+                                .executes(ctx -> runPruneDeceased(ctx.getSource(), true))))
+                .then(LiteralArgumentBuilder.<CommandSourceStack>literal("farm")
+                        .executes(ctx -> runPruneFarm(ctx.getSource(), false))
+                        .then(LiteralArgumentBuilder.<CommandSourceStack>literal("confirm")
+                                .executes(ctx -> runPruneFarm(ctx.getSource(), true))))
+                .then(LiteralArgumentBuilder.<CommandSourceStack>literal("species")
+                        .then(RequiredArgumentBuilder.<CommandSourceStack, String>argument("species_id", StringArgumentType.greedyString())
+                                .executes(ctx -> runPruneSpecies(ctx.getSource(), StringArgumentType.getString(ctx, "species_id")))));
+    }
+
     private static int runPruneDeceased(CommandSourceStack source, boolean confirmed) {
         return runPrune(source, AnimalRecord::deceased, "deceased", confirmed);
     }
@@ -398,6 +407,7 @@ public final class FamilyTreeCommand {
     /** The first run only counts the records and asks for {@code confirm}, which backs up and then removes them. */
     private static int runPrune(CommandSourceStack source, java.util.function.Predicate<AnimalRecord> which,
                                 String what, boolean confirmed) {
+        if (denied(source, FamilyTreePermission.PRUNE)) return 0;
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
         if (state.readOnly()) {
             ServerText.failure(source, Component.translatable("familytree.command.read_only"));
