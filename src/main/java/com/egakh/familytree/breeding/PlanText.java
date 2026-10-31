@@ -102,7 +102,10 @@ public final class PlanText {
             case MARKINGS -> VariantText.horseMarkings(variant);
             case LOOK, VARIANT -> VariantText.label(species, variant);
         };
-        return label == null ? Component.literal(VariantRules.humanize(variant)) : label;
+        if (label != null) return label;
+        String coat = VariantRules.coatKey(species, variant);
+        return coat == null ? Component.literal(VariantRules.humanize(variant))
+                : Component.translatableWithFallback(coat, VariantRules.humanize(variant));
     }
 
     public static Component title(VariantOdds.Kind kind) {
@@ -112,7 +115,6 @@ public final class PlanText {
     public static Component note(VariantOdds.Note note) {
         return switch (note) {
             case NONE -> null;
-            case EITHER_PARENT -> Component.translatable("familytree.planner.note.either_parent");
             case FROG_BIOME -> Component.translatable("familytree.planner.note.frog");
             case RABBIT_BIOME -> Component.translatable("familytree.planner.note.rabbit");
             case MODDED -> Component.translatable("familytree.planner.note.modded");

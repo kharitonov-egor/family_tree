@@ -21,7 +21,7 @@ public final class VariantOdds {
     /** {@code unpredictable} is the share decided by something Family Tree can't know, such as the biome. */
     public record Group(Kind kind, List<Chance> chances, double unpredictable) {}
 
-    public enum Note { NONE, EITHER_PARENT, FROG_BIOME, RABBIT_BIOME, MODDED, UNKNOWN_PARENT }
+    public enum Note { NONE, FROG_BIOME, RABBIT_BIOME, MODDED, UNKNOWN_PARENT }
 
     public record Result(List<Group> groups, Note note) {
         static final Result NOTHING = new Result(List.of(), Note.NONE);
@@ -69,7 +69,8 @@ public final class VariantOdds {
                 return new Result(List.of(), Note.FROG_BIOME);
             case "minecraft:cat":
             case "minecraft:wolf":
-                return variantA == null && variantB == null ? Result.NOTHING : new Result(List.of(), Note.EITHER_PARENT);
+                // 1.20.1 wolves have one coat, so neither parent has a variant there.
+                return variantA == null && variantB == null ? Result.NOTHING : eitherParent(Kind.VARIANT, variantA, variantB);
             default:
                 break;
         }

@@ -15,34 +15,51 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 
-/** A written book describing one pet's family. A page holds 14 short lines, so long lists continue on new pages. */
-record FamilyBook(ItemStack stack, int pages) {
-    private static final int CHILDREN_PER_PAGE = 10;
+/** A written book describing one pet's family. Children continue on new pages when a page is full. */
+final class FamilyBook {
     private static final int NAME_LENGTH = 24;
     private static final int TITLE_LENGTH = 32;
 
-    static FamilyBook build(String language, AnimalRecord pet, Function<UUID, AnimalRecord> lookup,
-                            List<AnimalRecord> children, long currentDay) {
+    private FamilyBook() {}
+
+    static ItemStack build(String language, AnimalRecord pet, Function<UUID, AnimalRecord> lookup,
+                           List<AnimalRecord> children, int hiddenChildren, long currentDay) {
         List<Component> pages = new ArrayList<>();
         pages.add(overview(pet, currentDay));
         pages.add(ancestors(pet, lookup));
-        if (children.isEmpty()) {
-            pages.add(heading(Component.translatable("familytree.book.children", 0))
-                    .append(line(Component.translatable("familytree.book.none").withStyle(ChatFormatting.DARK_GRAY))));
-        }
-        for (int start = 0; start < children.size(); start += CHILDREN_PER_PAGE) {
-            MutableComponent page = heading(Component.translatable("familytree.book.children", children.size()));
-            for (AnimalRecord child : children.subList(start, Math.min(children.size(), start + CHILDREN_PER_PAGE)))
-                page.append(line(nameOf(child)));
-            pages.add(page);
-        }
+        pages.addAll(children(language, children, hiddenChildren));
         List<Component> localized = new ArrayList<>(pages.size());
         for (Component page : pages) localized.add(ServerText.localize(language, page));
-        return new FamilyBook(MenuItems.writtenBook(trim(pet.name(), TITLE_LENGTH), "Family Tree", localized), localized.size());
+        return MenuItems.writtenBook(MenuText.trim(pet.name(), TITLE_LENGTH), "Family Tree", localized);
+    }
+
+    /** Children the player can't view are counted, so a page never claims none were recorded when some were. */
+    static List<Component> children(String language, List<AnimalRecord> children, int hiddenChildren) {
+        Component heading = Component.translatable("familytree.book.children", children.size() + hiddenChildren);
+        List<Component> lines = new ArrayList<>();
+        for (AnimalRecord child : children) lines.add(nameOf(child));
+        if (hiddenChildren > 0)
+            lines.add(Component.translatable("familytree.menu.children.hidden", hiddenChildren).withStyle(ChatFormatting.DARK_GRAY));
+        if (lines.isEmpty()) lines.add(Component.translatable("familytree.book.none").withStyle(ChatFormatting.DARK_GRAY));
+        int headingLines = MenuText.bookLines(ServerText.plain(language, heading), true);
+        List<Component> pages = new ArrayList<>();
+        MutableComponent page = null;
+        int used = 0;
+        for (Component line : lines) {
+            int height = MenuText.bookLines(ServerText.plain(language, line), false);
+            if (page == null || used + height > MenuText.BOOK_LINES) {
+                page = heading(heading);
+                pages.add(page);
+                used = headingLines;
+            }
+            page.append(line(line));
+            used += height;
+        }
+        return pages;
     }
 
     private static Component overview(AnimalRecord pet, long currentDay) {
-        MutableComponent page = Component.literal(trim(pet.name(), NAME_LENGTH)).withStyle(ChatFormatting.BOLD);
+        MutableComponent page = Component.literal(MenuText.trim(pet.name(), NAME_LENGTH)).withStyle(ChatFormatting.BOLD);
         page.append(line(MenuItems.speciesName(pet.speciesId())));
         page.append(line(Component.translatable(pet.deceased() ? "familytree.screen.status.deceased" : "familytree.screen.status.alive")
                 .withStyle(pet.deceased() ? ChatFormatting.DARK_RED : ChatFormatting.DARK_GREEN)));
@@ -89,14 +106,6 @@ record FamilyBook(ItemStack stack, int pages) {
 
     private static Component nameOf(AnimalRecord pet) {
         if (pet == null) return Component.translatable("familytree.book.unknown").withStyle(ChatFormatting.DARK_GRAY);
-        return Component.literal(trim(pet.name(), NAME_LENGTH)).withStyle(pet.deceased() ? ChatFormatting.DARK_GRAY : ChatFormatting.BLACK);
-    }
-
-    /** Book titles allow 32 characters. Cut at a code point so names with emoji stay valid. */
-    private static String trim(String text, int max) {
-        if (text.length() <= max) return text;
-        int end = max - 1;
-        if (Character.isHighSurrogate(text.charAt(end - 1))) end--;
-        return text.substring(0, end) + "…";
+        return Component.literal(MenuText.trim(pet.name(), NAME_LENGTH)).withStyle(pet.deceased() ? ChatFormatting.DARK_GRAY : ChatFormatting.BLACK);
     }
 }

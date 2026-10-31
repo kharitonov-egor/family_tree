@@ -2,10 +2,97 @@ package com.egakh.familytree.menu;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 
-/** Tooltip line breaking for the chest menus, without Minecraft classes so the plugin shares it. */
+/** Tooltip line breaking and book layout for the chest menus, without Minecraft classes so the plugin shares it. */
 public final class MenuText {
+    /** A book page shows 14 lines of 9 pixels in a text area 114 pixels wide, on every supported version. */
+    public static final int BOOK_LINES = 14;
+    private static final int BOOK_WIDTH = 114;
+
     private MenuText() {}
+
+    /** Cuts text to at most {@code max} UTF-16 units, ending in an ellipsis, without splitting a surrogate pair. */
+    public static String trim(String text, int max) {
+        if (text.length() <= max) return text;
+        int end = max - 1;
+        if (Character.isHighSurrogate(text.charAt(end - 1))) end--;
+        return text.substring(0, end) + "…";
+    }
+
+    /**
+     * The number of lines a paragraph takes on a book page. It breaks lines the way the game does, at the last space
+     * that fits, using the default font's widths. Characters outside ASCII count as wide as the widest letters.
+     */
+    public static int bookLines(String text, boolean bold) {
+        int[] points = text.codePoints().toArray();
+        int lines = 0;
+        int start = 0;
+        do {
+            lines++;
+            int width = 0, lastSpace = -1, next = points.length;
+            boolean drawn = false;
+            for (int i = start; i < points.length; i++) {
+                int point = points[i];
+                if (point == '\n') {
+                    next = i + 1;
+                    break;
+                }
+                if (point == ' ') lastSpace = i;
+                width += advance(point) + (bold ? 1 : 0);
+                if (drawn && width > BOOK_WIDTH) {
+                    next = lastSpace >= 0 ? lastSpace + 1 : i;
+                    break;
+                }
+                drawn = true;
+            }
+            start = next;
+        } while (start < points.length);
+        return lines;
+    }
+
+    private static int advance(int point) {
+        if (point < 128) {
+            if ("!',.:;i|".indexOf(point) >= 0) return 2;
+            if ("`l".indexOf(point) >= 0) return 3;
+            if (" \"()*I[]t{}".indexOf(point) >= 0) return 4;
+            if ("<>fk".indexOf(point) >= 0) return 5;
+            if (point == '@' || point == '~') return 7;
+            return 6;
+        }
+        return wide(point) || point > 0xFFFF ? 9 : 6;
+    }
+
+    /**
+     * Puts paragraphs on book pages, a blank line apart. A section moves to a new page when the rest of the current
+     * page can't hold it, and splits between paragraphs only when it is longer than a page.
+     */
+    public static <T> List<List<T>> bookPages(List<List<T>> sections, ToIntFunction<T> lines) {
+        List<List<T>> pages = new ArrayList<>();
+        List<T> page = new ArrayList<>();
+        int used = 0;
+        for (List<T> section : sections) {
+            int needed = -1;
+            for (T paragraph : section) needed += 1 + lines.applyAsInt(paragraph);
+            if (!page.isEmpty() && needed <= BOOK_LINES && used + 1 + needed > BOOK_LINES) {
+                pages.add(page);
+                page = new ArrayList<>();
+                used = 0;
+            }
+            for (T paragraph : section) {
+                int height = lines.applyAsInt(paragraph);
+                if (!page.isEmpty() && used + 1 + height > BOOK_LINES) {
+                    pages.add(page);
+                    page = new ArrayList<>();
+                    used = 0;
+                }
+                used += page.isEmpty() ? height : 1 + height;
+                page.add(paragraph);
+            }
+        }
+        if (!page.isEmpty()) pages.add(page);
+        return pages;
+    }
 
     /** Breaks text into tooltip lines. Wide CJK characters count as two columns. */
     public static List<String> wrap(String text, int columns) {

@@ -4,6 +4,7 @@ import com.egakh.familytree.breeding.BreedingPair;
 import com.egakh.familytree.breeding.BreedingPlan;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.HorseStats;
+import com.egakh.familytree.menu.FamilyIndex;
 import com.egakh.familytree.menu.MenuText;
 import com.egakh.familytree.naming.PetRenaming;
 import com.egakh.familytree.permissions.FamilyTreePermission;
@@ -16,7 +17,6 @@ import com.egakh.familytree.plugin.network.Payloads.RelativesResult;
 import com.egakh.familytree.plugin.storage.FamilyTreeStore;
 import com.egakh.familytree.plugin.text.GameText;
 import com.egakh.familytree.plugin.text.Messages;
-import com.egakh.familytree.plugin.text.PlanLines;
 import com.egakh.familytree.plugin.text.Text;
 import com.egakh.familytree.plugin.text.VanillaLang;
 import com.egakh.familytree.util.AnimalCategory;
@@ -30,12 +30,9 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -54,10 +51,8 @@ final class MenuSession {
     private static final int[][] GRANDPARENTS = {{0, 2}, {6, 8}};
     private static final int TOOLTIP_COLUMNS = 40;
     private static final int MAX_QUERY = 64;
-    private static final int MAX_RECORDS = 100_000;
+    private static final int TITLE_LENGTH = 32;
     private static final long ACTION_INTERVAL_NANOS = 50_000_000L;
-    private static final Comparator<AnimalRecord> BY_NAME = Comparator
-            .comparing(AnimalRecord::name, String.CASE_INSENSITIVE_ORDER).thenComparing(AnimalRecord::id);
 
     private enum Filter {
         ALL("familytree.screen.filter.all"), ALIVE("familytree.screen.filter.alive"), DECEASED("familytree.screen.filter.deceased");
@@ -81,9 +76,7 @@ final class MenuSession {
     private int page;
     private int childPage;
     private int pickerPage;
-    private List<UUID> visible = List.of();
-    private List<String> speciesOrder = List.of();
-    private Map<UUID, List<UUID>> children = Map.of();
+    private FamilyIndex index = FamilyIndex.empty();
     private List<UUID> filtered;
     private final Deque<UUID> history = new ArrayDeque<>();
     private String notice;
@@ -93,7 +86,7 @@ final class MenuSession {
         this.manager = manager;
         this.plugin = manager.plugin();
         this.player = player;
-        refreshAccess();
+        readAccess();
         this.viewingAll = canViewAll;
     }
 
@@ -117,7 +110,13 @@ final class MenuSession {
         return plugin.chat().language(player);
     }
 
+    /** Every action reads the player's permissions again, and rebuilds the index when the view grant changed. */
     private void refreshAccess() {
+        readAccess();
+        if (viewAll() != index.viewAll()) reindex();
+    }
+
+    private void readAccess() {
         canViewAll = plugin.access().viewAll(player);
         operator = plugin.access().manageAll(player);
         mayScan = plugin.access().allowed(player, FamilyTreePermission.SCAN);
@@ -133,37 +132,14 @@ final class MenuSession {
     }
 
     void reload() {
-        refreshAccess();
-        UUID me = player.getUniqueId();
-        List<AnimalRecord> records = state().all().stream()
-                .filter(record -> PetAccess.canView(record, me, viewAll()))
-                .sorted(BY_NAME).limit(MAX_RECORDS).toList();
-        Set<UUID> ids = new HashSet<>();
-        for (AnimalRecord record : records) ids.add(record.id());
-        List<UUID> sorted = new ArrayList<>(records.size());
-        Map<UUID, List<UUID>> index = new HashMap<>();
-        Set<String> kinds = new LinkedHashSet<>();
-        for (AnimalRecord record : records) {
-            sorted.add(record.id());
-            kinds.add(record.speciesId());
-            for (UUID parent : new LinkedHashSet<>(Arrays.asList(record.parentA(), record.parentB()))) {
-                if (parent != null && ids.contains(parent)) index.computeIfAbsent(parent, key -> new ArrayList<>()).add(record.id());
-            }
-        }
-        visible = sorted;
-        children = index;
-        speciesOrder = kinds.stream().sorted(Comparator.comparing(MenuSession::speciesSortKey)).toList();
-        if (species != null && !speciesOrder.contains(species)) species = null;
-        filtered = null;
+        readAccess();
+        reindex();
     }
 
-    private static String speciesSortKey(String speciesId) {
-        return switch (speciesId) {
-            case "minecraft:wolf" -> "0";
-            case "minecraft:cat" -> "1";
-            case "minecraft:parrot" -> "2";
-            default -> "3" + speciesId;
-        };
+    private void reindex() {
+        index = FamilyIndex.build(state().all(), player.getUniqueId(), viewAll());
+        if (species != null && !index.species().contains(species)) species = null;
+        filtered = null;
     }
 
     private AnimalRecord view(UUID id) {
@@ -180,7 +156,7 @@ final class MenuSession {
         if (filtered != null) return filtered;
         String needle = query.toLowerCase(Locale.ROOT);
         List<UUID> result = new ArrayList<>();
-        for (UUID id : visible) {
+        for (UUID id : index.visible()) {
             AnimalRecord pet = view(id);
             if (pet == null || !filter.accepts(pet) || species != null && !species.equals(pet.speciesId())) continue;
             if (!needle.isEmpty() && !matches(pet, needle)) continue;
@@ -226,7 +202,7 @@ final class MenuSession {
             });
         }
         if (list.isEmpty()) menu.put(FOCUS, wrapped(Material.PAPER,
-                visible.isEmpty() ? "familytree.screen.empty" : "familytree.screen.no_matches"), null);
+                index.visible().isEmpty() ? "familytree.screen.empty" : "familytree.screen.no_matches"), null);
         if (shownPage > 0) menu.put(PREVIOUS, button(Material.ARROW, text("familytree.menu.previous"),
                 pageLine(shownPage, pages)), () -> { page--; showBrowser(); });
         if (shownPage < pages - 1) menu.put(NEXT, button(Material.ARROW, text("familytree.menu.next"),
@@ -249,6 +225,7 @@ final class MenuSession {
     }
 
     private void cycleSpecies() {
+        List<String> speciesOrder = index.species();
         if (species == null) species = speciesOrder.isEmpty() ? null : speciesOrder.get(0);
         else {
             int next = speciesOrder.indexOf(species) + 1;
@@ -269,6 +246,7 @@ final class MenuSession {
     }
 
     private void discover() {
+        refreshAccess();
         if (!mayScan) notice("familytree.permission.denied", FamilyTreePermission.SCAN.node());
         else if (!plugin.cooldowns().scan(player.getUniqueId())) notice("familytree.command.cooldown");
         else {
@@ -323,8 +301,10 @@ final class MenuSession {
             showBrowser();
             return;
         }
-        List<UUID> kids = children.getOrDefault(petId, List.of()).stream().filter(id -> view(id) != null).toList();
-        int pages = Math.max(1, (kids.size() + CHILD_SLOTS - 1) / CHILD_SLOTS);
+        List<UUID> kids = index.children(petId).stream().filter(id -> view(id) != null).toList();
+        int hidden = index.hiddenChildren(petId);
+        int childSlots = kids.size() + (hidden > 0 ? 1 : 0);
+        int pages = Math.max(1, (childSlots + CHILD_SLOTS - 1) / CHILD_SLOTS);
         childPage = Math.max(0, Math.min(childPage, pages - 1));
         int shownPage = childPage;
         boolean manage = manageable(pet);
@@ -346,6 +326,9 @@ final class MenuSession {
             AnimalRecord child = view(kids.get(shownPage * CHILD_SLOTS + i));
             if (child != null) putRelative(menu, CHILD_START + i, child, petId, "familytree.menu.role.child", null, false);
         }
+        int afterChildren = kids.size() - shownPage * CHILD_SLOTS;
+        if (hidden > 0 && afterChildren < CHILD_SLOTS) menu.put(CHILD_START + afterChildren, icon(MenuItems.material("GRAY_DYE",
+                Material.GRAY_DYE), text("familytree.menu.children.hidden", hidden), List.of(), false), null);
         if (shownPage > 0) menu.put(PREVIOUS, button(Material.ARROW, text("familytree.menu.children.previous"),
                 pageLine(shownPage, pages)), () -> { childPage--; showFamily(petId); });
         if (shownPage < pages - 1) menu.put(NEXT, button(Material.ARROW, text("familytree.menu.children.next"),
@@ -361,8 +344,8 @@ final class MenuSession {
                 wrappedLore("familytree.menu.plan.hint")), () -> { pickerPage = 0; showMates(petId); });
         if (mayShowRelatives) menu.put(RELATIVES, button(Material.GLOW_INK_SAC, text("familytree.menu.relatives"),
                 wrappedLore("familytree.menu.relatives.hint")), () -> showRelatives(petId));
-        menu.put(INFO, infoButton(kids.isEmpty() ? text("familytree.menu.children.none")
-                : text("familytree.menu.children.count", kids.size()), kids.size() > CHILD_SLOTS
+        menu.put(INFO, infoButton(kids.isEmpty() && hidden == 0 ? text("familytree.menu.children.none")
+                : text("familytree.menu.children.count", kids.size() + hidden), childSlots > CHILD_SLOTS
                 ? pageLine(shownPage + 1, pages) : List.of(), manage ? null : "familytree.menu.view_only"), null);
         menu.put(RIGHT_INNER, button(Material.BOOK, text("familytree.menu.book"), hint("familytree.menu.book.hint")),
                 () -> openBook(petId));
@@ -407,7 +390,7 @@ final class MenuSession {
     private void showRelatives(UUID petId) {
         refreshAccess();
         AnimalRecord pet = view(petId);
-        if (!mayShowRelatives) {
+        if (pet == null || !mayShowRelatives) {
             showFamily(petId);
             return;
         }
@@ -418,7 +401,7 @@ final class MenuSession {
         }
         RelativesResult result = plugin.bridge().nearbyRelatives(player, UUID.randomUUID(), petId);
         if (result.status() != RelativesResult.Status.FOUND.ordinal()) {
-            notice("familytree.menu.relatives.far", pet == null ? "" : pet.name());
+            notice("familytree.menu.relatives.far", pet.name());
             showFamily(petId);
             return;
         }
@@ -442,6 +425,7 @@ final class MenuSession {
     }
 
     private void openRename(UUID petId) {
+        refreshAccess();
         AnimalRecord pet = view(petId);
         if (pet == null || !mayRename || !manageable(pet)) {
             notice("familytree.rename.not_allowed");
@@ -490,13 +474,15 @@ final class MenuSession {
     }
 
     private void openBook(UUID petId) {
+        refreshAccess();
         AnimalRecord pet = view(petId);
         if (pet == null) {
+            notice("familytree.rename.not_found");
             showBrowser();
             return;
         }
-        List<AnimalRecord> kids = children.getOrDefault(petId, List.of()).stream().map(this::view).filter(Objects::nonNull).toList();
-        FamilyBook book = FamilyBook.build(language(), pet, this::view, kids, WorldClock.currentWorldDay());
+        List<AnimalRecord> kids = index.children(petId).stream().map(this::view).filter(Objects::nonNull).toList();
+        FamilyBook book = FamilyBook.build(language(), pet, this::view, kids, index.hiddenChildren(petId), WorldClock.currentWorldDay());
         player.closeInventory();
         plugin.chat().renderer().openBook(player, book.title(), "Family Tree", book.pages());
     }
@@ -506,7 +492,7 @@ final class MenuSession {
     private List<AnimalRecord> mates(AnimalRecord pet) {
         if (pet == null || pet.deceased() || !BreedingPair.breeds(pet.speciesId())) return List.of();
         List<AnimalRecord> mates = new ArrayList<>();
-        for (UUID id : visible) {
+        for (UUID id : index.visible()) {
             AnimalRecord other = view(id);
             if (other == null || other.deceased() || other.id().equals(pet.id())) continue;
             if (BreedingPair.canBreed(pet.speciesId(), other.speciesId())) mates.add(other);
@@ -544,34 +530,22 @@ final class MenuSession {
         notice = null;
     }
 
-    /** Kinship uses only animals this player may view, as the screens do. The plan opens as a book, one topic to a page. */
+    /** Kinship uses only animals this player may view, as the screens do. The plan opens as a book. */
     private void openPlan(UUID petId, UUID mateId) {
+        refreshAccess();
         AnimalRecord pet = view(petId), mate = view(mateId);
         if (pet == null || mate == null || !mayPlan) {
             showBrowser();
             return;
         }
         Map<UUID, AnimalRecord> shown = new HashMap<>();
-        for (UUID id : visible) {
+        for (UUID id : index.visible()) {
             AnimalRecord record = view(id);
             if (record != null) shown.put(id, record);
         }
-        BreedingPlan plan = new BreedingPlan(pet, mate, new Kinship(shown));
-        List<Text> pages = new ArrayList<>();
-        for (List<PlanLines.Line> section : PlanLines.sections(language(), plan)) {
-            Text page = Text.empty();
-            boolean first = true;
-            for (PlanLines.Line line : section) {
-                if (!first) page.append("\n\n");
-                page.append(line.muted() ? line.text().copy().color(Text.Color.DARK_GRAY) : line.text());
-                first = false;
-            }
-            pages.add(page);
-        }
-        String title = pet.name() + " × " + mate.name();
-        if (title.length() > 32) title = title.substring(0, 31) + "…";
+        List<Text> pages = PlanBook.pages(language(), new BreedingPlan(pet, mate, new Kinship(shown)));
         player.closeInventory();
-        plugin.chat().renderer().openBook(player, title, "Family Tree", pages);
+        plugin.chat().renderer().openBook(player, MenuText.trim(pet.name() + " × " + mate.name(), TITLE_LENGTH), "Family Tree", pages);
     }
 
     // Parent picker
@@ -587,7 +561,7 @@ final class MenuSession {
         }
         Set<UUID> descendants = descendants(childId);
         List<AnimalRecord> candidates = new ArrayList<>();
-        for (UUID id : visible) {
+        for (UUID id : index.visible()) {
             AnimalRecord pet = view(id);
             if (pet == null || !manageable(pet) || id.equals(childId) || id.equals(firstParent) || descendants.contains(id)) continue;
             boolean speciesFits = first == null ? PetRelations.mayBeParent(pet.speciesId(), child.speciesId())
@@ -632,10 +606,10 @@ final class MenuSession {
 
     private Set<UUID> descendants(UUID root) {
         Set<UUID> found = new HashSet<>();
-        ArrayDeque<UUID> pending = new ArrayDeque<>(children.getOrDefault(root, List.of()));
+        ArrayDeque<UUID> pending = new ArrayDeque<>(index.children(root));
         while (!pending.isEmpty()) {
             UUID next = pending.pop();
-            if (found.add(next)) pending.addAll(children.getOrDefault(next, List.of()));
+            if (found.add(next)) pending.addAll(index.children(next));
         }
         return found;
     }

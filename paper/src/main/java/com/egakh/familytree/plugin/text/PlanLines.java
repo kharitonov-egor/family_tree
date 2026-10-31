@@ -105,7 +105,9 @@ public final class PlanLines {
             case MARKINGS -> ownOrHumanized(language, "familytree.variant.markings." + variant, variant);
             case LOOK, VARIANT -> GameText.variant(language, species, variant);
         };
-        return label == null ? Text.literal(VariantRules.humanize(variant)) : label;
+        if (label != null) return label;
+        String coat = VariantRules.coatKey(species, variant);
+        return coat == null ? Text.literal(VariantRules.humanize(variant)) : ownOrHumanized(language, coat, variant);
     }
 
     private static Text ownOrHumanized(String language, String key, String variant) {
@@ -115,7 +117,6 @@ public final class PlanLines {
     private static String noteKey(VariantOdds.Note note) {
         return switch (note) {
             case NONE -> null;
-            case EITHER_PARENT -> "familytree.planner.note.either_parent";
             case FROG_BIOME -> "familytree.planner.note.frog";
             case RABBIT_BIOME -> "familytree.planner.note.rabbit";
             case MODDED -> "familytree.planner.note.modded";

@@ -249,7 +249,12 @@ class VariantOddsTest {
         assertEquals(Note.UNKNOWN_PARENT, VariantOdds.forPair("minecraft:axolotl", "minecraft:axolotl", "lucy", null).note());
         assertEquals(Note.FROG_BIOME, VariantOdds.forPair("minecraft:frog", "minecraft:frog", "minecraft:warm", "minecraft:cold").note());
         assertEquals(Note.MODDED, VariantOdds.forPair("naturalist:deer", "naturalist:deer", "a", "b").note());
-        assertEquals(Note.EITHER_PARENT, VariantOdds.forPair("minecraft:cat", "minecraft:cat", "minecraft:tabby", "minecraft:black").note());
+        assertOdds(Map.of("minecraft:tabby", 0.5, "minecraft:black", 0.5),
+                odds(VariantOdds.forPair("minecraft:cat", "minecraft:cat", "minecraft:tabby", "minecraft:black"), 0));
+        assertOdds(Map.of("minecraft:pale", 0.5, "minecraft:woods", 0.5),
+                odds(VariantOdds.forPair("minecraft:wolf", "minecraft:wolf", "minecraft:pale", "minecraft:woods"), 0));
+        assertEquals(Note.UNKNOWN_PARENT, VariantOdds.forPair("minecraft:wolf", "minecraft:wolf", "minecraft:pale", null).note());
+        assertTrue(VariantOdds.forPair("minecraft:wolf", "minecraft:wolf", null, null).groups().isEmpty());
         assertTrue(VariantOdds.forPair("minecraft:horse", "minecraft:donkey", "black/none", null).groups().isEmpty());
         assertTrue(VariantOdds.forPair("minecraft:goat", "minecraft:goat", null, null).groups().isEmpty());
         List<Double> sorted = new ArrayList<>();

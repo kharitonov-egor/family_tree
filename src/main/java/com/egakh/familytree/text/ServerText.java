@@ -2,6 +2,7 @@ package com.egakh.familytree.text;
 
 import com.egakh.familytree.FamilyTreeMod;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -58,7 +59,34 @@ public final class ServerText {
     /** Resolves a key to plain text on the server, for text the server must measure or wrap. */
     public static String plain(String language, String key, Object... args) {
         String template = LangTables.template(language, key);
-        if (template == null) return key;
+        return template == null ? key : format(template, args);
+    }
+
+    /** A component's text in the given language, for text the server must measure. Vanilla keys use the server's language. */
+    public static String plain(String language, Component component) {
+        StringBuilder out = new StringBuilder();
+        appendPlain(language, component, out);
+        return out.toString();
+    }
+
+    private static void appendPlain(String language, Component component, StringBuilder out) {
+        if (component.getContents() instanceof TranslatableContents translatable) {
+            String key = translatable.getKey();
+            String template = key.startsWith(PREFIX) ? LangTables.template(language, key) : null;
+            if (template == null) template = translatable.getFallback();
+            if (template == null) template = Language.getInstance().getOrDefault(key);
+            Object[] args = translatable.getArgs().clone();
+            for (int i = 0; i < args.length; i++) {
+                if (args[i] instanceof Component nested) args[i] = plain(language, nested);
+            }
+            out.append(format(template, args));
+        } else {
+            out.append(component.plainCopy().getString());
+        }
+        for (Component sibling : component.getSiblings()) appendPlain(language, sibling, out);
+    }
+
+    private static String format(String template, Object[] args) {
         try {
             return String.format(java.util.Locale.ROOT, template, args);
         } catch (java.util.IllegalFormatException invalid) {

@@ -18,6 +18,7 @@ import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.Kinship;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.BookViewScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -338,10 +339,11 @@ public final class PlannerCapture {
         if (uiTick == 330) clickItem(client, DemoClient.tr("familytree.menu.plan"));
         if (uiTick == 350) clickItem(client, "Sorrel");
         if (uiTick == 375) {
-            String menu = client.player.containerMenu.getClass().getSimpleName();
-            if (!menu.contains("Lectern") && !menu.equals("BookMenu")) throw new AssertionError("The chest menu plan opened " + menu + ", not a book");
+            if (!(runner.current(client) instanceof BookViewScreen))
+                throw new AssertionError("The chest menu plan opened " + runner.current(client) + ", not a book");
+            if (client.player.getOffhandItem().is(Items.WRITTEN_BOOK)) throw new AssertionError("The plan book stayed in the offhand");
             runner.capture(client, "planner-menu-book.png");
-            client.player.closeContainer();
+            runner.show(client, null);
         }
         if (uiTick == 390) finish(client);
     }
