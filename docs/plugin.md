@@ -102,7 +102,7 @@ The plugin has the mod's commands with the same arguments, names, and messages: 
 
 The plugin checks the mod's `familytree.*` nodes through Bukkit's permission API, which LuckPerms provides. [Family Tree on servers](servers.md#permission-nodes) lists them with their defaults. `familytree.relatives` covers a feature the plugin doesn't have yet, so it has no effect there.
 
-A node no permission plugin sets falls back to the default its settings give it, as in the mod. That is why `plugin.yml` declares every node with `default: false`: Bukkit and LuckPerms treat a `plugin.yml` default as a set node, which would override settings such as `ownersCanRename=false` and `viewPolicy`. An operator is a player with op, and the console counts as one.
+A node no permission plugin sets falls back to the default its settings give it, as in the mod. With LuckPerms 5.5.71 on Paper 26.3, a non-operator got the chest menu with no nodes set, got the command list instead once `familytree.menu` was false, lost Rename under `ownersCanRename: false` and got it back when LuckPerms granted `familytree.rename`, and could prune once granted `familytree.prune`. That is why `plugin.yml` declares every node with `default: false`: Bukkit and LuckPerms treat a `plugin.yml` default as a set node, which would override settings such as `ownersCanRename=false` and `viewPolicy`. An operator is a player with op, and the console counts as one.
 
 ## Settings
 
