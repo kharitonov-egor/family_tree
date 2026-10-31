@@ -150,29 +150,28 @@ public final class Kinship {
         long root = pair(first, second);
         Double known = lookup(root);
         if (known != null) return known;
-        ArrayDeque<Long> pending = new ArrayDeque<>();
-        Set<Long> active = new HashSet<>();
-        pending.push(root);
-        active.add(root);
-        while (!pending.isEmpty()) {
-            long key = pending.peek();
-            if (lookup(key) != null) {
-                pending.pop();
-                active.remove(key);
+        ArrayDeque<Long> path = new ArrayDeque<>();
+        Set<Long> onPath = new HashSet<>();
+        path.push(root);
+        onPath.add(root);
+        while (!path.isEmpty()) {
+            long key = path.peek();
+            long[] parts = dependencies(key);
+            long next = NONE;
+            for (long part : parts) {
+                if (part != NONE && lookup(part) == null && !onPath.contains(part)) {
+                    next = part;
+                    break;
+                }
+            }
+            if (next != NONE) {
+                path.push(next);
+                onPath.add(next);
                 continue;
             }
-            long[] parts = dependencies(key);
-            boolean ready = true;
-            for (long part : parts) {
-                if (part == NONE || lookup(part) != null || active.contains(part)) continue;
-                pending.push(part);
-                active.add(part);
-                ready = false;
-            }
-            if (!ready) continue;
             store(key, combine(key, parts));
-            pending.pop();
-            active.remove(key);
+            path.pop();
+            onPath.remove(key);
         }
         Double value = lookup(root);
         return value == null ? 0 : value;
