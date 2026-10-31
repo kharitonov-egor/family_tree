@@ -72,6 +72,17 @@ class NearbyRelativesTest {
         assertEquals(2, ask(x, ALICE, true).total(), "a viewer who may see Bob's pets sees the parent and the sibling");
     }
 
+    @Test void siblingsThroughAVisibleParentStayHalfOrFullWhenTheOtherParentIsHidden() {
+        AnimalRecord dam = wolf("Dam", ALICE, null, null);
+        AnimalRecord bobsSire = wolf("Bob's sire", BOB, null, null), bobsOtherSire = wolf("Bob's other sire", BOB, null, null);
+        AnimalRecord x = wolf("X", ALICE, bobsSire.id(), dam.id());
+        AnimalRecord full = wolf("Full", ALICE, bobsSire.id(), dam.id());
+        AnimalRecord half = wolf("Half", ALICE, dam.id(), bobsOtherSire.id());
+
+        assertEquals(Map.of(dam.id(), CloseRelation.PARENT, full.id(), CloseRelation.SIBLING, half.id(), CloseRelation.HALF_SIBLING),
+                relations(ask(x, ALICE, false)));
+    }
+
     @Test void aParentWithoutARecordStillLinksSiblings() {
         UUID pruned = UUID.randomUUID();
         AnimalRecord x = wolf("X", ALICE, pruned, null);
