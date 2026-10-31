@@ -31,14 +31,25 @@ Families can cross owners. In the images above, Alex's wolf Biscuit and Kai's wo
 
 History lives in the world save, so it survives restarts and Family Tree updates. Pruning writes a JSON backup before it deletes anything, and Family Tree never deletes pets or named animals on its own.
 
-Server settings live in `config/familytree-server.properties`:
+Server settings live in `config/familytree-server.properties`, with a comment above each one that gives its default and allowed values. `/familytree reload` applies changes without a restart, except command aliases, and names any value it can't use.
 
 - `viewPolicy` sets who can browse whose animals. With the default, `OP_ONLY_ALL`, players see their own animals and operators see everyone's. `EVERYONE_ALL` lets every player browse every family, as on the server above. `OWN_ONLY` limits everyone, operators included, to their own animals.
 - `vanillaMenu=false` turns the chest menus off. `commandAliases=pets,ft` adds `/pets` and `/ft`.
 - `trackFarmAnimals`, `trackWildlife`, `trackModdedAnimals`, `trackedSpecies`, and `ignoredSpecies` choose which animals join.
 - `farmRecordLimit`, 5,000 by default, caps unnamed farm animals. `autoPruneFarmRecords` is off by default. When on, it backs up the history and removes the oldest deceased unnamed farm animals.
+- Other settings cover cooldowns, which owner actions need an operator, the linking stick, and one chat language for everyone.
+
+LuckPerms and other permission mods can grant or deny each action through `familytree.*` nodes, such as `familytree.rename`, `familytree.others.view`, and `familytree.prune`. Without a permission mod, Family Tree uses operator levels as before. Datapacks can choose species with the `familytree:tracked` and `familytree:ignored` tags.
+
+Family Tree ran on dedicated Fabric, NeoForge, and Forge servers with LuckPerms, spark, Lithium, FerriteCore, ModernFix, C2ME, and other common server mods. The [server guide](https://github.com/kharitonov-egor/family_tree/blob/main/docs/servers.md) lists every node, setting, and tested version.
 
 Use the same Family Tree version on the server and on modded clients.
+
+### Paper, Purpur, and Spigot
+
+![The Family Tree plugin's chest menu on a Paper 26.3 server, seen from an unmodded client](https://raw.githubusercontent.com/kharitonov-egor/family_tree/main/docs/media/plugin-chest-menu.webp)
+
+The plugin file runs on Paper from 1.20.1 to 26.3, Purpur 26.3, and Spigot 1.20.1, 1.21.11, and 26.3, with the same commands, chest menus, permission nodes, settings, and languages as the mod. It keeps history in the mod's `familytree.dat`, so a world keeps its families when it moves between the mod and the plugin. Players who have the client mod get its full screens on a plugin server. The [plugin guide](https://github.com/kharitonov-egor/family_tree/blob/main/docs/plugin.md) explains how it differs from the mod.
 
 ## Breed better horses
 
@@ -51,6 +62,24 @@ Use the same Family Tree version on the server and on modded clients.
 Every horse card shows speed, jump height, and health. A green ▲ marks a stat higher than both parents, and a red ▼ marks one lower than both. Select a foal to compare each value with its parents', and sort the browser by speed, jump, or health to pick the next pair. Speed is in blocks per second, jump in blocks, and health in hearts.
 
 Stats cover horses, donkeys, mules, llamas, camels, skeleton horses, and zombie horses. Llamas also show chest slots. Horse and donkey parents can link to a mule.
+
+## Plan the next foal
+
+![The breeding planner for Quill and Sorrel: half siblings, the foal's inbreeding coefficient, and each stat's range and chance to beat both parents](https://raw.githubusercontent.com/kharitonov-egor/family_tree/main/docs/breeding-planner.webp)
+
+*Quill and Sorrel were bred by vanilla AI in an automated 26.3 scene.*
+
+Pick two animals in the **Breeding planner** before you feed them. For horses, donkeys, mules, and llamas it shows each foal stat's lowest, most likely, and highest value and the chance the foal beats both parents. Family Tree computes those chances exactly from Minecraft's own breeding code. The planner also lists the odds of each wool color, axolotl and mooshroom color, panda gene, horse coat, and other variants, names how the two animals are related, and gives the baby's inbreeding coefficient.
+
+**Best pairs** ranks every pair in a herd by expected speed, jump, health, chest slots, or an overall score, and can skip close relatives. Shift-click a second card in any tree to see how two animals are related, such as half siblings or first cousins. Players without the mod get the same plan from `/familytree breed` or as a book from the chest menu.
+
+## See relatives in the world
+
+![Ember glows white, with its parents in orange, siblings in green, and foals in blue, each labeled](https://raw.githubusercontent.com/kharitonov-egor/family_tree/main/docs/relatives-in-world.webp)
+
+*Golden carrots and vanilla AI breeding produced the three generations in an automated 26.3 scene.*
+
+Hold the grave accent key (`` ` ``, left of 1) and look at an animal. Its parents, children, siblings, half siblings, grandparents, and grandchildren that are loaded nearby glow in their relation's color, with a label such as "Parent · Comet", and particle lines lead from the parents to it and on to its children. Only you see them. Another player's pet you can't open in Family Tree stays dark. Players without the mod get **Show relatives nearby** on a pet's page in the chest menu.
 
 ## Every animal you breed, and where its colors came from
 
@@ -122,21 +151,23 @@ The linking stick also works. Rename a stick to `familytree`, right-click two pa
 
 NeoForge and Forge builds do not need Fabric API. Players without Family Tree on their client use the chest menus described above.
 
+Paper, Purpur, and Spigot servers use the plugin file, `familytree-1.4.0+plugin.jar`, in `plugins/` instead. It runs on the Java version the server already needs.
+
 Family Tree is translated into Simplified and Traditional Chinese, Japanese, Korean, Russian, Ukrainian, German, French, Italian, Spanish, Brazilian Portuguese, Polish, and Turkish. The translations are machine-made. Corrections are welcome as [GitHub issues](https://github.com/kharitonov-egor/family_tree/issues) or pull requests.
 
 ## Commands and history
 
 Commands correct ages and birth days, inspect records, and manage history. Name-based edits reject duplicate names and offer UUID choices. Operator pruning writes a backup first. See the [command guide](https://github.com/kharitonov-egor/family_tree/blob/main/docs/commands.md).
 
-Version 1.3.0 preserves existing history and adds one optional field that records how a bred animal got its variant. Update clients and servers together because the network channels changed. Back up your world before changing Minecraft versions. An older Minecraft build does not make a newer world safe to downgrade.
+Version 1.4.0 preserves existing history and adds no saved fields. A 1.4.0 client still joins a 1.3.0 server, but update clients and servers together to get the relatives key. `/familytree prune` now asks for `confirm` before it removes anything. If Family Tree can't read its history file, it keeps a copy and stops saving instead of writing an empty history over it. Back up your world before changing Minecraft versions. An older Minecraft build does not make a newer world safe to downgrade.
 
-The new 1.3.0 builds for 1.21.4, 1.21.5, 1.21.8, and 1.21.10 ran in real game instances before release. The [release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.3.0/docs/releases/1.3.0.md) describe the changes.
+Minecraft 26.4 is still in snapshots. Family Tree builds and tests a Fabric file for 26.4-snapshot-6, and a 26.4 file follows the game's release. The [release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.4.0/docs/releases/1.4.0.md) describe the changes.
 
 ## Tell the developer what you think
 
 **Send feedback** in the Family Tree screen opens a form for a message, with an optional contact field if you'd like a reply. The form lists everything that will be sent: your message, the contact if given, the Family Tree, Minecraft, and loader versions, and the game language. Nothing is sent until you press **Send**, and Family Tree never sends anything on its own or in the background. The feedback server uses your IP address only to limit spam and leaves it out of the email.
 
-[Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.3.0/docs/releases/1.3.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
+[Release notes](https://github.com/kharitonov-egor/family_tree/blob/v1.4.0/docs/releases/1.4.0.md). [Report a bug](https://github.com/kharitonov-egor/family_tree/issues). [Source](https://github.com/kharitonov-egor/family_tree). MIT licensed.
 
 ## Making a video or adding it to a pack?
 
