@@ -53,6 +53,30 @@ class TreeImageExporterTest {
         assertEquals("family-tree-Moss-" + today + "-2.png", second.getFileName().toString());
     }
 
+    /** QA B2: a card whose parent was pruned gets a mark, and the note under the tree wraps instead of being cut. */
+    @Test void aRemovedParentIsMarkedAndTheFooterNoteWraps() throws Exception {
+        Map<UUID, AnimalRecord> records = new LinkedHashMap<>();
+        AnimalRecord clover = pet("Clover", null, null), lamb = pet("Lamb", clover, null);
+        lamb.setParents(clover.id(), UUID.randomUUID());
+        records.put(clover.id(), clover);
+        records.put(lamb.id(), lamb);
+        var tree = TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, Map.of(clover.id(), List.of(lamb.id())));
+        var plain = TreeImageExporter.prepare(tree, "Lamb", "Family Tree", p -> "", p -> "Alive", p -> null,
+                p -> List.of(), p -> false, null);
+        String note = "A short line above a card marks a parent that was removed from the history or isn't shown. ".repeat(4);
+        var marked = TreeImageExporter.prepare(tree, "Lamb", note + "\nFamily Tree",
+                p -> "", p -> "Alive", p -> null, p -> List.of(), p -> false, null,
+                p -> com.egakh.familytree.util.MissingParents.hasMissingParent(p, records::get));
+        assertEquals(Map.of("Clover", false, "Lamb", true), marked.cards().stream()
+                .collect(java.util.stream.Collectors.toMap(TreeImageExporter.Card::name, TreeImageExporter.Card::missingParent)));
+        assertTrue(marked.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "the note wraps above the footer");
+        var image = ImageIO.read(TreeImageExporter.save(marked, directory.resolve("marked"), "Lamb").toFile());
+        assertEquals(marked.height(), image.getHeight());
+        var japanese = TreeImageExporter.prepare(tree, "Lamb", "カードの上の短い線は、記録から削除されたか表示されていない親を示します。".repeat(3),
+                p -> "", p -> "Alive", p -> null, p -> List.of(), p -> false, null, p -> false);
+        assertTrue(japanese.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "text without spaces wraps too");
+    }
+
     @Test void horseCardsCarryStatsAndDrawMarkersForFoalsThatBeatOrTrailBothParents() throws Exception {
         Map<UUID, AnimalRecord> records = new LinkedHashMap<>();
         AnimalRecord comet = pet("Comet", null, null), dusk = pet("Dusk", null, null), ember = pet("Ember", comet, dusk);

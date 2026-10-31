@@ -9,6 +9,7 @@ import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.platform.FamilyTreePaths;
 import com.egakh.familytree.settings.FamilyTreeServerSettings;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
@@ -35,7 +36,10 @@ public final class ForgeEntrypoint {
         IEventBus events = MinecraftForge.EVENT_BUS;
         ForgePermissions permissions = new ForgePermissions();
         events.addListener(permissions::register);
-        events.addListener(EventPriority.LOWEST, permissions::loggedIn);
+        events.addListener(EventPriority.LOWEST, (PlayerEvent.PlayerLoggedInEvent event) -> {
+            permissions.loggedIn(event);
+            if (event.getEntity() instanceof ServerPlayer player) com.egakh.familytree.data.SaveNotice.joined(player);
+        });
         events.addListener(permissions::loggedOut);
         ServerPetAccess.configure(permissions);
         events.addListener((RegisterCommandsEvent event) -> FamilyTreeCommand.register(event.getDispatcher()));

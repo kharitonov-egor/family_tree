@@ -35,6 +35,8 @@ def sharedJava = [
         'breeding/LlamaStrength.java',
         'breeding/OffspringStats.java',
         'breeding/VariantOdds.java',
+        'command/PruneRequest.java',
+        'data/BackupFiles.java',
         'data/FarmRecords.java',
         'menu/FamilyIndex.java',
         'menu/MenuText.java',

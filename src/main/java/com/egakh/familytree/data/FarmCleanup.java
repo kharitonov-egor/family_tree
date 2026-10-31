@@ -26,7 +26,7 @@ public final class FarmCleanup {
         }
         Path backup;
         try {
-            backup = state.backup(server, "before-farm-cleanup-", false);
+            backup = state.backup(server, "before-farm-cleanup", false);
         } catch (IOException | RuntimeException failure) {
             FamilyTreeMod.LOGGER.error("Farm record cleanup canceled because the backup failed", failure);
             return 0;

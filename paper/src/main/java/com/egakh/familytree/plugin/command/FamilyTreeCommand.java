@@ -1,6 +1,7 @@
 package com.egakh.familytree.plugin.command;
 
 import com.egakh.familytree.breeding.BreedingPlan;
+import com.egakh.familytree.command.PruneRequest;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FarmRecords;
 import com.egakh.familytree.data.HorseStats;
@@ -188,11 +189,15 @@ public final class FamilyTreeCommand implements TabExecutor {
             case "prune" -> {
                 if (denied(sender, FamilyTreePermission.PRUNE)) break;
                 String what = args.next();
-                if ("deceased".equalsIgnoreCase(what)) runPrune(sender, AnimalRecord::deceased);
-                else if ("farm".equalsIgnoreCase(what)) runPrune(sender, record -> record.deceased() && FarmRecords.unnamedFarm(record));
+                if ("deceased".equalsIgnoreCase(what))
+                    runPrune(sender, label, AnimalRecord::deceased, "deceased", "confirm".equalsIgnoreCase(args.next()));
+                else if ("farm".equalsIgnoreCase(what))
+                    runPrune(sender, label, record -> record.deceased() && FarmRecords.unnamedFarm(record), "farm",
+                            "confirm".equalsIgnoreCase(args.next()));
                 else if ("species".equalsIgnoreCase(what) && !args.done()) {
-                    String species = args.rest().trim();
-                    runPrune(sender, record -> record.speciesId().equalsIgnoreCase(species));
+                    PruneRequest request = PruneRequest.species(args.rest());
+                    runPrune(sender, label, record -> record.speciesId().equalsIgnoreCase(request.species()),
+                            "species " + request.species(), request.confirmed());
                 } else usage(sender, "/" + label + " prune <deceased|farm|species <id>>");
             }
             case "reload" -> { if (!denied(sender, FamilyTreePermission.RELOAD)) SettingsCommands.reload(plugin, sender); }
@@ -398,14 +403,26 @@ public final class FamilyTreeCommand implements TabExecutor {
         chat().send(sender, "familytree.command.scan.result", result.imported(), result.refreshed());
     }
 
-    private void runPrune(CommandSender sender, Predicate<AnimalRecord> which) {
+    /** The first run only counts the records and asks for {@code confirm}, which backs up and then removes them. */
+    private void runPrune(CommandSender sender, String label, Predicate<AnimalRecord> which, String what, boolean confirmed) {
         FamilyTreeStore state = store();
         if (state.readOnly()) {
             chat().fail(sender, "familytree.command.read_only");
             return;
         }
+        long matching = state.all().stream().filter(which).count();
+        if (matching == 0) {
+            chat().fail(sender, "familytree.command.prune.none");
+            return;
+        }
+        if (!confirmed) {
+            String command = "/" + label + " prune " + what + " confirm";
+            chat().send(sender, "familytree.command.prune.confirm", matching,
+                    Text.literal(command).color(Text.Color.AQUA).suggest(command));
+            return;
+        }
         try {
-            var path = state.backup(plugin.files().backups(), "before-prune-", true);
+            var path = state.backup(plugin.files().backups(), "before-prune", true);
             chat().send(sender, "familytree.command.backup", path.getFileName().toString());
         } catch (java.io.IOException | RuntimeException failure) {
             plugin.getLogger().log(Level.SEVERE, "Prune canceled because the backup failed", failure);
@@ -553,7 +570,8 @@ public final class FamilyTreeCommand implements TabExecutor {
             case "unpair", "setage", "setbirth" -> args.length == 2 ? names(sender, true, last, false) : List.of();
             case "prune" -> args.length == 2 ? filter(List.of("deceased", "farm", "species"), last)
                     : args.length == 3 && args[1].equalsIgnoreCase("species")
-                    ? filter(new ArrayList<>(new TreeSet<>(store().all().stream().map(AnimalRecord::speciesId).toList())), last) : List.of();
+                    ? filter(new ArrayList<>(new TreeSet<>(store().all().stream().map(AnimalRecord::speciesId).toList())), last)
+                    : args.length == (args[1].equalsIgnoreCase("species") ? 4 : 3) ? filter(List.of("confirm"), last) : List.of();
             case "settings" -> args.length == 2 ? filter(List.of("all"), last) : List.of();
             default -> List.of();
         };

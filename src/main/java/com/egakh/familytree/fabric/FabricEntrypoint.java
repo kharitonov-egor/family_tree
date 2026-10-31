@@ -2,6 +2,7 @@ package com.egakh.familytree.fabric;
 
 import com.egakh.familytree.FamilyTreeMod;
 import com.egakh.familytree.command.FamilyTreeCommand;
+import com.egakh.familytree.data.SaveNotice;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.network.FamilyTreePackets;
@@ -63,6 +64,7 @@ public final class FabricEntrypoint implements ModInitializer {
         UseEntityCallback.EVENT.register(LinkingTool::onUseEntity);
         ServerLifecycleEvents.SERVER_STARTING.register(server -> FamilyTreeServerSettings.load());
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> FamilyTreeCommand.register(dispatcher));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> SaveNotice.joined(handler.player));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             FamilyTreePackets.disconnect(handler.player.getUUID());
             LinkingTool.disconnect(handler.player.getUUID());

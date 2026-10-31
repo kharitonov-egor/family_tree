@@ -23,8 +23,12 @@ public final class TreeImageExporter {
     private static final int MARGIN = 32;
     private static final int HEADER = 80;
     private static final long MAX_PIXELS = 24_000_000;
+    private static final Font FOOTER_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    private static final int FOOTER_LINE = 16;
+    /** {@code missingParent} marks a parent link whose record isn't in the history the tree was drawn from. */
     public record Card(double x, double y, String name, String detail, String status,
-                       boolean deceased, BufferedImage portrait, List<HorseStatsText.Segment> stats, boolean rare) {}
+                       boolean deceased, BufferedImage portrait, List<HorseStatsText.Segment> stats, boolean rare,
+                       boolean missingParent) {}
     /** Corner points as x, y pairs. */
     public record Line(double[] points) {}
     /** A triangle and count above a card with older generations left out, or below one with younger generations left out. */
@@ -63,13 +67,25 @@ public final class TreeImageExporter {
                                    Function<AnimalRecord, List<HorseStatsText.Segment>> stats,
                                    Predicate<AnimalRecord> rare,
                                    Legend legend) {
+        return prepare(tree, title, footer, details, status, portraits, stats, rare, legend, pet -> false);
+    }
+
+    public static Picture prepare(TreeLayout.Result tree, String title, String footer,
+                                   Function<AnimalRecord, String> details,
+                                   Function<AnimalRecord, String> status,
+                                   Function<AnimalRecord, BufferedImage> portraits,
+                                   Function<AnimalRecord, List<HorseStatsText.Segment>> stats,
+                                   Predicate<AnimalRecord> rare,
+                                   Legend legend,
+                                   Predicate<AnimalRecord> missingParent) {
         int[] size = imageSize(tree);
-        int width = size[0], height = size[1], header = header(tree);
+        int width = size[0], header = header(tree);
+        int height = size[1] + (footerLines(footer, width / SCALE - MARGIN * 2).size() - 1) * FOOTER_LINE * SCALE;
         List<Card> cards = tree.nodes.stream().map(node -> new Card(
                 node.x - tree.minX + MARGIN, node.y - tree.minY + header,
                 node.record.name(), details.apply(node.record), status.apply(node.record),
                 node.record.deceased(), portraits.apply(node.record), List.copyOf(stats.apply(node.record)),
-                rare.test(node.record))).toList();
+                rare.test(node.record), missingParent.test(node.record))).toList();
         List<Line> lines = tree.edges.stream().map(edge -> {
             double[] points = edge.route().clone();
             for (int i = 0; i < points.length; i += 2) {
@@ -114,13 +130,19 @@ public final class TreeImageExporter {
                 for (int i = 2; i + 1 < points.length; i += 2)
                     g.drawLine((int) points[i - 2], (int) points[i - 1], (int) points[i], (int) points[i + 1]);
             }
+            for (Card card : picture.cards()) if (card.missingParent()) drawMissingParent(g, card);
             String hearts = picture.legend() == null ? "hearts" : picture.legend().hearts();
             for (Card card : picture.cards()) drawCard(g, card, hearts);
             for (Marker marker : picture.markers()) drawMarker(g, marker);
-            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+            g.setFont(FOOTER_FONT);
             g.setColor(new Color(0xA9BAC0));
-            g.drawString(fit(g, picture.footer(), picture.width() / SCALE - MARGIN * 2),
-                    MARGIN, picture.height() / SCALE - 18);
+            int footerWidth = picture.width() / SCALE - MARGIN * 2;
+            List<String> footer = footerLines(picture.footer(), footerWidth);
+            int baseline = picture.height() / SCALE - 18 - (footer.size() - 1) * FOOTER_LINE;
+            for (String line : footer) {
+                g.drawString(fit(g, line, footerWidth), MARGIN, baseline);
+                baseline += FOOTER_LINE;
+            }
         } finally {
             g.dispose();
         }
@@ -173,6 +195,54 @@ public final class TreeImageExporter {
         g.fillPolygon(marker.older() ? new int[]{middle - 4, middle, middle + 4} : new int[]{middle - 4, middle + 4, middle},
                 marker.older() ? new int[]{y + 11, y + 4, y + 11} : new int[]{y + 4, y + 4, y + 11}, 3);
         g.drawString(text, x + 12, y + 12);
+    }
+
+    /**
+     * Wraps the footer at line breaks and spaces, and inside a word when no space fits, as Japanese and Chinese
+     * text needs. Each line after the first makes the picture taller.
+     */
+    private static List<String> footerLines(String footer, int width) {
+        Graphics2D g = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB).createGraphics();
+        try {
+            g.setFont(FOOTER_FONT);
+            FontMetrics metrics = g.getFontMetrics();
+            List<String> lines = new ArrayList<>();
+            for (String paragraph : footer.split("\n")) {
+                StringBuilder line = new StringBuilder();
+                int afterSpace = -1;
+                for (int offset = 0; offset < paragraph.length(); ) {
+                    int point = paragraph.codePointAt(offset);
+                    offset += Character.charCount(point);
+                    line.appendCodePoint(point);
+                    if (point == ' ') {
+                        afterSpace = line.length();
+                        continue;
+                    }
+                    int added = Character.charCount(point);
+                    if (line.length() > added && metrics.stringWidth(line.toString()) > width) {
+                        int cut = afterSpace > 0 ? afterSpace : line.length() - added;
+                        lines.add(line.substring(0, cut).stripTrailing());
+                        line.delete(0, cut);
+                        afterSpace = -1;
+                    }
+                }
+                lines.add(line.toString().stripTrailing());
+            }
+            return lines;
+        } finally {
+            g.dispose();
+        }
+    }
+
+    private static void drawMissingParent(Graphics2D g, Card card) {
+        int x = (int) Math.round(card.x() + TreeLayout.NODE_WIDTH * 0.75), top = (int) Math.round(card.y());
+        int length = (int) Math.round(TreeLayout.V_SPACING * 0.3);
+        java.awt.Stroke solid = g.getStroke();
+        g.setStroke(new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10, new float[]{3, 3}, 0));
+        g.drawLine(x, top - length, x, top);
+        g.setStroke(solid);
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        g.drawString("?", x - g.getFontMetrics().stringWidth("?") / 2, top - length - 3);
     }
 
     private static void drawCard(Graphics2D g, Card card, String hearts) {

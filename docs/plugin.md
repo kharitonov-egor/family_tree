@@ -92,7 +92,7 @@ A world that ran the mod keeps its history when the server switches to the plugi
 
 Paper and vanilla don't always lay out a world the same way. Fabric 26.3 couldn't open a Paper 26.3 world because of its world generation settings, which has nothing to do with Family Tree. If a whole world won't move, copy only `familytree.dat` to the same path in the other world.
 
-The plugin follows the mod's save rules. A record it can't read stays in the file untouched, and so does any field it doesn't know, so an older plugin keeps a newer mod's data. A file with an unsupported data version, or one that can't be read at all, turns off tracking and edits, and the plugin never overwrites it. Pruning writes a JSON backup to `world/familytree-backups/` first and cancels if the backup fails.
+The plugin follows the mod's save rules. A record it can't read stays in the file untouched, and so does any field it doesn't know, so an older plugin keeps a newer mod's data. A file with an unsupported data version, or one that can't be read at all, turns off tracking and edits, and the plugin never overwrites it. An unreadable file is also copied to `familytree.dat.unreadable-<date>_<time>`, and operators see a message when they join. On 26.x, an older file that can't be imported leaves the plugin read-only without creating the newer file, so the next start tries the import again. Pruning writes a JSON backup to `world/familytree-backups/` first and cancels if the backup fails.
 
 ## Commands
 

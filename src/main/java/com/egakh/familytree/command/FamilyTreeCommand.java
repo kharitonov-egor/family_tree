@@ -27,6 +27,8 @@ import com.egakh.familytree.util.VariantText;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -93,17 +95,7 @@ public final class FamilyTreeCommand {
                         .executes(ctx -> denied(ctx.getSource(), FamilyTreePermission.SCAN) ? 0 : runScan(ctx.getSource())))
                 .then(Commands.literal("confirmlink").executes(ctx -> LinkingTool.confirm(ctx.getSource())))
                 .then(Commands.literal("cancellink").executes(ctx -> LinkingTool.cancel(ctx.getSource())))
-                .then(Commands.literal("prune")
-                        .requires(source -> ServerPetAccess.allowed(source, FamilyTreePermission.PRUNE))
-                        .then(Commands.literal("deceased")
-                                .executes(ctx -> runPruneDeceased(ctx.getSource())))
-                        .then(Commands.literal("farm")
-                                .executes(ctx -> runPruneFarm(ctx.getSource())))
-                        .then(Commands.literal("species")
-                                .then(Commands.argument("species_id", StringArgumentType.greedyString())
-                                        .executes(ctx -> runPruneSpecies(
-                                                ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "species_id"))))))
+                .then(pruneCommand())
                 .then(Commands.literal("breed")
                         .then(Commands.argument("first", StringArgumentType.string())
                                 .then(Commands.argument("second", StringArgumentType.string())
@@ -379,27 +371,63 @@ public final class FamilyTreeCommand {
         return result.totalTouched();
     }
 
-    private static int runPruneDeceased(CommandSourceStack source) {
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        if (!backupBeforePrune(source, state)) return 0;
-        int removed = state.removeMatching(AnimalRecord::deceased);
-        ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
-        return removed;
+    /**
+     * The node is checked in the body, so a denied player gets Family Tree's message instead of an unknown command.
+     * Plain Brigadier builders keep this testable: loading {@code Commands} needs Minecraft's registries.
+     */
+    static LiteralArgumentBuilder<CommandSourceStack> pruneCommand() {
+        return LiteralArgumentBuilder.<CommandSourceStack>literal("prune")
+                .then(LiteralArgumentBuilder.<CommandSourceStack>literal("deceased")
+                        .executes(ctx -> runPruneDeceased(ctx.getSource(), false))
+                        .then(LiteralArgumentBuilder.<CommandSourceStack>literal("confirm")
+                                .executes(ctx -> runPruneDeceased(ctx.getSource(), true))))
+                .then(LiteralArgumentBuilder.<CommandSourceStack>literal("farm")
+                        .executes(ctx -> runPruneFarm(ctx.getSource(), false))
+                        .then(LiteralArgumentBuilder.<CommandSourceStack>literal("confirm")
+                                .executes(ctx -> runPruneFarm(ctx.getSource(), true))))
+                .then(LiteralArgumentBuilder.<CommandSourceStack>literal("species")
+                        .then(RequiredArgumentBuilder.<CommandSourceStack, String>argument("species_id", StringArgumentType.greedyString())
+                                .executes(ctx -> runPruneSpecies(ctx.getSource(), StringArgumentType.getString(ctx, "species_id")))));
     }
 
-    private static int runPruneFarm(CommandSourceStack source) {
-        FamilyTreeState state = FamilyTreeState.get(source.getServer());
-        if (!backupBeforePrune(source, state)) return 0;
-        int removed = state.removeMatching(record -> record.deceased() && FarmRecords.unnamedFarm(record));
-        ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
-        return removed;
+    private static int runPruneDeceased(CommandSourceStack source, boolean confirmed) {
+        return runPrune(source, AnimalRecord::deceased, "deceased", confirmed);
     }
 
-    private static int runPruneSpecies(CommandSourceStack source, String speciesId) {
-        String normalized = speciesId.trim();
+    private static int runPruneFarm(CommandSourceStack source, boolean confirmed) {
+        return runPrune(source, record -> record.deceased() && FarmRecords.unnamedFarm(record), "farm", confirmed);
+    }
+
+    private static int runPruneSpecies(CommandSourceStack source, String argument) {
+        PruneRequest request = PruneRequest.species(argument);
+        return runPrune(source, record -> record.speciesId().equalsIgnoreCase(request.species()),
+                "species " + request.species(), request.confirmed());
+    }
+
+    /** The first run only counts the records and asks for {@code confirm}, which backs up and then removes them. */
+    private static int runPrune(CommandSourceStack source, java.util.function.Predicate<AnimalRecord> which,
+                                String what, boolean confirmed) {
+        if (denied(source, FamilyTreePermission.PRUNE)) return 0;
         FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        if (state.readOnly()) {
+            ServerText.failure(source, Component.translatable("familytree.command.read_only"));
+            return 0;
+        }
+        long matching = state.all().stream().filter(which).count();
+        if (matching == 0) {
+            ServerText.failure(source, Component.translatable("familytree.command.prune.none"));
+            return 0;
+        }
+        if (!confirmed) {
+            String command = "/familytree prune " + what + " confirm";
+            Component link = Component.literal(command).withStyle(s -> s
+                    .withColor(ChatFormatting.AQUA)
+                    .withClickEvent(new ClickEvent.SuggestCommand(command)));
+            ServerText.success(source, () -> Component.translatable("familytree.command.prune.confirm", matching, link), false);
+            return 0;
+        }
         if (!backupBeforePrune(source, state)) return 0;
-        int removed = state.removeMatching(record -> record.speciesId().equalsIgnoreCase(normalized));
+        int removed = state.removeMatching(which);
         ServerText.success(source, () -> Component.translatable("familytree.command.prune.result", removed), false);
         return removed;
     }

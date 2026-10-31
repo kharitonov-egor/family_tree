@@ -223,6 +223,17 @@ public final class TreeRenderer {
         }
     }
 
+    /** A dashed stub and a question mark above the card, where a parent that isn't in the history would connect. */
+    public static void drawMissingParent(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node child,
+                                         double panX, double panY, double zoom) {
+        int x = (int) Math.round(child.x * zoom + panX + TreeViewport.nodeWidth(zoom) * 0.75);
+        int top = (int) Math.round(child.y * zoom + panY);
+        int length = Math.max(6, (int) Math.round(TreeLayout.V_SPACING * 0.3 * zoom));
+        int thickness = zoom >= 0.65 ? 2 : 1;
+        for (int y = top - length; y < top; y += 4) gfx.fill(x, y, x + thickness, Math.min(top, y + 2), EDGE_COLOR);
+        if (zoom >= 0.65) gfx.text(font, "?", x - font.width("?") / 2 + 1, top - length - font.lineHeight - 1, EDGE_COLOR);
+    }
+
     private static void drawHLine(GuiGraphicsExtractor gfx, int x1, int x2, int y, int color, int thickness) {
         gfx.fill(x1, y, x2 + thickness, y + thickness, color);
     }

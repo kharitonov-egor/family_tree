@@ -1,12 +1,12 @@
 package com.egakh.familytree.plugin.storage;
 
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.data.BackupFiles;
 import com.egakh.familytree.data.FarmRecords;
 import com.egakh.familytree.util.AnimalCategory;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,6 +31,7 @@ public final class FamilyTreeStore {
     private final Map<UUID, Nbt.Compound> originals = new HashMap<>();
     private final List<Object> rejected = new ArrayList<>();
     private boolean readOnly;
+    private Path unreadableFile;
     private boolean dirty;
     private int unnamedFarmRecords = -1;
     private int countedLearnedVersion;
@@ -45,6 +46,13 @@ public final class FamilyTreeStore {
     public static FamilyTreeStore locked() {
         FamilyTreeStore store = new FamilyTreeStore();
         store.readOnly = true;
+        return store;
+    }
+
+    /** Locked because {@code file} could not be read. Operators are told about it when they join. */
+    public static FamilyTreeStore unreadable(Path file) {
+        FamilyTreeStore store = locked();
+        store.unreadableFile = file;
         return store;
     }
 
@@ -196,6 +204,7 @@ public final class FamilyTreeStore {
     }
 
     public boolean readOnly() { return readOnly; }
+    public Path unreadableFile() { return unreadableFile; }
     public int preservedRecordCount() { return rejected.size(); }
     public boolean dirty() { return dirty && !readOnly; }
     public void markDirty() { dirty = true; }
@@ -212,11 +221,8 @@ public final class FamilyTreeStore {
 
     /** Writes a JSON copy of the history in the layout of the mod's backups. Pruning cancels when this fails. */
     public Path backup(Path directory, String prefix, boolean pretty) throws IOException {
-        Files.createDirectories(directory);
-        Path file = Files.createTempFile(directory, prefix, ".json");
         StringWriter text = new StringWriter();
         NbtJson.write(encodeData(), text, pretty);
-        Files.writeString(file, text.toString());
-        return file;
+        return BackupFiles.write(directory, prefix, ".json", text.toString());
     }
 }
