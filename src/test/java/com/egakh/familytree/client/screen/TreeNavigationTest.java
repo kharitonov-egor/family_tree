@@ -290,7 +290,7 @@ class TreeNavigationTest {
         assertEquals(Set.of(comet, dusk), parentsDrawn(tree, gelato));
 
         Map<String, TreeLayout.Result> views = new java.util.LinkedHashMap<>();
-        for (UUID focus : List.of(comet, dusk, gelato)) views.put(records.get(focus).name(), TreeLayout.layout(focus, records, children));
+        for (UUID focus : List.of(comet, dusk, gelato, sundae)) views.put(records.get(focus).name(), TreeLayout.layout(focus, records, children));
         views.put("the species view", forest());
         views.forEach((view, layout) -> {
             assertEquals(Set.of(comet, gelato), parentsDrawn(layout, sundae), view);
@@ -301,6 +301,63 @@ class TreeNavigationTest {
                 assertTrue(lowestMeeting(edge(layout, comet, sundae), intoGelato) < bus,
                         "In " + view + ", Comet's link to Sundae joins the bus into Gelato");
         });
+    }
+
+    /** Sol's review of #24: with a third parent in Dusk's row, the lane for Comet's link to Sundae ran along Dusk's line. */
+    @Test
+    void aBreedBackLinkKeepsOffEveryOtherParentsLine() {
+        UUID comet = pet(null, null);
+        UUID dusk = pet(null, null);
+        UUID ember = pet(null, null);
+        UUID gelato = pet(comet, dusk);
+        pet(dusk, ember);
+        UUID sundae = pet(comet, gelato);
+        TreeLayout.Result tree = TreeLayout.layout(dusk, records, children);
+
+        assertEquals(Set.of(comet, gelato), parentsDrawn(tree, sundae));
+        TreeLayout.Edge breedBack = edge(tree, comet, sundae);
+        for (TreeLayout.Edge other : tree.edges) {
+            if (other.from.id.equals(comet) || other.to.id.equals(sundae)) continue;
+            assertEquals(0, sharedLength(breedBack, other), 0.001,
+                    "Comet's link to Sundae runs along the link from " + other.from.record.name() + " to " + other.to.record.name());
+        }
+        assertLinksAvoidCards(tree);
+    }
+
+    @Test
+    void everyLinkRunsDownAndSkippingLinksRunAlongNoUnrelatedLine() {
+        java.util.Random random = new java.util.Random(7);
+        List<UUID> herd = new ArrayList<>();
+        for (int i = 0; i < 4; i++) herd.add(pet(null, null));
+        for (int i = 0; i < 40; i++) {
+            int recent = Math.max(0, herd.size() - 8);
+            UUID a = herd.get(recent + random.nextInt(herd.size() - recent));
+            UUID b = random.nextInt(4) == 0 ? herd.get(random.nextInt(herd.size())) : herd.get(recent + random.nextInt(herd.size() - recent));
+            herd.add(pet(a, a.equals(b) ? null : b));
+        }
+        int checked = 0;
+        for (UUID focus : herd) {
+            TreeLayout.Result tree = TreeLayout.layout(focus, records, children);
+            Map<Integer, Set<Double>> rows = new HashMap<>();
+            for (TreeLayout.Node node : tree.nodes) rows.computeIfAbsent(node.generation, key -> new HashSet<>()).add(node.y);
+            java.util.function.Predicate<TreeLayout.Node> wrapped = node -> rows.get(node.generation).size() > 1;
+            // Cards at the six-generation limit still link to a parent drawn lower down; their tab offers the rest.
+            List<TreeLayout.Edge> inside = tree.edges.stream().filter(edge -> edge.to.generation < TreeLayout.MAX_ANCESTOR_GENERATIONS
+                    && edge.from.generation > -TreeLayout.MAX_DESCENDANT_GENERATIONS).toList();
+            checked += inside.size();
+            for (TreeLayout.Edge edge : inside) {
+                assertTrue(edge.from.y < edge.to.y, "In " + records.get(focus).name() + "'s tree, the link from " + edge.from.record.name()
+                        + " to " + edge.to.record.name() + " doesn't run down");
+                if (edge.from.generation - edge.to.generation < 2 || wrapped.test(edge.from) || wrapped.test(edge.to)) continue;
+                for (TreeLayout.Edge other : inside) {
+                    if (other.from == edge.from || other.to == edge.to || wrapped.test(other.from) || wrapped.test(other.to)) continue;
+                    assertEquals(0, sharedLength(edge, other), 0.001, "In " + records.get(focus).name() + "'s tree, the link from "
+                            + edge.from.record.name() + " to " + edge.to.record.name() + " runs along the link from "
+                            + other.from.record.name() + " to " + other.to.record.name());
+                }
+            }
+        }
+        assertTrue(checked > 500, checked + " links checked");
     }
 
     @Test
@@ -350,15 +407,18 @@ class TreeNavigationTest {
         UUID gelato = pet(comet, null);
         UUID sundae = pet(comet, gelato);
         assertEquals(Map.of(comet, 0, gelato, 1, sundae, 2), TreeLayout.descendantDepths(comet, records, children));
+        assertEquals(Map.of(sundae, 0, gelato, 1, comet, 2), TreeLayout.ancestorHeights(sundae, records));
 
         UUID focus = pet(null, null);
         UUID first = pet(focus, null);
         UUID second = pet(first, null);
         records.get(first).setParents(focus, second);
         children.computeIfAbsent(second, key -> new ArrayList<>()).add(first);
+        UUID below = pet(second, null);
         assertEquals(Map.of(focus, 0), TreeLayout.descendantDepths(focus, records, children));
-        TreeLayout.Result looped = TreeLayout.layout(focus, records, children);
-        assertEquals(Set.of(focus, first, second), looped.byId.keySet());
+        assertEquals(Map.of(below, 0), TreeLayout.ancestorHeights(below, records));
+        assertEquals(Set.of(focus, first, second, below), TreeLayout.layout(focus, records, children).byId.keySet());
+        assertEquals(Set.of(focus, first, second, below), TreeLayout.layout(below, records, children).byId.keySet());
     }
 
     private static Set<UUID> parentsDrawn(TreeLayout.Result tree, UUID child) {
@@ -369,6 +429,24 @@ class TreeNavigationTest {
 
     private static TreeLayout.Edge edge(TreeLayout.Result tree, UUID from, UUID to) {
         return tree.edges.stream().filter(edge -> edge.from.id.equals(from) && edge.to.id.equals(to)).findFirst().orElseThrow();
+    }
+
+    /** How far two links run along the same line. Crossing or meeting at one point counts as zero. */
+    private static double sharedLength(TreeLayout.Edge a, TreeLayout.Edge b) {
+        double shared = 0;
+        double[] p = a.route(), q = b.route();
+        for (int i = 2; i < p.length; i += 2) {
+            for (int j = 2; j < q.length; j += 2) {
+                boolean pFlat = p[i - 1] == p[i + 1], qFlat = q[j - 1] == q[j + 1];
+                if (pFlat != qFlat) continue;
+                int along = pFlat ? 0 : 1, across = 1 - along;
+                if (p[i - 2 + across] != q[j - 2 + across]) continue;
+                double start = Math.max(Math.min(p[i - 2 + along], p[i + along]), Math.min(q[j - 2 + along], q[j + along]));
+                double end = Math.min(Math.max(p[i - 2 + along], p[i + along]), Math.max(q[j - 2 + along], q[j + along]));
+                shared += Math.max(0, end - start);
+            }
+        }
+        return shared;
     }
 
     /** The lowest point two links share, or negative infinity when they never touch. */
