@@ -71,7 +71,8 @@ final class TextPrompt {
             if (view == null) {
                 Class<?> menuType = Class.forName("org.bukkit.inventory.MenuType");
                 Object anvil = menuType.getField("ANVIL").get(null);
-                Object created = anvil.getClass().getMethod("create", HumanEntity.class, String.class).invoke(anvil, player, title);
+                Object created = Class.forName("org.bukkit.inventory.MenuType$Typed")
+                        .getMethod("create", HumanEntity.class, String.class).invoke(anvil, player, title);
                 if (created instanceof InventoryView inventoryView) {
                     player.openInventory(inventoryView);
                     view = created;

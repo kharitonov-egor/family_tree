@@ -37,6 +37,18 @@ def paper_jar(minecraft):
     return target
 
 
+def purpur_jar(minecraft):
+    target = CACHE / f'purpur-{minecraft}.jar'
+    if not target.exists():
+        CACHE.mkdir(parents=True, exist_ok=True)
+        print('Downloading', target.name)
+        request = urllib.request.Request(f'https://api.purpurmc.org/v2/purpur/{minecraft}/latest/download',
+                                         headers={'User-Agent': 'kharitonov-egor/family_tree-tests'})
+        with urllib.request.urlopen(request, timeout=600) as response:
+            target.write_bytes(response.read())
+    return target
+
+
 def plugin_jars():
     libs = ROOT / 'paper' / 'build' / 'libs'
     jars = [path for path in libs.glob('familytree-*+plugin.jar')]
@@ -48,7 +60,7 @@ def plugin_jars():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--minecraft', default='26.3')
-    parser.add_argument('--software', default='paper', choices=['paper', 'spigot'])
+    parser.add_argument('--software', default='paper', choices=['paper', 'purpur', 'spigot'])
     parser.add_argument('--server-jar', type=Path, help='A Spigot jar from BuildTools, or another server jar')
     parser.add_argument('--dir', type=Path)
     parser.add_argument('--port', type=int, default=25711)
@@ -66,7 +78,8 @@ def main():
     if args.fresh:
         for name in ['world', 'world_nether', 'world_the_end']:
             shutil.rmtree(directory / name, ignore_errors=True)
-    server = args.server_jar or (paper_jar(args.minecraft) if args.software == 'paper' else None)
+    server = args.server_jar or (paper_jar(args.minecraft) if args.software == 'paper'
+                                 else purpur_jar(args.minecraft) if args.software == 'purpur' else None)
     if server is None:
         raise SystemExit('Spigot needs --server-jar from BuildTools')
     (directory / 'eula.txt').write_text('eula=true\n')

@@ -303,7 +303,7 @@ def read_records(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--minecraft', required=True)
-    parser.add_argument('--software', default='paper', choices=['paper', 'spigot'])
+    parser.add_argument('--software', default='paper', choices=['paper', 'purpur', 'spigot'])
     parser.add_argument('--server-jar', type=Path)
     parser.add_argument('--dir', type=Path)
     parser.add_argument('--port', type=int, default=25714)
@@ -343,15 +343,19 @@ def main():
         listing = s.ask('familytree list')
         s.check('feeding them beef records the puppy', listing.count('[Wolf]') == 3, listing[-300:])
 
-        # A name tag and three named sheep for the parent picker.
+        # A name tag and three named sheep for the parent picker. Freeze the wolves so they can't walk into the click.
+        s.console('execute as @e[type=wolf] run data merge entity @s {NoAI:1b}')
         s.console('clear Tester')
         for index, name in enumerate(['Woolly', 'Fluffy', 'Puff']):
             x = 10.5 + index * 2
             s.console(f'summon sheep {x} -60 2.5 {{NoAI:1b}}')
-            s.console('clear Tester')
-            s.console(f'give Tester {s.name_tag(name)}')
-            s.look(x, 2.5)
-            s.use()
+            for _ in range(3):
+                s.console('clear Tester')
+                s.console(f'give Tester {s.name_tag(name)}')
+                s.look(x, 2.5)
+                s.use()
+                if f'- {name} [' in s.ask('familytree list'):
+                    break
         listing = s.ask('familytree list')
         s.check('name tags add sheep', all(name in listing for name in ['Woolly', 'Fluffy', 'Puff']), listing[-400:])
 
