@@ -213,7 +213,12 @@ public final class BestPairsScreen extends FamilyTreeScreen {
         int index = (int) ((mouseY - listTop() + scroll) / ROW_HEIGHT);
         if (index < 0 || index >= outcome.pairs().size()) return false;
         BestPairs.Ranked pair = outcome.pairs().get(index);
-        minecraft.setScreen(new BreedingPlannerScreen(this, snapshot, pair.first().id(), pair.second().id()));
+        if (parent instanceof BreedingPlannerScreen planner) {
+            planner.choosePair(pair.first().id(), pair.second().id());
+            minecraft.setScreen(planner);
+        } else {
+            minecraft.setScreen(new BreedingPlannerScreen(this, snapshot, pair.first().id(), pair.second().id()));
+        }
         return true;
     }
 

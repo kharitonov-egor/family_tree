@@ -53,6 +53,13 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
         this.secondId = this.firstId != null && mates(records.get(this.firstId), records.get(secondId)) ? secondId : null;
     }
 
+    /** Shows another pair in this planner, so choosing from Best pairs returns here instead of stacking a new planner. */
+    void choosePair(UUID first, UUID second) {
+        firstId = usable(records.get(first)) ? first : null;
+        secondId = firstId != null && mates(records.get(firstId), records.get(second)) ? second : null;
+        scroll = 0;
+    }
+
     private static boolean usable(AnimalRecord pet) {
         return pet != null && !pet.deceased() && BreedingPair.breeds(pet.speciesId());
     }

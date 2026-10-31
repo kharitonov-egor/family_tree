@@ -54,9 +54,18 @@ public final class ParentLinksScreen extends FamilyTreeScreen {
     private void choose(boolean first) {
         var player = minecraft.player;
         if (player == null || pending != null) return;
+        AnimalRecord other = records.get(first ? b : a);
         minecraft.setScreen(new PetPickerScreen(this, records.values().stream()
-                .filter(pet -> !pet.id().equals(child.id()) && PetAccess.canManage(pet, player.getUUID(), snapshot.mayManageAll()))
-                .toList(), chosen -> { if (first) a = chosen; else b = chosen; }));
+                .filter(pet -> PetAccess.canManage(pet, player.getUUID(), snapshot.mayManageAll())
+                        && ParentLinks.mayPick(child, pet, other, records::get))
+                .toList(), chosen -> {
+            if (first) a = chosen; else b = chosen;
+            AnimalRecord picked = records.get(chosen), kept = records.get(first ? b : a);
+            if (kept != null && !ParentLinks.mayPick(child, kept, picked, records::get)) {
+                if (first) b = null; else a = null;
+            }
+            error = Component.empty();
+        }));
     }
 
     private void submit(boolean remove) {
@@ -109,13 +118,14 @@ public final class ParentLinksScreen extends FamilyTreeScreen {
     @Override public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         gfx.fill(0, 0, width, height, 0xFF151A21);
         gfx.centeredText(font, title, width / 2, 14, 0xFFFFFFFF);
+        int columnWidth = Math.min(360, width - 24);
         int y = 34;
-        for (var line : font.split(Component.translatable("familytree.parents.hint"), width - 32)) {
-            gfx.text(font, line, 16, y, 0xFFB0B7C0); y += font.lineHeight + 2;
+        for (String line : wrap(Component.translatable("familytree.parents.hint"), columnWidth)) {
+            gfx.centeredText(font, line, width / 2, y, 0xFFB0B7C0); y += font.lineHeight + 2;
         }
         y = 198;
-        for (var line : font.split(pending == null ? error : Component.translatable("familytree.rename.saving"), width - 32)) {
-            gfx.text(font, line, 16, y, 0xFFFF9292); y += font.lineHeight + 2;
+        for (String line : wrap(pending == null ? error : Component.translatable("familytree.rename.saving"), columnWidth)) {
+            gfx.centeredText(font, line, width / 2, y, 0xFFFF9292); y += font.lineHeight + 2;
         }
         renderWidgets(gfx, mouseX, mouseY, delta);
     }

@@ -10,7 +10,10 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
 //?}
 
-/** Adapts input events while keeping tree navigation identical on each Minecraft version. */
+/**
+ * Adapts input events while keeping tree navigation identical on each Minecraft version. Escape returns to the screen
+ * that opened this one, as vanilla's Statistics and Advancements screens do.
+ */
 public abstract class FamilyTreeScreen extends Screen {
     protected FamilyTreeScreen(Component title) { super(title); }
     protected boolean onMouseClick(double x, double y, int button, boolean doubleClick) { return false; }
@@ -22,6 +25,20 @@ public abstract class FamilyTreeScreen extends Screen {
 
     // Minecraft 26.3 numbers mouse buttons from 1 as SDL does; older versions number them from 0.
     protected static boolean isLeftButton(int button) { return button == InputConstants.MOUSE_BUTTON_LEFT; }
+
+    /** A button wide enough for its label with padding on both sides, so longer translations never touch the edges. */
+    protected int labelWidth(Component label, int minimum) {
+        return Math.max(minimum, this.font.width(label) + 16);
+    }
+
+    protected java.util.List<String> wrap(Component text, int width) {
+        return LineBreaks.split(text.getString(), width, this.font::width);
+    }
+
+    protected String trimToWidth(String text, int maxWidth) {
+        if (this.font.width(text) <= maxWidth) return text;
+        return this.font.plainSubstrByWidth(text, Math.max(0, maxWidth - this.font.width("..."))) + "...";
+    }
 
     protected void renderWidgets(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         //? if >26.3 {

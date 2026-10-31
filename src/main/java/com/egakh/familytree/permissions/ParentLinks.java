@@ -24,4 +24,23 @@ public final class ParentLinks {
         if (Genealogy.wouldCreateCycle(childId, aId, bId, lookup)) return Result.CYCLE;
         return Result.SUCCESS;
     }
+
+    /**
+     * Whether a parent picker should offer {@code candidate}, so the player only sees choices {@link #validate} accepts:
+     * the child's species (a horse and a donkey for a mule, since mules don't breed), not the child, not the other
+     * chosen parent, and not one of the child's descendants. An {@code other} parent that could never fit is ignored.
+     */
+    public static boolean mayPick(AnimalRecord child, AnimalRecord candidate, AnimalRecord other,
+                                  Function<UUID, AnimalRecord> lookup) {
+        if (candidate.id().equals(child.id())) return false;
+        if (other != null && candidate.id().equals(other.id())) return false;
+        boolean otherFits = other != null && !other.id().equals(child.id()) && breedsInto(other.speciesId(), child.speciesId());
+        boolean species = breedsInto(candidate.speciesId(), child.speciesId())
+                && (!otherFits || PetRelations.speciesMatch(candidate, other, child));
+        return species && !Genealogy.wouldCreateCycle(child.id(), candidate.id(), null, lookup);
+    }
+
+    private static boolean breedsInto(String parent, String child) {
+        return child.equals("minecraft:mule") ? parent.equals("minecraft:horse") || parent.equals("minecraft:donkey") : parent.equals(child);
+    }
 }
