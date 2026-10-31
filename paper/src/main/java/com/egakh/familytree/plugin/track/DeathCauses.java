@@ -37,6 +37,7 @@ public final class DeathCauses {
         if (source != null) {
             Object msgId = Compat.call(Compat.call(source, "getDamageType"), "getTranslationKey");
             Object causing = Compat.call(source, "getCausingEntity");
+            if (causing == null) causing = Compat.call(source, "getDirectEntity");
             if (msgId instanceof String id) return new AnimalRecord.DeathCause(name(causing), id);
         }
         Entity attacker = null;

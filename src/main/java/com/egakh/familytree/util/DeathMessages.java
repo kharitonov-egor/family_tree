@@ -14,8 +14,9 @@ public final class DeathMessages {
         if (cause == null || cause.attacker() == null && cause.msgId() == null) return null;
         Component name = Component.literal(pet.name());
         if (cause.msgId() == null) return Component.translatable("familytree.node.slain_by", cause.attacker());
-        String key = "death.attack." + cause.msgId();
-        if (!Language.getInstance().has(key)) return Component.translatable("death.attack.generic", name);
+        Language language = Language.getInstance();
+        String key = DeathMessageKeys.key(cause.msgId(), cause.attacker() != null,
+                id -> language.has(id) ? language.getOrDefault(id) : null);
         return cause.attacker() == null ? Component.translatable(key, name)
                 : Component.translatable(key, name, Component.literal(cause.attacker()));
     }

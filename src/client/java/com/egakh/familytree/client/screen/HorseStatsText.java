@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -46,13 +47,18 @@ public final class HorseStatsText {
     }
 
     public static List<DetailLine> details(AnimalRecord pet, Function<UUID, AnimalRecord> lookup) {
+        return details(pet, lookup, Set.of());
+    }
+
+    /** The detail lines without {@code hidden}, such as the stats another mod's tooltip already shows. */
+    public static List<DetailLine> details(AnimalRecord pet, Function<UUID, AnimalRecord> lookup, Set<Stat> hidden) {
         List<DetailLine> lines = new ArrayList<>();
         if (!has(pet)) return lines;
         HorseStats stats = pet.horseStats();
         AnimalRecord a = parent(pet.parentA(), lookup), b = parent(pet.parentB(), lookup);
         for (Stat stat : Stat.values()) {
             Double value = stat.value(stats);
-            if (value == null) continue;
+            if (value == null || hidden.contains(stat)) continue;
             String text = stat == Stat.STRENGTH
                     ? Component.translatable("familytree.stats.strength", stats.strength(),
                             HorseStatUnits.chestSlots(stats.strength())).getString()

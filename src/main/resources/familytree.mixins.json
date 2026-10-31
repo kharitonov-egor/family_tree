@@ -5,12 +5,15 @@
   "mixins": [
     "AbstractHorseTameMixin",
     "AnimalEntityBreedMixin",
+    "BreedGoalAccessor",
     "CatVariantInvoker",
     "EntitySetCustomNameMixin",
+    "FoxBreedGoalMixin",
     "HorseVariantInvoker",
     "LlamaVariantInvoker",
     "NameTagItemMixin",
     "TamableAnimalTameMixin",
+    "TurtleBreedGoalMixin",
     "WolfVariantInvoker"
   ],
   "client": [

@@ -1,6 +1,7 @@
 package com.egakh.familytree.plugin.text;
 
 import com.egakh.familytree.data.AnimalRecord;
+import com.egakh.familytree.util.DeathMessageKeys;
 import com.egakh.familytree.util.VariantRules;
 
 import java.util.LinkedHashSet;
@@ -72,8 +73,8 @@ public final class GameText {
         if (cause == null || cause.attacker() == null && cause.msgId() == null) return null;
         Text name = Text.literal(pet.name());
         if (cause.msgId() == null) return Messages.tr(language, "familytree.node.slain_by", cause.attacker());
-        String key = "death.attack." + cause.msgId();
-        if (!VanillaLang.has(key)) return Text.vanilla("death.attack.generic", name);
+        String key = DeathMessageKeys.key(cause.msgId(), cause.attacker() != null,
+                id -> VanillaLang.has(id) ? VanillaLang.english(id) : null);
         return cause.attacker() == null ? Text.vanilla(key, name) : Text.vanilla(key, name, Text.literal(cause.attacker()));
     }
 
