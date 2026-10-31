@@ -75,8 +75,8 @@ public final class Tracker {
         FamilyTreeStore state = store();
         if (!rules.records(child, AnimalCategory.PETS)) return;
 
-        rememberParent(state, parentA, breeder);
-        rememberParent(state, parentB, breeder);
+        rememberParent(state, parentA, feeder(parentA) != null ? feeder(parentA) : breeder);
+        rememberParent(state, parentB, feeder(parentB) != null ? feeder(parentB) : breeder);
 
         UUID childId = child.getUniqueId();
         String existingName = Entities.customName(child);
@@ -186,7 +186,7 @@ public final class Tracker {
         stampLastSeen(state, child);
     }
 
-    /** Frogs and sniffers lay spawn or an egg instead of a baby, so a player's breeding records only the parents. */
+    /** Frogs, sniffers, and turtles lay spawn or an egg instead of a baby, so a player's breeding records only the parents. */
     public void onBredWithoutBaby(Animals parentA, Animals parentB, Player breeder) {
         if (breeder == null || PetRules.isTameableSpecies(parentA) || !rules.recordsNewAnimal(parentA)) return;
         FamilyTreeStore state = store();
@@ -317,7 +317,10 @@ public final class Tracker {
 
     private void claim(FamilyTreeStore state, Entity entity, Player player) {
         UUID id = entity.getUniqueId();
-        if (!state.contains(id)) state.put(newRecord(state, entity));
+        if (!state.contains(id)) {
+            if (!rules.records(entity, AnimalCategory.PETS)) return;
+            state.put(newRecord(state, entity));
+        }
         state.update(id, record -> {
             if (record.ownerId() == null) record.setOwner(player.getUniqueId(), player.getName());
         });

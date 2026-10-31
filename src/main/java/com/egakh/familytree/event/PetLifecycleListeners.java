@@ -66,8 +66,8 @@ public final class PetLifecycleListeners {
         FamilyTreeState state = FamilyTreeState.get(world);
         if (!PetFilter.records(child, AnimalCategory.PETS)) return;
 
-        rememberParent(world, state, parentA, breeder);
-        rememberParent(world, state, parentB, breeder);
+        rememberParent(world, state, parentA, parentA.getLoveCause() != null ? parentA.getLoveCause() : breeder);
+        rememberParent(world, state, parentB, parentB.getLoveCause() != null ? parentB.getLoveCause() : breeder);
 
         UUID childId = child.getUUID();
 
@@ -191,7 +191,7 @@ public final class PetLifecycleListeners {
         stampLastSeen(world, state, child);
     }
 
-    /** Frogs and sniffers lay spawn or an egg instead of a baby, so a player's breeding records only the parents. */
+    /** Frogs, sniffers, and turtles lay spawn or an egg instead of a baby, so a player's breeding records only the parents. */
     public static void onBredWithoutBaby(ServerLevel world, Animal parentA, Animal parentB) {
         ServerPlayer breeder = parentA.getLoveCause() != null ? parentA.getLoveCause() : parentB.getLoveCause();
         if (breeder == null || PetFilter.isTameableSpecies(parentA) || !PetFilter.recordsNewAnimal(parentA)) return;
@@ -303,7 +303,10 @@ public final class PetLifecycleListeners {
 
     private static void claim(ServerLevel world, FamilyTreeState state, Entity entity, ServerPlayer player) {
         UUID id = entity.getUUID();
-        if (!state.contains(id)) state.put(newRecord(world, state, entity));
+        if (!state.contains(id)) {
+            if (!PetFilter.records(entity, AnimalCategory.PETS)) return;
+            state.put(newRecord(world, state, entity));
+        }
         state.update(id, record -> {
             if (record.ownerId() == null) record.setOwner(player.getUUID(), player.getName().getString());
         });
@@ -328,7 +331,7 @@ public final class PetLifecycleListeners {
         FamilyTreeState state = FamilyTreeState.get(world);
         UUID id = entity.getUUID();
         if (!state.contains(id)) return;
-        Entity killer = source.getEntity();
+        Entity killer = source.getEntity() != null ? source.getEntity() : source.getDirectEntity();
         String attacker = killer != null ? killer.getDisplayName().getString() : null;
         AnimalRecord.DeathCause cause = new AnimalRecord.DeathCause(attacker, source.getMsgId());
         state.update(id, r -> r.markDeceased(TimeUtil.currentWorldDay(world), TimeUtil.currentEpochMillis(), cause));
