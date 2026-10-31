@@ -55,6 +55,18 @@ Modrinth has twelve matching versions. The seven Fabric versions also list Quilt
 
 CurseForge received the same twelve files through the upload API, file IDs 9365774 to 9365785. Each has its Minecraft version, loader, Java version, Client, and Server tags. Fabric files also carry Quilt and require Fabric API. They go public after CurseForge's review. The upload API cannot edit the project description, which still describes 1.1.0. `scripts/publish_curseforge.py` reads `CURSEFORGE_TOKEN` from the ignored `.env`.
 
+## 1.3.0 publication
+
+On October 31, 2026 UTC, commit `976d03a` was tagged `v1.3.0`. The [GitHub release](https://github.com/kharitonov-egor/family_tree/releases/tag/v1.3.0) has twenty jars, their source jars, and the manifest. Modrinth had 1,113 downloads and 11 followers the day before.
+
+The release adds Fabric and NeoForge builds for 1.21.4, 1.21.5, 1.21.8, and 1.21.10. It also fixes left clicks on Minecraft 26.3, which numbers mouse buttons from 1 instead of 0. Since 1.1.0, clicking a browser row or tree card there did nothing, and dragging didn't pan. A real 26.3 client clicked a browser row, opened the tree, and panned it with the 1.3.0 jar.
+
+Modrinth has twenty matching versions, checked by version ID for hash, game versions, loaders, and release type without downloading files. The eleven Fabric versions also list Quilt, after a Quilt Loader 0.30.1 server started with Family Tree on each of them. The page body describes 1.3.0, and the gallery adds the sheep export and the blue axolotl images.
+
+CurseForge received the same twenty files through the upload API, file IDs 9380487 to 9380506, with Quilt on the Fabric files. They go public after CurseForge's review. The project description there still describes 1.1.0.
+
+The Send feedback form works from this release on. The Vercel endpoint has its Resend key and sends from `feedback@hawksconnect.com`, and a test message reached the developer's Gmail.
+
 ## Measurement decisions
 
 At 30 days, compare the actual download rate with the remaining target. The audit's 180-day deadline requires roughly 53 additional downloads a day from the baseline. If the rate stays below that, broader distribution is still needed. More code alone cannot establish that the target will be reached.
