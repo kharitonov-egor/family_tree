@@ -18,7 +18,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.Messenger;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,14 +170,18 @@ public final class ClientBridge implements PluginMessageListener {
         return NearbyRelatives.answer(requestId, target, player.getUniqueId(), plugin.access().viewAll(player), state::get, nearby);
     }
 
+    /**
+     * 1.4.0 clients name a denied {@code familytree.rename} on the rename screen. They are the first to listen on
+     * the relatives result channel, so older clients get NOT_ALLOWED and the permission message in chat, as in the mod.
+     */
     private void rename(Player player, Payloads.RenameRequest request) {
-        if (denied(player, FamilyTreePermission.RENAME)) {
-            send(player, Payloads.RENAME_RESULT, Payloads.encodeRenameResult(request.requestId(), PetRenaming.Result.NOT_ALLOWED.ordinal(), null));
-            return;
-        }
-        PetRenaming.Result result = Edits.rename(plugin, player, request.petId(), request.name());
+        boolean namesPermission = player.getListeningPluginChannels().contains(Payloads.RELATIVES_RESULT);
+        PetRenaming.Result result = plugin.access().allowed(player, FamilyTreePermission.RENAME)
+                ? Edits.rename(plugin, player, request.petId(), request.name()) : PetRenaming.Result.NO_PERMISSION;
+        if (result == PetRenaming.Result.NO_PERMISSION && !namesPermission)
+            plugin.chat().send(player, "familytree.permission.denied", FamilyTreePermission.RENAME.node());
         AnimalRecord record = result == PetRenaming.Result.SUCCESS ? plugin.store().get(request.petId()) : null;
-        send(player, Payloads.RENAME_RESULT, Payloads.encodeRenameResult(request.requestId(), result.ordinal(), record));
+        send(player, Payloads.RENAME_RESULT, Payloads.encodeRenameResult(request.requestId(), result.wireStatus(namesPermission), record));
     }
 
     private void link(Player player, Payloads.LinkRequest request) {
@@ -200,12 +203,9 @@ public final class ClientBridge implements PluginMessageListener {
         boolean mayViewAll = plugin.access().viewAll(player);
         boolean viewingAll = mayViewAll && requestAll;
         boolean operator = plugin.access().manageAll(player);
-        UUID me = player.getUniqueId();
-        List<AnimalRecord> visible = state.all().stream()
-                .filter(record -> PetAccess.canView(record, me, viewingAll))
-                .sorted(Comparator.comparing(AnimalRecord::id))
-                .limit(SnapshotPages.MAX_RECORDS + 1L)
-                .map(record -> PetAccess.forViewer(record, me, operator)).toList();
+        boolean mayLocate = plugin.access().allowed(player, FamilyTreePermission.LOCATE);
+        List<AnimalRecord> visible = PetAccess.snapshot(state.all(), player.getUniqueId(), viewingAll, operator, mayLocate,
+                SnapshotPages.MAX_RECORDS + 1L);
         try {
             for (Payloads.SnapshotPage page : SnapshotPages.split(requestId, visible, WorldClock.currentWorldDay(),
                     WorldClock.currentEpochMillis(), mayViewAll, viewingAll, operator, maxMessageBytes() - HEADROOM))

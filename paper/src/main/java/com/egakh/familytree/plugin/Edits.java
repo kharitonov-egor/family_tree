@@ -19,7 +19,7 @@ public final class Edits {
         FamilyTreeStore state = plugin.store();
         if (state.readOnly()) return PetRenaming.Result.READ_ONLY;
         AnimalRecord record = state.get(petId);
-        if (!plugin.access().allowed(player, FamilyTreePermission.RENAME)) return PetRenaming.Result.NOT_ALLOWED;
+        if (!plugin.access().allowed(player, FamilyTreePermission.RENAME)) return PetRenaming.Result.NO_PERMISSION;
         PetRenaming.Result result = PetRenaming.rename(record, player.getUniqueId(), plugin.access().manageAll(player), name);
         if (result == PetRenaming.Result.SUCCESS) state.recordEdited();
         return result;

@@ -12,8 +12,10 @@ import com.egakh.familytree.plugin.WorldClock;
 import com.egakh.familytree.plugin.storage.FamilyTreeStore;
 import com.egakh.familytree.plugin.text.GameText;
 import com.egakh.familytree.plugin.text.PlanLines;
+import com.egakh.familytree.plugin.text.Messages;
 import com.egakh.familytree.plugin.text.Text;
 import com.egakh.familytree.plugin.track.Tracker;
+import com.egakh.familytree.text.UsageLine;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.Kinship;
@@ -118,6 +120,21 @@ public final class FamilyTreeCommand implements TabExecutor {
         return true;
     }
 
+    /** Commands share the screens' cooldowns. The console has no player and no cooldown. */
+    private boolean busy(CommandSender sender, Predicate<UUID> limiter) {
+        if (!(sender instanceof Player player) || limiter.test(player.getUniqueId())) return false;
+        chat().fail(sender, "familytree.command.cooldown");
+        return true;
+    }
+
+    /** The node, then the edit cooldown, then a writable store, before any name lookup. */
+    private boolean mayEdit(CommandSender sender, FamilyTreePermission permission) {
+        if (denied(sender, permission) || busy(sender, plugin.cooldowns()::edit)) return false;
+        if (!store().readOnly()) return true;
+        chat().fail(sender, "familytree.command.read_only");
+        return false;
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] raw) {
         if (denied(sender, FamilyTreePermission.USE)) return true;
@@ -132,10 +149,10 @@ public final class FamilyTreeCommand implements TabExecutor {
             case "list" -> runList(sender);
             case "scan" -> { if (!denied(sender, FamilyTreePermission.SCAN)) runScan(sender); }
             case "locate" -> {
-                if (denied(sender, FamilyTreePermission.LOCATE)) break;
                 String name = args.rest();
-                if (name.isEmpty()) usage(sender, "/" + label + " locate <name>");
-                else runLocate(sender, name);
+                if (name.isEmpty()) {
+                    if (!denied(sender, FamilyTreePermission.LOCATE)) usage(sender, "/" + label + " locate <name>");
+                } else runLocate(sender, name);
             }
             case "info" -> {
                 String name = args.rest();
@@ -143,24 +160,23 @@ public final class FamilyTreeCommand implements TabExecutor {
                 else runInfo(sender, name);
             }
             case "pair" -> {
-                if (denied(sender, FamilyTreePermission.PARENTS)) break;
                 String a = args.next(), b = args.next(), child = args.next();
-                if (child == null || !args.done()) usage(sender, "/" + label + " pair <parent_a> <parent_b> <child>");
-                else runPair(sender, a, b, child);
+                if (child == null || !args.done()) {
+                    if (!denied(sender, FamilyTreePermission.PARENTS)) usage(sender, "/" + label + " pair <parent_a> <parent_b> <child>");
+                } else runPair(sender, a, b, child);
             }
             case "unpair" -> {
-                if (denied(sender, FamilyTreePermission.PARENTS)) break;
                 String child = args.next();
-                if (child == null || !args.done()) usage(sender, "/" + label + " unpair <child>");
-                else runUnpair(sender, child);
+                if (child == null || !args.done()) {
+                    if (!denied(sender, FamilyTreePermission.PARENTS)) usage(sender, "/" + label + " unpair <child>");
+                } else runUnpair(sender, child);
             }
             case "setage", "setbirth" -> {
-                if (denied(sender, FamilyTreePermission.AGE)) break;
                 String name = args.next();
                 Long value = number(args.next());
-                if (name == null || value == null || value < 0 || !args.done())
-                    usage(sender, "/" + label + " " + sub.toLowerCase(Locale.ROOT) + (sub.equalsIgnoreCase("setage") ? " <name> <days>" : " <name> <day>"));
-                else if (sub.equalsIgnoreCase("setage")) runSetAge(sender, name, value);
+                if (name == null || value == null || value < 0 || !args.done()) {
+                    if (!denied(sender, FamilyTreePermission.AGE)) usage(sender, "/" + label + " " + sub.toLowerCase(Locale.ROOT) + (sub.equalsIgnoreCase("setage") ? " <name> <days>" : " <name> <day>"));
+                } else if (sub.equalsIgnoreCase("setage")) runSetAge(sender, name, value);
                 else runSetBirthDay(sender, name, value);
             }
             case "breed" -> {
@@ -213,10 +229,16 @@ public final class FamilyTreeCommand implements TabExecutor {
             plugin.menus().open(player);
             return;
         }
-        chat().send(sender, "familytree.command.usage");
+        String usage = Messages.template(chat().language(sender), "familytree.command.usage");
+        if (usage != null) chat().send(sender, Text.literal(UsageLine.filter(usage, sub -> mayRunFromUsage(sender, sub))));
         if (clientMod) chat().send(sender, "familytree.command.menu_hint", Text.keybind("key.familytree.open_tree"));
         if (access().allowed(sender, FamilyTreePermission.RELOAD) || access().allowed(sender, FamilyTreePermission.SETTINGS))
             chat().send(sender, "familytree.command.admin_usage");
+    }
+
+    private boolean mayRunFromUsage(CommandSender sender, String sub) {
+        if (sub.equals("menu") && (!(sender instanceof Player) || !plugin.settings().vanillaMenu())) return false;
+        return mayUse(sender, sub);
     }
 
     private void runMenu(CommandSender sender) {
@@ -248,19 +270,18 @@ public final class FamilyTreeCommand implements TabExecutor {
 
     private void runInfo(CommandSender sender, String name) {
         FamilyTreeStore state = store();
-        AnimalRecord match = findUnique(state, name, sender, false);
+        AnimalRecord match = find(state, name, sender, false, id -> "/familytree info " + id);
         if (match == null) return;
         String language = chat().language(sender);
         long currentDay = WorldClock.currentWorldDay();
         chat().send(sender, formatLine(sender, match, currentDay).color(Text.Color.YELLOW));
-        Map<UUID, AnimalRecord> byId = new HashMap<>();
-        for (AnimalRecord record : state.all()) byId.put(record.id(), record);
-        chat().send(sender, "familytree.command.info.generation", Genealogy.generationOf(match.id(), byId));
+        Map<UUID, AnimalRecord> visible = new HashMap<>();
+        for (AnimalRecord record : state.all()) if (access().canView(sender, record)) visible.put(record.id(), record);
+        chat().send(sender, "familytree.command.info.generation", Genealogy.generationOf(match.id(), visible));
         Text variant = GameText.variant(language, match);
         if (variant != null) {
-            Function<UUID, AnimalRecord> visible = id -> access().canView(sender, state.get(id)) ? state.get(id) : null;
             chat().send(sender, GameText.rare(match) ? "familytree.command.info.variant_rare" : "familytree.command.info.variant", variant);
-            Text parents = GameText.variantParents(language, match, visible), note = GameText.variantNote(language, match, visible);
+            Text parents = GameText.variantParents(language, match, visible::get), note = GameText.variantNote(language, match, visible::get);
             if (parents != null) chat().send(sender, Text.literal("  ").append(parents));
             if (note != null) chat().send(sender, Text.literal("  ").append(note));
         }
@@ -280,9 +301,9 @@ public final class FamilyTreeCommand implements TabExecutor {
     /** Kinship uses only the animals this sender may view, as the screens do. */
     private void runBreed(CommandSender sender, String firstName, String secondName) {
         FamilyTreeStore state = store();
-        AnimalRecord first = findUnique(state, firstName, sender, false);
+        AnimalRecord first = find(state, firstName, sender, false, id -> "/familytree breed " + id + " " + Args.quoteIfNeeded(secondName));
         if (first == null) return;
-        AnimalRecord second = findUnique(state, secondName, sender, false);
+        AnimalRecord second = find(state, secondName, sender, false, id -> "/familytree breed " + Args.quoteIfNeeded(firstName) + " " + id);
         if (second == null) return;
         Map<UUID, AnimalRecord> visible = new HashMap<>();
         for (AnimalRecord record : state.all()) if (access().canView(sender, record)) visible.put(record.id(), record);
@@ -295,9 +316,17 @@ public final class FamilyTreeCommand implements TabExecutor {
             chat().send(sender, "familytree.command.info.help." + key);
     }
 
-    private void runLocate(CommandSender sender, String name) {
+    private void runLocate(CommandSender sender, String typed) {
+        if (denied(sender, FamilyTreePermission.LOCATE) || busy(sender, plugin.cooldowns()::locate)) return;
         FamilyTreeStore state = store();
-        List<AnimalRecord> matches = PetNames.matches(state.all(), name, record -> access().canManage(sender, record));
+        String name = PetNames.unquote(typed);
+        PetNames.Lookup lookup = PetNames.find(state.all(), typed, record -> access().canView(sender, record),
+                record -> access().canManage(sender, record));
+        if (lookup.outcome() == PetNames.Outcome.NOT_ALLOWED) {
+            chat().fail(sender, "familytree.access.denied");
+            return;
+        }
+        List<AnimalRecord> matches = lookup.matches();
         if (matches.isEmpty()) {
             chat().fail(sender, "familytree.command.info.unknown", name);
             return;
@@ -327,19 +356,21 @@ public final class FamilyTreeCommand implements TabExecutor {
             chat().fail(sender, "familytree.command.locate.no_position", pet.name());
             return;
         }
-        if (pet.deceased()) chat().send(sender, "familytree.command.locate.deceased", pet.name(),
-                pet.deathWorldDay() != null ? pet.deathWorldDay() : 0);
         int bx = (int) Math.round(position.x()), by = (int) Math.round(position.y()), bz = (int) Math.round(position.z());
         Text coords = Text.literal(bx + ", " + by + ", " + bz);
         if (plugin.settings().locateTeleportLink() && access().operator(sender))
             coords.color(Text.Color.AQUA).underlined(true).suggest("/execute in " + position.dimension() + " run tp @s " + bx + " " + by + " " + bz);
-        Text result = chat().tr(sender, "familytree.command.locate.result", pet.name(), coords, shortSpecies(position.dimension()));
+        Text where = dimensionName(sender, position.dimension());
+        Text result = pet.deceased()
+                ? chat().tr(sender, "familytree.command.locate.deceased_result", pet.name(),
+                        pet.deathWorldDay() != null ? pet.deathWorldDay() : 0, coords, where)
+                : chat().tr(sender, "familytree.command.locate.result", pet.name(), coords, where);
         if (sender instanceof Entity entity && WorldClock.dimension(entity.getWorld()).equals(position.dimension())) {
             Location here = entity.getLocation();
             double dx = here.getX() - position.x(), dy = here.getY() - position.y(), dz = here.getZ() - position.z();
             result.append(chat().tr(sender, "familytree.command.locate.distance", Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz))));
         }
-        if (position.lastSeenDay() != null)
+        if (position.lastSeenDay() != null && !pet.deceased())
             result.append(chat().tr(sender, "familytree.command.locate.last_seen", position.lastSeenDay()).color(Text.Color.GRAY));
         chat().send(sender, result);
     }
@@ -385,16 +416,18 @@ public final class FamilyTreeCommand implements TabExecutor {
     }
 
     private void runUnpair(CommandSender sender, String childName) {
+        if (!mayEdit(sender, FamilyTreePermission.PARENTS)) return;
         FamilyTreeStore state = store();
-        AnimalRecord child = findByName(state, childName, sender);
+        AnimalRecord child = find(state, childName, sender, true, id -> "/familytree unpair " + id);
         if (child == null) return;
         state.update(child.id(), record -> record.setParents(null, null));
         chat().send(sender, "familytree.command.unpair.result", child.name());
     }
 
     private void runSetAge(CommandSender sender, String name, long days) {
+        if (!mayEdit(sender, FamilyTreePermission.AGE)) return;
         FamilyTreeStore state = store();
-        AnimalRecord pet = findByName(state, name, sender);
+        AnimalRecord pet = find(state, name, sender, true, id -> "/familytree setage " + id + " " + days);
         if (pet == null) return;
         long anchorDay = pet.deceased() && pet.deathWorldDay() != null ? pet.deathWorldDay() : WorldClock.currentWorldDay();
         if (days > anchorDay) {
@@ -403,12 +436,14 @@ public final class FamilyTreeCommand implements TabExecutor {
         }
         long birthDay = anchorDay - days;
         state.update(pet.id(), record -> record.setBirthWorldDay(birthDay));
-        chat().send(sender, "familytree.command.setage.result", pet.name(), days, birthDay);
+        if (days == 1) chat().send(sender, "familytree.command.setage.result_one", pet.name(), birthDay);
+        else chat().send(sender, "familytree.command.setage.result", pet.name(), days, birthDay);
     }
 
     private void runSetBirthDay(CommandSender sender, String name, long birthDay) {
+        if (!mayEdit(sender, FamilyTreePermission.AGE)) return;
         FamilyTreeStore state = store();
-        AnimalRecord pet = findByName(state, name, sender);
+        AnimalRecord pet = find(state, name, sender, true, id -> "/familytree setbirth " + id + " " + birthDay);
         if (pet == null) return;
         long maxDay = pet.deceased() && pet.deathWorldDay() != null ? pet.deathWorldDay() : WorldClock.currentWorldDay();
         if (birthDay > maxDay) {
@@ -416,16 +451,20 @@ public final class FamilyTreeCommand implements TabExecutor {
             return;
         }
         state.update(pet.id(), record -> record.setBirthWorldDay(birthDay));
-        chat().send(sender, "familytree.command.setbirth.result", pet.name(), birthDay, maxDay - birthDay);
+        long ageDays = maxDay - birthDay;
+        if (ageDays == 1) chat().send(sender, "familytree.command.setbirth.result_one", pet.name(), birthDay);
+        else chat().send(sender, "familytree.command.setbirth.result", pet.name(), birthDay, ageDays);
     }
 
     private void runPair(CommandSender sender, String parentAName, String parentBName, String childName) {
+        if (!mayEdit(sender, FamilyTreePermission.PARENTS)) return;
         FamilyTreeStore state = store();
-        AnimalRecord parentA = findByName(state, parentAName, sender);
+        String a = Args.quoteIfNeeded(parentAName), b = Args.quoteIfNeeded(parentBName), c = Args.quoteIfNeeded(childName);
+        AnimalRecord parentA = find(state, parentAName, sender, true, id -> "/familytree pair " + id + " " + b + " " + c);
         if (parentA == null) return;
-        AnimalRecord parentB = findByName(state, parentBName, sender);
+        AnimalRecord parentB = find(state, parentBName, sender, true, id -> "/familytree pair " + a + " " + id + " " + c);
         if (parentB == null) return;
-        AnimalRecord child = findByName(state, childName, sender);
+        AnimalRecord child = find(state, childName, sender, true, id -> "/familytree pair " + a + " " + b + " " + id);
         if (child == null) return;
         if (parentA.id().equals(parentB.id())) {
             chat().fail(sender, "familytree.command.pair.same_parent");
@@ -447,23 +486,27 @@ public final class FamilyTreeCommand implements TabExecutor {
         chat().send(sender, "familytree.command.pair.result", parentA.name(), parentB.name(), child.name());
     }
 
-    private AnimalRecord findByName(FamilyTreeStore state, String name, CommandSender sender) {
-        if (state.readOnly()) {
-            chat().fail(sender, "familytree.command.read_only");
-            return null;
+    /**
+     * Resolves one pet and explains any failure once. {@code retry} rebuilds the command with a UUID in place of
+     * this name, so each choice of an ambiguous name can be clicked.
+     */
+    private AnimalRecord find(FamilyTreeStore state, String name, CommandSender sender, boolean manage, Function<UUID, String> retry) {
+        Predicate<AnimalRecord> visible = pet -> access().canView(sender, pet);
+        PetNames.Lookup lookup = PetNames.find(state.all(), name, visible, manage ? pet -> access().canManage(sender, pet) : visible);
+        switch (lookup.outcome()) {
+            case FOUND -> {
+                return lookup.pet();
+            }
+            case AMBIGUOUS -> {
+                chat().fail(sender, "familytree.command.ambiguous", PetNames.unquote(name));
+                for (AnimalRecord pet : lookup.matches().stream().limit(10).toList())
+                    chat().fail(sender, Text.literal(pet.name() + " | ").append(GameText.species(pet.speciesId())).append(" | ")
+                            .append(Text.literal(pet.id().toString()).color(Text.Color.AQUA).underlined(true))
+                            .suggest(retry.apply(pet.id())));
+            }
+            case NOT_ALLOWED -> chat().fail(sender, "familytree.access.denied");
+            case UNKNOWN -> chat().fail(sender, "familytree.command.info.unknown", PetNames.unquote(name));
         }
-        return findUnique(state, name, sender, true);
-    }
-
-    private AnimalRecord findUnique(FamilyTreeStore state, String name, CommandSender sender, boolean manage) {
-        List<AnimalRecord> matches = PetNames.matches(state.all(), name,
-                pet -> manage ? access().canManage(sender, pet) : access().canView(sender, pet));
-        if (matches.size() == 1) return matches.get(0);
-        if (matches.size() > 1) {
-            chat().fail(sender, "familytree.command.ambiguous", name);
-            for (AnimalRecord pet : matches.stream().limit(10).toList())
-                chat().fail(sender, Text.literal(pet.name() + " | ").append(GameText.species(pet.speciesId())).append(" | " + pet.id()));
-        } else chat().fail(sender, "familytree.command.info.unknown", name);
         return null;
     }
 
@@ -475,13 +518,19 @@ public final class FamilyTreeCommand implements TabExecutor {
         if (!record.deceased())
             return chat().tr(sender, "familytree.command.list.alive", record.name(), species, record.birthWorldDay(), worldAge);
         Text death = GameText.death(language, record);
-        return death == null ? chat().tr(sender, "familytree.command.list.deceased", record.name(), species, worldAge)
+        if (death == null) return chat().tr(sender, "familytree.command.list.deceased", record.name(), species, worldAge);
+        return record.deathCause().msgId() != null
+                ? chat().tr(sender, "familytree.command.list.died", death, species, worldAge)
                 : chat().tr(sender, "familytree.command.list.deceased_cause", record.name(), species, worldAge, death);
     }
 
-    private static String shortSpecies(String id) {
-        int colon = id.indexOf(':');
-        return colon >= 0 ? id.substring(colon + 1) : id;
+    private Text dimensionName(CommandSender sender, String dimension) {
+        return switch (dimension) {
+            case "minecraft:overworld" -> chat().tr(sender, "familytree.dimension.overworld");
+            case "minecraft:the_nether" -> chat().tr(sender, "familytree.dimension.the_nether");
+            case "minecraft:the_end" -> chat().tr(sender, "familytree.dimension.the_end");
+            default -> Text.literal(dimension.substring(dimension.indexOf(':') + 1));
+        };
     }
 
     @Override

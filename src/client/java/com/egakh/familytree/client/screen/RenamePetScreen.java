@@ -98,7 +98,9 @@ public final class RenamePetScreen extends FamilyTreeScreen {
             case 5 -> "familytree.command.cooldown";
             default -> "familytree.rename.failed";
         };
-        error = Component.translatable(key);
+        error = result.status() == PetRenaming.Result.NO_PERMISSION.ordinal()
+                ? Component.translatable("familytree.permission.denied", com.egakh.familytree.permissions.FamilyTreePermission.RENAME.node())
+                : Component.translatable(key);
         updateButtons();
     }
 

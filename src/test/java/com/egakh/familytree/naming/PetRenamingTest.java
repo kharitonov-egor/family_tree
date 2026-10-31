@@ -70,4 +70,15 @@ class PetRenamingTest {
         assertEquals(PetRenaming.Result.NOT_ALLOWED, PetRenaming.rename(record, owner, false, "Name"));
         assertEquals(PetRenaming.Result.SUCCESS, PetRenaming.rename(record, owner, true, "Name"));
     }
+
+    @Test
+    void aDeniedRenameNodeIsSentAsNotAllowedToClientsOlderThan140() {
+        assertEquals(PetRenaming.Result.NO_PERMISSION.ordinal(), PetRenaming.Result.NO_PERMISSION.wireStatus(true));
+        assertEquals(PetRenaming.Result.NOT_ALLOWED.ordinal(), PetRenaming.Result.NO_PERMISSION.wireStatus(false));
+        for (PetRenaming.Result result : PetRenaming.Result.values()) {
+            if (result != PetRenaming.Result.NO_PERMISSION) assertEquals(result.ordinal(), result.wireStatus(false));
+        }
+        assertEquals(java.util.List.of("SUCCESS", "NOT_FOUND", "NOT_ALLOWED", "INVALID_NAME", "READ_ONLY", "BUSY", "NO_PERMISSION"),
+                java.util.Arrays.stream(PetRenaming.Result.values()).map(Enum::name).toList(), "rename_result_v3 sends ordinals");
+    }
 }

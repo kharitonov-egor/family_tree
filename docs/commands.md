@@ -1,6 +1,6 @@
 # Family Tree commands
 
-Names match either the original pet name or its custom tree name, without regard to case. Commands also accept an exact UUID. Edits reject ambiguous names and print UUID choices. Quote names that contain spaces in commands with multiple arguments.
+Names match either the original pet name or its custom tree name, without regard to case. Commands also accept an exact UUID. When a name matches more than one pet, the command prints each choice with its UUID; click one to fill in the command with that UUID. Quote names that contain spaces in commands with multiple arguments. `info` and `locate` accept the name with or without quotes.
 
 | Command | What it does |
 | --- | --- |
@@ -21,7 +21,7 @@ Names match either the original pet name or its custom tree name, without regard
 | `/familytree reload` | Read `config/familytree-server.properties` again and report each value Family Tree can't use. Operators only by default. |
 | `/familytree settings [all]` | List the server settings that differ from their defaults, or all of them, and the species in the `familytree:tracked` and `familytree:ignored` tags. Operators only by default. |
 
-Only the owner or an operator may locate, rename, link, or change a pet's age. Public viewing does not grant those permissions. A permission mod such as LuckPerms can grant or deny each command and action through `familytree.*` permission nodes; [Family Tree on servers](servers.md#permission-nodes) lists them. A command a player's nodes deny disappears from their tab completion. For duplicate names, use an exact UUID printed in chat or the parent picker.
+Only the owner or an operator may locate, rename, link, or change a pet's age. Public viewing does not grant those permissions. A permission mod such as LuckPerms can grant or deny each command and action through `familytree.*` permission nodes; [Family Tree on servers](servers.md#permission-nodes) lists them. A command a player's nodes deny answers with the node it needs. For duplicate names, click a choice in chat or use the parent picker.
 
 The linking stick uses `/familytree confirmlink` and `/familytree cancellink` through clickable chat buttons. Pending selections expire after two minutes. Clicking an animal other than a pet that isn't in the history adds it for you, unless the server doesn't record its species.
 

@@ -131,20 +131,24 @@ public final class FamilyTreePackets {
         FamilyTreeState state = FamilyTreeState.get(player.level().getServer());
         if (state.readOnly()) return new RenameOutcome(PetRenaming.Result.READ_ONLY, null);
         AnimalRecord record = state.get(petId);
-        if (!ServerPetAccess.allowed(player, FamilyTreePermission.RENAME)) return new RenameOutcome(PetRenaming.Result.NOT_ALLOWED, record);
+        if (!ServerPetAccess.allowed(player, FamilyTreePermission.RENAME)) return new RenameOutcome(PetRenaming.Result.NO_PERMISSION, record);
         PetRenaming.Result result = PetRenaming.rename(record, player.getUUID(),
                 ServerPetAccess.manageAll(player.createCommandSourceStack()), name);
         if (result == PetRenaming.Result.SUCCESS) state.recordEdited();
         return new RenameOutcome(result, record);
     }
 
+    /**
+     * 1.4.0 clients name a denied {@code familytree.rename} on the rename screen. They are the first to receive
+     * {@code relatives_result_v1}, so older clients get NOT_ALLOWED and the permission message in chat.
+     */
     public static void rename(RenamePetRequest packet, ServerPlayer player) {
-        if (denied(player, FamilyTreePermission.RENAME)) {
-            ServerTransport.send(player, new RenamePetResult(packet.requestId(), PetRenaming.Result.NOT_ALLOWED.ordinal(), Optional.empty()));
-            return;
-        }
-        RenameOutcome outcome = applyRename(player, packet.petId(), packet.name());
-        ServerTransport.send(player, new RenamePetResult(packet.requestId(), outcome.result().ordinal(),
+        boolean namesPermission = ServerTransport.canSend(player, RelativesResult.TYPE);
+        RenameOutcome outcome = ServerPetAccess.allowed(player, FamilyTreePermission.RENAME)
+                ? applyRename(player, packet.petId(), packet.name()) : new RenameOutcome(PetRenaming.Result.NO_PERMISSION, null);
+        if (outcome.result() == PetRenaming.Result.NO_PERMISSION && !namesPermission)
+            ServerText.send(player, Component.translatable("familytree.permission.denied", FamilyTreePermission.RENAME.node()));
+        ServerTransport.send(player, new RenamePetResult(packet.requestId(), outcome.result().wireStatus(namesPermission),
                 outcome.result() == PetRenaming.Result.SUCCESS ? Optional.of(outcome.record()) : Optional.empty()));
     }
 
@@ -178,6 +182,11 @@ public final class FamilyTreePackets {
         return LOCATE.allow(player.getUUID());
     }
 
+    /** Renames, parent and age edits, and the linking stick share this cooldown. */
+    public static boolean allowEdit(ServerPlayer player) {
+        return RENAME.allow(player.getUUID());
+    }
+
     public static boolean allowRelatives(ServerPlayer player) {
         return RELATIVES.allow(player.getUUID());
     }
@@ -193,11 +202,9 @@ public final class FamilyTreePackets {
         boolean mayViewAll = ServerPetAccess.viewAll(player);
         boolean viewingAll = mayViewAll && requestAll;
         boolean operator = ServerPetAccess.manageAll(player.createCommandSourceStack());
-        List<AnimalRecord> visible = state.all().stream()
-                .filter(record -> PetAccess.canView(record, player.getUUID(), viewingAll))
-                .sorted(java.util.Comparator.comparing(AnimalRecord::id))
-                .limit(SnapshotPages.MAX_RECORDS + 1L)
-                .map(record -> PetAccess.forViewer(record, player.getUUID(), operator)).toList();
+        boolean mayLocate = ServerPetAccess.allowed(player, FamilyTreePermission.LOCATE);
+        List<AnimalRecord> visible = PetAccess.snapshot(state.all(), player.getUUID(), viewingAll, operator, mayLocate,
+                SnapshotPages.MAX_RECORDS + 1L);
         try {
             for (var page : SnapshotPages.split(requestId, visible, TimeUtil.currentWorldDay(world),
                     TimeUtil.currentEpochMillis(), mayViewAll, viewingAll, operator)) ServerTransport.send(player, page);

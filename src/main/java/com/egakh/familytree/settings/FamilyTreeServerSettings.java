@@ -32,7 +32,8 @@ public final class FamilyTreeServerSettings {
     private FamilyTreeServerSettings() {}
 
     /** The outcome of reading the file. {@code readFailed} means the previous settings stayed in place. */
-    public record LoadResult(Path path, boolean readFailed, List<SettingProblem> problems) {}
+    /** {@code notes} need no fix, such as aliases that wait for a restart. */
+    public record LoadResult(Path path, boolean readFailed, List<SettingProblem> problems, List<SettingProblem> notes) {}
 
     public static Path path() {
         return FamilyTreePaths.config().resolve(FILE_NAME);
@@ -50,14 +51,14 @@ public final class FamilyTreeServerSettings {
                 FamilyTreeMod.LOGGER.warn("Failed to read {}. Family Tree keeps its {} settings.", path,
                         loaded ? "current" : "default", failure);
                 loaded = true;
-                return new LoadResult(path, true, List.of());
+                return new LoadResult(path, true, List.of(), List.of());
             }
         }
         ServerSettings.Parsed parsed = ServerSettings.parse(properties);
         List<SettingProblem> problems = new ArrayList<>(parsed.problems());
         problems.addAll(notes(parsed.settings()));
-        if (registeredAliases != null && !registeredAliases.equals(parsed.settings().commandAliases()))
-            problems.add(new SettingProblem("commandAliases", "familytree.config.restart", "commandAliases"));
+        List<SettingProblem> notes = registeredAliases != null && !registeredAliases.equals(parsed.settings().commandAliases())
+                ? List.of(new SettingProblem("commandAliases", "familytree.config.restart", "commandAliases")) : List.of();
         current = parsed.settings();
         loaded = true;
 
@@ -74,7 +75,9 @@ public final class FamilyTreeServerSettings {
         }
         for (SettingProblem problem : problems)
             FamilyTreeMod.LOGGER.warn("{}: {}", path.getFileName(), ServerText.plain(LangTables.DEFAULT, problem.message(), problem.arguments()));
-        return new LoadResult(path, false, List.copyOf(problems));
+        for (SettingProblem note : notes)
+            FamilyTreeMod.LOGGER.info("{}: {}", path.getFileName(), ServerText.plain(LangTables.DEFAULT, note.message(), note.arguments()));
+        return new LoadResult(path, false, List.copyOf(problems), notes);
     }
 
     /** 1.3.0 wrote the file as ISO-8859-1 with escapes, so files that aren't valid UTF-8 are read that way. */

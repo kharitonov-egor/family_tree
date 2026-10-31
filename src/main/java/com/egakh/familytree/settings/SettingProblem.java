@@ -16,4 +16,9 @@ public record SettingProblem(String key, String message, List<Object> args) {
     public Object[] arguments() {
         return args.toArray();
     }
+
+    /** The line {@code /familytree reload} starts its list with. Notes that need no fix don't count. */
+    public static String summaryKey(int problems) {
+        return problems == 0 ? "familytree.reload.no_problems" : problems == 1 ? "familytree.reload.one_problem" : "familytree.reload.problems";
+    }
 }
