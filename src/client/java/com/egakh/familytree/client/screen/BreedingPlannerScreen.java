@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Pick two animals and see the foal's stat ranges, variant odds, and how the parents are related. */
 public final class BreedingPlannerScreen extends FamilyTreeScreen {
     private static final int CONTENT_TOP = 82;
     private static final int TEXT = 0xFFFFFFFF, MUTED = 0xFFB0B7C0, HEADING = 0xFFFFD24A, WARNING = 0xFFFFB35C, ERROR = 0xFFFF9292;
@@ -197,7 +196,6 @@ public final class BreedingPlannerScreen extends FamilyTreeScreen {
         });
     }
 
-    /** Columns: stat, lowest, most likely, highest, distribution bar, and the chance of beating both parents. */
     private void statTable(List<BreedingPlan.StatForecast> stats) {
         Component[] headers = {Component.empty(), Component.translatable("familytree.planner.column.lowest"),
                 Component.translatable("familytree.planner.column.likely"), Component.translatable("familytree.planner.column.highest"),

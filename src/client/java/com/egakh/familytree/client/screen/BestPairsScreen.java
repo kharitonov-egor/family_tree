@@ -25,7 +25,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** Ranks pairs of living adults by a foal's expected stat. */
 public final class BestPairsScreen extends FamilyTreeScreen {
     private static final int SUMMARY_TOP = 80, ROW_HEIGHT = 26, LIMIT = 50;
     private static final int TEXT = 0xFFFFFFFF, MUTED = 0xFFB0B7C0, HEADING = 0xFFFFD24A;

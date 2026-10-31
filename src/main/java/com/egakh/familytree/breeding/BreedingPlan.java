@@ -9,7 +9,6 @@ import com.egakh.familytree.util.Kinship;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Everything the planner shows for one pair, computed from records only. */
 public final class BreedingPlan {
     public static final int BARS = 24;
 

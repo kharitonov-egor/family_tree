@@ -69,7 +69,6 @@ public final class OffspringStats {
         return new Forecast(attribute.min, attribute.max, parentA, parentB);
     }
 
-    /** The exact distribution of one foal attribute in Minecraft's units. */
     public static final class Forecast {
         public final double min, max;
         public final double parentA, parentB;
@@ -95,7 +94,6 @@ public final class OffspringStats {
             this.highest = foldedHigh;
         }
 
-        /** P(foal value <= v). */
         public double cdf(double v) {
             if (v < lowest) return 0;
             if (v >= highest) return 1;

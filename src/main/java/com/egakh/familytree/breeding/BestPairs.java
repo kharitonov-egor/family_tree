@@ -10,7 +10,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.ToDoubleFunction;
 
 /** Ranks pairs by the expected value of a foal stat. Scores come from the exact mean, so ranking needs no sampling. */
 public final class BestPairs {
@@ -156,10 +155,5 @@ public final class BestPairs {
             sum += value;
         }
         return sum / values.length;
-    }
-
-    /** Ranks a stat by itself so callers can show the foal's other expected values next to the ranked one. */
-    public static ToDoubleFunction<Ranked> expectedValue(Rank rank, Herd herd) {
-        return pair -> score(pair.first().horseStats(), pair.second().horseStats(), rank, herd);
     }
 }
