@@ -20,6 +20,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
+import net.neoforged.neoforge.client.settings.KeyConflictContext;
 import net.neoforged.neoforge.common.NeoForge;
 
 @Mod(value = FamilyTreeMod.MOD_ID, dist = Dist.CLIENT)
@@ -34,12 +35,17 @@ public final class NeoForgeClient {
         container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> new FamilyTreeSettingsScreen(parent));
         FamilyTreeClient client = new FamilyTreeClient();
         client.initialize();
-        modBus.addListener((RegisterKeyMappingsEvent event) -> event.register(FamilyTreeKeybinds.OPEN_TREE));
+        FamilyTreeKeybinds.SHOW_RELATIVES.setKeyConflictContext(KeyConflictContext.IN_GAME);
+        modBus.addListener((RegisterKeyMappingsEvent event) -> {
+            event.register(FamilyTreeKeybinds.OPEN_TREE);
+            event.register(FamilyTreeKeybinds.SHOW_RELATIVES);
+        });
         modBus.addListener((RegisterClientPayloadHandlersEvent event) -> {
             event.register(SnapshotPagePayload.TYPE, (packet, context) -> FamilyTreeClient.receive(packet));
             event.register(com.egakh.familytree.network.payloads.LinkParentsResult.TYPE, (packet, context) -> FamilyTreeClient.receive(packet));
             event.register(RenamePetResult.TYPE, (packet, context) -> FamilyTreeClient.receive(packet));
             event.register(com.egakh.familytree.network.payloads.WaypointResult.TYPE, (packet, context) -> FamilyTreeClient.receive(packet));
+            event.register(com.egakh.familytree.network.payloads.RelativesResult.TYPE, (packet, context) -> FamilyTreeClient.receive(packet));
         });
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> client.tick(Minecraft.getInstance()));
     }

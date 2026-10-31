@@ -24,8 +24,8 @@ public record ServerSettings(ViewPolicy viewPolicy, int operatorLevel, OwnerActi
     }
 
     /** Milliseconds. Zero turns a cooldown off. */
-    public record Cooldowns(int open, int scan, int serverScan, int locate, int edit) {
-        public static final Cooldowns DEFAULT = new Cooldowns(500, 2_000, 2_000, 250, 250);
+    public record Cooldowns(int open, int scan, int serverScan, int locate, int edit, int relatives) {
+        public static final Cooldowns DEFAULT = new Cooldowns(500, 2_000, 2_000, 250, 250, 200);
     }
 
     public static final String AUTO_LANGUAGE = "auto";
@@ -62,7 +62,8 @@ public record ServerSettings(ViewPolicy viewPolicy, int operatorLevel, OwnerActi
                 reader.number("scanCooldownMillis", c.scan(), 0, MAX_COOLDOWN),
                 reader.number("serverScanCooldownMillis", c.serverScan(), 0, MAX_COOLDOWN),
                 reader.number("locateCooldownMillis", c.locate(), 0, MAX_COOLDOWN),
-                reader.number("editCooldownMillis", c.edit(), 0, MAX_COOLDOWN));
+                reader.number("editCooldownMillis", c.edit(), 0, MAX_COOLDOWN),
+                reader.number("relativesCooldownMillis", c.relatives(), 0, MAX_COOLDOWN));
         boolean stick = reader.flag("linkingStick", d.linkingStick);
         String stickName = reader.text("linkingStickName", d.linkingStickName, ServerSettings::validStickName,
                 "familytree.config.bad_name");
@@ -157,6 +158,9 @@ public record ServerSettings(ViewPolicy viewPolicy, int operatorLevel, OwnerActi
             new Setting(COOLDOWNS, "editCooldownMillis", List.of(
                     "Per player: renames and parent edits from the screens and the chest menu."),
                     "0 to " + MAX_COOLDOWN, s -> Integer.toString(s.cooldowns.edit())),
+            new Setting(COOLDOWNS, "relativesCooldownMillis", List.of(
+                    "Per player: the relatives key and the menu's Show relatives nearby."),
+                    "0 to " + MAX_COOLDOWN, s -> Integer.toString(s.cooldowns.relatives())),
             new Setting(STICK, "linkingStick", List.of(
                     "Whether a stick renamed to linkingStickName links parents and adds animals when players click them.",
                     "false turns the stick off for everyone."),

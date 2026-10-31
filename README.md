@@ -69,6 +69,12 @@ Death records retain the pet's name, family, death day, and cause when known. Se
 
 ![The pet browser with search, status filters, and Find existing pets](docs/tracked-pets-browser.webp)
 
+## See relatives in the world
+
+Hold the grave accent key (`` ` ``, left of 1) and look at an animal Family Tree records. Its relatives that are loaded nearby glow in a color for their relation, with a label such as "Parent · Comet" or "Half sibling · Pip", and particle lines lead from its parents to it and on to its children. Only you see them. Labels cover parents, children, siblings, half siblings, grandparents, and grandchildren. The server applies the same `viewPolicy` as the screens, so another player's pet you can't open stays dark. Settings can turn the key or the lines off.
+
+![Ember's parents, siblings, and foals lit up in a horse pen](docs/relatives-in-world.webp)
+
 ## Players without the client mod
 
 On a server that runs Family Tree, a player with an unmodded client types `/familytree` and gets a chest menu instead of the screens. It lists their pets with spawn egg icons, names, age, and living or deceased status, 45 to a page. Filter by status or species, or search by name in an anvil.

@@ -1,6 +1,6 @@
 # Runtime validation
 
-`./gradlew buildAll --no-parallel` builds twelve Fabric targets, including the 26.4-snapshot-6 snapshot, eight NeoForge, and one Forge target, and runs the shared JUnit suite for each. Install JDK 17, JDK 21, and JDK 25. The 1.20.1 tests and development runs use JDK 17. Tests cover saved records, names, ancestry, ownership, PNG exports, byte-bounded snapshot pages, parent validation, horse stat units checked against the Minecraft Wiki's values, variant inheritance and rarity, animal categories, tracking settings, the farm limit and cleanup order, large farm layouts, and portrait transparency. `WireFormatTest` expects the same payload bytes on every target, which checks the 1.20.1 codec backport against Minecraft's codecs.
+`./gradlew buildAll --no-parallel` builds twelve Fabric targets, including the 26.4-snapshot-6 snapshot, eight NeoForge, and one Forge target, and runs the shared JUnit suite for each. Install JDK 17, JDK 21, and JDK 25. The 1.20.1 tests and development runs use JDK 17. Tests cover saved records, names, ancestry, ownership, PNG exports, byte-bounded snapshot pages, parent validation, horse stat units checked against the Minecraft Wiki's values, variant inheritance and rarity, animal categories, tracking settings, the farm limit and cleanup order, large farm layouts, and portrait transparency, the relations the world highlight names, and the relatives reply's range, cap, and permission filter. `WireFormatTest` expects the same payload bytes on every target, which checks the 1.20.1 codec backport against Minecraft's codecs.
 
 The development mods under `src/smoke` and `src/demo` never enter release jars. Their runners fail the Gradle task when the expected PASS file is missing. Use disposable worlds under `build/`. Never use a normal game directory, and never copy a newer Minecraft world into an older target.
 
@@ -112,6 +112,35 @@ The planner runner fences five pens and breeds seven horses, a donkey, and two l
 
 On Linux without a free display, run the client under Xvfb: `xvfb-run -a -s "-screen 0 1600x1000x24" ./gradlew ...`. Unset `WAYLAND_DISPLAY` first so the window cannot open on a desktop session. Minecraft 26.3 opens its window through SDL; set `SDL_VIDEO_DRIVER=x11` so SDL uses Xvfb. To test GUI scale 4, set `guiScale:4` in the run directory's `options.txt`. Before trusting a run, read `DISPLAY` from the game process's `/proc/<pid>/environ` to confirm it uses the Xvfb display.
 
+## Relatives in the world
+
+```sh
+./gradlew :26.4-snapshot-6:runDemo -Pdemo -Prelatives
+./gradlew :26.3:runDemo -Pdemo -Prelatives
+./gradlew :1.21.8:runDemo -Pdemo -Prelatives
+./gradlew :1.20.1:runDemo -Pdemo -Prelatives
+./gradlew -p neoforge runDemo -Pdemo -Prelatives -Pminecraft=1.21.1
+./gradlew -p neoforge runDemo -Pdemo -Prelatives -Pminecraft=26.2
+./gradlew -p neoforge runDemo -Pdemo -Prelatives -Pminecraft=26.3
+./gradlew -p forge runDemo -Pdemo -Prelatives -Pminecraft=1.20.1
+```
+
+The relatives runner fences a pen and tames horses for the player. Golden carrots and vanilla AI breeding produce three generations: Comet and Dusk have Ember and Willow, Comet and Mira have Pip, and Ember and Sable have Spark and Flint. The runner skips the five-minute breeding cooldown and the foals' growing time with `setAge(0)`, and tames Ember the way a rider would; every foal still comes from AI breeding. Mira belongs to another player's offline UUID, and the run writes `viewPolicy=OWN_ONLY` to the server settings, then restores the file.
+
+The runner holds the key in-process, aims at Ember, Spark, Pip, and Comet, and checks each horse's outline color and label. Pip goes to the owner of whichever parent's breeding code runs, so the runner accepts both outcomes. When Pip is the player's, it must glow as a half sibling, and Mira, its parent, must stay dark. When Pip is the other player's, it must stay dark from every view. The runner then turns **Relatives in the world** off and checks that the key lights nothing and sends no request. Last, it hides the HUD and captures `relatives-clip-*.png` and `relatives-still.png`. `python scripts/build_media.py --relatives build/demo-26.3` crops the still and encodes the clip into `docs/`.
+
+The runner checks state, not pixels, so look at the screenshots. A missing label on 1.20.1 once passed every check. The first run in a fresh world can be dark on 1.20.1, because the client lights the new platform late; run it again.
+
+To check that the key fails cleanly, start a dedicated server with `online-mode=false` and `white-list=false`, then join it with `-PdemoServer`:
+
+```sh
+./gradlew :26.3:runDemo -Pdemo -PdemoServer=127.0.0.1:25662 -PrelativesServer=no_server
+./gradlew :26.3:runDemo -Pdemo -PdemoServer=127.0.0.1:25663 -PrelativesServer=outdated
+./gradlew -p neoforge runDemo -Pdemo -Pminecraft=1.21.1 -PdemoServer=127.0.0.1:25664 -PrelativesServer=outdated
+```
+
+`no_server` expects a server without Family Tree, such as the vanilla server jar. `outdated` expects the Family Tree 1.3.0 release jar on a Fabric or NeoForge server. The client holds the key and expects the matching action bar message, no relatives channel, Family Tree's other channels only from the 1.3.0 server, a browser that still loads from it, and an intact connection.
+
 ## Optional integrations
 
 `-Pintegrations=<list>` adds real Jade, WTHIT, Mod Menu, JourneyMap, or Xaero's Minimap builds to a client demo run, for example `-Pintegrations=jade,journeymap,xaero,modmenu`. Fabric and NeoForge copy the jars into the run directory's `mods/` folder, as a player's game would load them; Forge adds them remapped to the run classpath. WTHIT brings its Bad Packets dependency. A mod with no build for the target is skipped with a warning. The release jars never include these mods, and every target compiles against them, or against the JourneyMap API stubs in `src/stubs`.
@@ -155,6 +184,7 @@ Summon owned, named wolves from the server console with the player's offline UUI
 - a family, moving to a parent and back,
 - Locate, Rename, Add parents with its confirmation, and the book,
 - a pet owned by someone else, which must show no Locate, Rename, or Add parents,
+- **Show relatives nearby** on a family page, which must list the loaded relatives in chat and put a column of colored dust over the pet and each relative,
 - shift-click, number keys, double-click, dragging, middle-click, `Q`, `F` over an icon, and closing with an item picked up from the inventory. Compare `data get entity <player> Inventory` before and after, and check the offhand slot in the hotbar.
 
 Join the same server with a modded client as well. `/familytree` must print the command list, and **H** must open the screens.

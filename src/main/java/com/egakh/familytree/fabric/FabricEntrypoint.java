@@ -40,6 +40,7 @@ public final class FabricEntrypoint implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(RenamePetResult.TYPE, RenamePetResult.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(LinkParentsResult.TYPE, LinkParentsResult.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(WaypointResult.TYPE, WaypointResult.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RelativesResult.TYPE, RelativesResult.STREAM_CODEC);
         //?} else {
         /*ServerTransport.configure((player, type) -> ServerPlayNetworking.canSend(player, type.id()),
                 (player, packet) -> ServerPlayNetworking.send(player, packet.type().id(), PayloadCodecs.encode(packet)));
@@ -47,6 +48,7 @@ public final class FabricEntrypoint implements ModInitializer {
         PayloadCodecs.register(RenamePetResult.TYPE, RenamePetResult.STREAM_CODEC);
         PayloadCodecs.register(LinkParentsResult.TYPE, LinkParentsResult.STREAM_CODEC);
         PayloadCodecs.register(WaypointResult.TYPE, WaypointResult.STREAM_CODEC);
+        PayloadCodecs.register(RelativesResult.TYPE, RelativesResult.STREAM_CODEC);
         *///?}
         register(LinkParentsRequest.TYPE, LinkParentsRequest.STREAM_CODEC, FamilyTreePackets::link);
         register(OpenFamilyTreeRequest.TYPE, OpenFamilyTreeRequest.STREAM_CODEC, FamilyTreePackets::open);
@@ -54,6 +56,7 @@ public final class FabricEntrypoint implements ModInitializer {
         register(LocatePetRequest.TYPE, LocatePetRequest.STREAM_CODEC, FamilyTreePackets::locate);
         register(RenamePetRequest.TYPE, RenamePetRequest.STREAM_CODEC, FamilyTreePackets::rename);
         register(WaypointRequest.TYPE, WaypointRequest.STREAM_CODEC, FamilyTreePackets::waypoint);
+        register(RelativesRequest.TYPE, RelativesRequest.STREAM_CODEC, FamilyTreePackets::relatives);
         ServerEntityEvents.ENTITY_LOAD.register(PetLifecycleListeners::onLoad);
         ServerEntityEvents.ENTITY_UNLOAD.register(PetLifecycleListeners::onUnload);
         ServerLivingEntityEvents.AFTER_DEATH.register(PetLifecycleListeners::onDeath);

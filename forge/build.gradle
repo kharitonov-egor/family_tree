@@ -142,13 +142,17 @@ if (project.hasProperty('demo')) {
                 sourceSet = sourceSets.demo
                 jvmArgument '-Xmx2G'
                 gameDirectory = file("../build/demo-forge-${mcVersion}")
-                programArguments.addAll '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
+                programArguments.addAll project.hasProperty('demoServer') ? ['--quickPlayMultiplayer', project.property('demoServer').toString()]
+                        : ['--quickPlaySingleplayer', 'Family Tree demo']
+                programArguments.addAll '--width', '1600', '--height', '1000'
                 systemProperty 'familytree.demo.gameplay', project.hasProperty('gameplay').toString()
                 systemProperty 'familytree.demo.horses', project.hasProperty('horses').toString()
                 systemProperty 'familytree.demo.planner', project.hasProperty('planner').toString()
                 systemProperty 'familytree.demo.animals', project.hasProperty('animals').toString()
                 systemProperty 'familytree.demo.farm', project.hasProperty('farm').toString()
                 systemProperty 'familytree.demo.media', project.hasProperty('media').toString()
+                systemProperty 'familytree.demo.relatives', project.hasProperty('relatives').toString()
+                systemProperty 'familytree.demo.relativesServer', (project.findProperty('relativesServer') ?: '').toString()
                 if (project.hasProperty('moddedAnimal')) systemProperty 'familytree.demo.moddedAnimal', project.property('moddedAnimal').toString()
                 if (project.hasProperty('moddedFood')) systemProperty 'familytree.demo.moddedFood', project.property('moddedFood').toString()
                 systemProperty 'familytree.demo.integrationScene', (project.hasProperty('integrationScene') || project.hasProperty('integrations')).toString()

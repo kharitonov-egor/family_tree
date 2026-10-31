@@ -15,6 +15,8 @@ import net.minecraft.network.chat.Component;
 import com.egakh.familytree.network.payloads.SnapshotPagePayload;
 import com.egakh.familytree.network.payloads.DiscoverPetsRequest;
 import com.egakh.familytree.network.payloads.WaypointResult;
+import com.egakh.familytree.network.payloads.RelativesResult;
+import com.egakh.familytree.client.relatives.WorldRelatives;
 import com.egakh.familytree.client.integration.MapWaypoints;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.integration.PetInsight;
@@ -48,6 +50,10 @@ public final class FamilyTreeClient {
 
     public static void receive(WaypointResult packet) {
         MapWaypoints.receive(packet);
+    }
+
+    public static void receive(RelativesResult packet) {
+        WorldRelatives.receive(packet);
     }
 
     public static void receive(SnapshotPagePayload packet) {
@@ -115,6 +121,7 @@ public final class FamilyTreeClient {
             client.setScreen(new FamilyTreeBrowserScreen());
             requestSnapshot(true);
         }
+        WorldRelatives.tick(client);
     }
 
     public static void requestSnapshot(boolean requestAll) {

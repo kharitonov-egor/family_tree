@@ -26,6 +26,7 @@ Family Tree checks these nodes through fabric-permissions-api on Fabric and thro
 | `familytree.parents` | everyone, or operators with `ownersCanEditParents=false` | `pair`, `unpair`, **Add parents**, and confirming links with the linking stick |
 | `familytree.age` | everyone, or operators with `ownersCanSetAge=false` | `setage`, `setbirth` |
 | `familytree.linkingstick` | everyone | Clicking animals with the linking stick, which also adds animals other than pets |
+| `familytree.relatives` | everyone | The relatives key and **Show relatives nearby** in the chest menu. Without it the key shows the permission message and nothing lights up. |
 | `familytree.breed` | everyone | `/familytree breed` and **Plan breeding** in the chest menu. The breeding planner screen works from the client's own family list, so it needs no node. |
 | `familytree.others.view` | set by `viewPolicy`: operators, everyone, or nobody | Browsing every player's pets |
 | `familytree.others.manage` | operators | Locating, renaming, and editing other players' pets. Each action also needs its own node. |
@@ -72,6 +73,7 @@ When a value can't be used, Family Tree uses the default, or the nearest allowed
 | `serverScanCooldownMillis` | `2000` | 0 to 60000 | Shared by all players: time between any two scans |
 | `locateCooldownMillis` | `250` | 0 to 60000 | Per player: Locate and waypoints |
 | `editCooldownMillis` | `250` | 0 to 60000 | Per player: renames and parent edits |
+| `relativesCooldownMillis` | `200` | 0 to 60000 | Per player: the relatives key and **Show relatives nearby** |
 | `linkingStick` | `true` | `true`, `false` | `false` turns the linking stick off |
 | `linkingStickName` | `familytree` | 1 to 50 characters | The anvil name that makes a stick the linking stick, ignoring case |
 | `linkingSelectionSeconds` | `120` | 10 to 3600 | How long the linking stick keeps a selection |

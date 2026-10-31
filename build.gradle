@@ -265,13 +265,17 @@ if (project.hasProperty('demo')) {
                 vmArg "-Dfamilytree.demo.farm=${project.hasProperty('farm')}"
                 vmArg "-Dfamilytree.demo.media=${project.hasProperty('media')}"
                 if (project.hasProperty('mediaOnly')) vmArg "-Dfamilytree.demo.mediaOnly=${project.property('mediaOnly')}"
+                vmArg "-Dfamilytree.demo.relatives=${project.hasProperty('relatives')}"
+                vmArg "-Dfamilytree.demo.relativesServer=${project.findProperty('relativesServer') ?: ''}"
                 if (project.hasProperty('moddedAnimal')) vmArg "-Dfamilytree.demo.moddedAnimal=${project.property('moddedAnimal')}"
                 if (project.hasProperty('moddedFood')) vmArg "-Dfamilytree.demo.moddedFood=${project.property('moddedFood')}"
                 vmArg "-Dfamilytree.demo.integrationScene=${project.hasProperty('integrationScene') || project.hasProperty('integrations')}"
                 vmArg "-Dfamilytree.demo.integrations=${project.findProperty('integrations') ?: ''}"
                 vmArg "-Dfamilytree.demo.sendFeedback=${project.hasProperty('sendFeedback')}"
                 runDir "../../build/demo-${mcVersion}"
-                programArgs '--quickPlaySingleplayer', 'Family Tree demo', '--width', '1600', '--height', '1000'
+                if (project.hasProperty('demoServer')) programArgs '--quickPlayMultiplayer', project.property('demoServer')
+                else programArgs '--quickPlaySingleplayer', 'Family Tree demo'
+                programArgs '--width', '1600', '--height', '1000'
                 if (project.hasProperty('demoUser')) programArgs '--username', project.property('demoUser')
                 if (mcVersion == '26.3' && project.hasProperty('graphicsBackend')) programArgs '--graphicsBackend', project.property('graphicsBackend')
             }

@@ -9,13 +9,16 @@ import com.egakh.familytree.data.HorseStats;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.naming.PetRenaming;
 import com.egakh.familytree.network.FamilyTreePackets;
+import com.egakh.familytree.network.NearbyRelatives;
 import com.egakh.familytree.network.SnapshotPages;
 import com.egakh.familytree.permissions.FamilyTreePermission;
+import com.egakh.familytree.network.payloads.RelativesResult;
 import com.egakh.familytree.permissions.ParentLinks;
 import com.egakh.familytree.permissions.PetAccess;
 import com.egakh.familytree.permissions.ServerPetAccess;
 import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.AnimalCategory;
+import com.egakh.familytree.util.CloseRelation;
 import com.egakh.familytree.util.DeathMessages;
 import com.egakh.familytree.util.HorseStatUnits;
 import com.egakh.familytree.util.Kinship;
@@ -50,7 +53,7 @@ final class MenuSession {
     private static final int CHILD_SLOTS = 18;
     private static final int PREVIOUS = 45, LEFT = 46, LEFT_INNER = 47, LEFT_CENTER = 48, INFO = 49,
             RIGHT_CENTER = 50, RIGHT_INNER = 51, CLOSE = 52, NEXT = 53;
-    private static final int FOCUS = 22, PARENT_A = 10, PARENT_B = 16, CONFIRM = 38, CANCEL = 42, PLAN = 24;
+    private static final int FOCUS = 22, PARENT_A = 10, PARENT_B = 16, CONFIRM = 38, CANCEL = 42, PLAN = 24, RELATIVES = 20;
     private static final int[][] GRANDPARENTS = {{0, 2}, {6, 8}};
     private static final int TOOLTIP_COLUMNS = 40;
     private static final int MAX_QUERY = 64;
@@ -70,7 +73,7 @@ final class MenuSession {
     private boolean viewingAll;
     private boolean canViewAll;
     private boolean operator;
-    private boolean mayScan, mayLocate, mayRename, mayEditParents, mayPlan;
+    private boolean mayScan, mayLocate, mayRename, mayEditParents, mayPlan, mayShowRelatives;
     private Filter filter = Filter.ALL;
     private String species;
     private String query = "";
@@ -115,6 +118,7 @@ final class MenuSession {
         mayRename = ServerPetAccess.allowed(player, FamilyTreePermission.RENAME);
         mayEditParents = ServerPetAccess.allowed(player, FamilyTreePermission.PARENTS);
         mayPlan = ServerPetAccess.allowed(player, FamilyTreePermission.BREED);
+        mayShowRelatives = FamilyTreePackets.mayShowRelatives(player);
     }
 
     private boolean viewAll() {
@@ -352,6 +356,8 @@ final class MenuSession {
                     () -> openBook(petId));
             if (mayPlan && !mates(pet).isEmpty()) menu.put(PLAN, button(Items.GOLDEN_CARROT, text("familytree.menu.plan"),
                     wrappedLore("familytree.menu.plan.hint")), () -> { pickerPage = 0; showMates(petId); });
+            if (mayShowRelatives) menu.put(RELATIVES, button(Items.GLOW_INK_SAC, text("familytree.menu.relatives"),
+                    wrappedLore("familytree.menu.relatives.hint")), () -> showRelatives(petId));
             menu.put(CLOSE, closeButton(), player::closeContainer);
             menu.fill(MenuItems.filler(), PAGE_SIZE, LockedChestMenu.SIZE);
             return menu;
@@ -388,6 +394,35 @@ final class MenuSession {
         }
         player.closeContainer();
         FamilyTreeCommand.locatePet(player.createCommandSourceStack(), petId);
+    }
+
+    /** The chest menu's version of the relatives key: chat lines, and particles that only this player sees. */
+    private void showRelatives(UUID petId) {
+        AnimalRecord pet = view(petId);
+        if (!mayShowRelatives) {
+            showFamily(petId);
+            return;
+        }
+        if (!FamilyTreePackets.allowRelatives(player)) {
+            notice("familytree.menu.wait");
+            showFamily(petId);
+            return;
+        }
+        RelativesResult result = FamilyTreePackets.nearbyRelatives(player, UUID.randomUUID(), petId);
+        if (result.statusValue() != RelativesResult.Status.FOUND) {
+            notice("familytree.menu.relatives.far", pet == null ? "" : pet.name());
+            showFamily(petId);
+            return;
+        }
+        player.closeContainer();
+        ServerText.send(player, NearbyRelatives.summary(result));
+        RelativeMarkers.mark(player, petId, 0xFFFFFF);
+        for (RelativesResult.Relative relative : result.relatives()) {
+            CloseRelation relation = CloseRelation.byOrdinal(relative.relation());
+            if (relation == null) continue;
+            ServerText.send(player, Component.literal("  ").append(relation.label(relative.name())));
+            RelativeMarkers.mark(player, relative.id(), relation.color());
+        }
     }
 
     private void openRename(UUID petId) {

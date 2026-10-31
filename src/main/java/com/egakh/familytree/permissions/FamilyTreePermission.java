@@ -18,6 +18,7 @@ public enum FamilyTreePermission {
     AGE("age", settings -> owners(settings.ownerActions().setAge())),
     LINKING_STICK("linkingstick", settings -> Default.EVERYONE),
     BREED("breed", settings -> Default.EVERYONE),
+    RELATIVES("relatives", settings -> Default.EVERYONE),
     VIEW_OTHERS("others.view", settings -> switch (settings.viewPolicy()) {
         case EVERYONE_ALL -> Default.EVERYONE;
         case OP_ONLY_ALL -> Default.OPERATORS;

@@ -15,6 +15,8 @@ public final class FamilyTreeClientSettings {
     private static final String SHOW_BIRTH_DAY_KEY = "showBirthDay";
     private static final String SHOW_GENERATION_KEY = "showGeneration";
     private static final String SHOW_HORSE_STATS_KEY = "showHorseStats";
+    private static final String SHOW_RELATIVES_KEY = "showRelatives";
+    private static final String RELATIVE_LINES_KEY = "relativeLines";
     private static final Path CONFIG_PATH = FamilyTreePaths.config()
             .resolve("familytree-client.properties");
 
@@ -22,6 +24,8 @@ public final class FamilyTreeClientSettings {
     private static boolean showBirthDay = false;
     private static boolean showGeneration = true;
     private static boolean showHorseStats = true;
+    private static boolean showRelatives = true;
+    private static boolean relativeLines = true;
     private static boolean welcomeShown = false;
 
     private FamilyTreeClientSettings() {}
@@ -38,6 +42,8 @@ public final class FamilyTreeClientSettings {
         showBirthDay = Boolean.parseBoolean(properties.getProperty(SHOW_BIRTH_DAY_KEY, "false"));
         showGeneration = Boolean.parseBoolean(properties.getProperty(SHOW_GENERATION_KEY, "true"));
         showHorseStats = Boolean.parseBoolean(properties.getProperty(SHOW_HORSE_STATS_KEY, "true"));
+        showRelatives = Boolean.parseBoolean(properties.getProperty(SHOW_RELATIVES_KEY, "true"));
+        relativeLines = Boolean.parseBoolean(properties.getProperty(RELATIVE_LINES_KEY, "true"));
         welcomeShown = Boolean.parseBoolean(properties.getProperty("welcomeShown", "false"));
     }
 
@@ -47,6 +53,8 @@ public final class FamilyTreeClientSettings {
         properties.setProperty(SHOW_BIRTH_DAY_KEY, Boolean.toString(showBirthDay));
         properties.setProperty(SHOW_GENERATION_KEY, Boolean.toString(showGeneration));
         properties.setProperty(SHOW_HORSE_STATS_KEY, Boolean.toString(showHorseStats));
+        properties.setProperty(SHOW_RELATIVES_KEY, Boolean.toString(showRelatives));
+        properties.setProperty(RELATIVE_LINES_KEY, Boolean.toString(relativeLines));
         properties.setProperty("welcomeShown", Boolean.toString(welcomeShown));
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
@@ -97,6 +105,24 @@ public final class FamilyTreeClientSettings {
 
     public static void setShowHorseStats(boolean value) {
         showHorseStats = value;
+        save();
+    }
+
+    public static boolean showRelatives() {
+        return showRelatives;
+    }
+
+    public static void setShowRelatives(boolean value) {
+        showRelatives = value;
+        save();
+    }
+
+    public static boolean relativeLines() {
+        return relativeLines;
+    }
+
+    public static void setRelativeLines(boolean value) {
+        relativeLines = value;
         save();
     }
 }

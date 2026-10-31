@@ -17,7 +17,10 @@ import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.TimeUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.animal.Animal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
@@ -29,6 +32,7 @@ public final class FamilyTreePackets {
     private static final RequestLimiter<UUID> DISCOVERY = limiter(cooldowns -> cooldowns.scan());
     private static final RequestLimiter<UUID> LOCATE = limiter(cooldowns -> cooldowns.locate());
     private static final RequestLimiter<UUID> RENAME = limiter(cooldowns -> cooldowns.edit());
+    private static final RequestLimiter<UUID> RELATIVES = limiter(cooldowns -> cooldowns.relatives());
     private static final RequestLimiter<MinecraftServer> SERVER_SCAN = limiter(cooldowns -> cooldowns.serverScan());
     private FamilyTreePackets() {}
 
@@ -88,6 +92,37 @@ public final class FamilyTreePackets {
                 name, position.dimension(), packed));
     }
 
+    /** Holding the key sends many requests, so a denied node answers quietly instead of with a chat message each time. */
+    public static void relatives(RelativesRequest packet, ServerPlayer player) {
+        if (!mayShowRelatives(player)) {
+            ServerTransport.send(player, RelativesResult.empty(packet.requestId(), packet.target(), RelativesResult.Status.NOT_ALLOWED));
+            return;
+        }
+        if (!RELATIVES.allow(player.getUUID())) {
+            ServerTransport.send(player, RelativesResult.empty(packet.requestId(), packet.target(), RelativesResult.Status.BUSY));
+            return;
+        }
+        ServerTransport.send(player, nearbyRelatives(player, packet.requestId(), packet.target()));
+    }
+
+    public static boolean mayShowRelatives(ServerPlayer player) {
+        return ServerPetAccess.allowed(player, FamilyTreePermission.USE) && ServerPetAccess.allowed(player, FamilyTreePermission.RELATIVES);
+    }
+
+    /** Shared by the relatives packet and the server menu. */
+    public static RelativesResult nearbyRelatives(ServerPlayer player, UUID requestId, UUID target) {
+        FamilyTreeState state = FamilyTreeState.get(player.level().getServer());
+        if (state.readOnly()) return RelativesResult.empty(requestId, target, RelativesResult.Status.UNAVAILABLE);
+        Map<UUID, Double> nearby = new HashMap<>();
+        for (Animal animal : player.level().getEntitiesOfClass(Animal.class,
+                player.getBoundingBox().inflate(NearbyRelatives.RANGE), Animal::isAlive)) {
+            double distance = animal.distanceToSqr(player);
+            if (distance <= NearbyRelatives.RANGE * NearbyRelatives.RANGE) nearby.put(animal.getUUID(), distance);
+        }
+        return NearbyRelatives.answer(requestId, target, player.getUUID(), ServerPetAccess.viewAll(player),
+                state::get, nearby);
+    }
+
     public record RenameOutcome(PetRenaming.Result result, AnimalRecord record) {}
 
     /** Shared by the rename packet and the server menu. An empty name restores the original name. */
@@ -143,6 +178,10 @@ public final class FamilyTreePackets {
         return LOCATE.allow(player.getUUID());
     }
 
+    public static boolean allowRelatives(ServerPlayer player) {
+        return RELATIVES.allow(player.getUUID());
+    }
+
     public static void sendSnapshot(ServerPlayer player, UUID requestId, boolean requestAll) {
         var world = player.level();
         FamilyTreeState state = FamilyTreeState.get(world.getServer());
@@ -177,12 +216,12 @@ public final class FamilyTreePackets {
     }
 
     public static void disconnect(UUID player) {
-        OPEN.remove(player); DISCOVERY.remove(player); LOCATE.remove(player); RENAME.remove(player);
+        OPEN.remove(player); DISCOVERY.remove(player); LOCATE.remove(player); RENAME.remove(player); RELATIVES.remove(player);
         ServerText.forget(player);
     }
 
     public static void stop() {
-        OPEN.clear(); DISCOVERY.clear(); LOCATE.clear(); RENAME.clear(); SERVER_SCAN.clear();
+        OPEN.clear(); DISCOVERY.clear(); LOCATE.clear(); RENAME.clear(); RELATIVES.clear(); SERVER_SCAN.clear();
         ServerText.clear();
     }
 }

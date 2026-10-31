@@ -81,5 +81,8 @@ public final class NeoForgeEntrypoint {
         registrar.playToClient(WaypointResult.TYPE, WaypointResult.STREAM_CODEC);
         registrar.playToServer(WaypointRequest.TYPE, WaypointRequest.STREAM_CODEC, (packet, context) ->
                 FamilyTreePackets.waypoint(packet, (ServerPlayer) context.player()));
+        registrar.playToClient(RelativesResult.TYPE, RelativesResult.STREAM_CODEC);
+        registrar.playToServer(RelativesRequest.TYPE, RelativesRequest.STREAM_CODEC, (packet, context) ->
+                FamilyTreePackets.relatives(packet, (ServerPlayer) context.player()));
     }
 }

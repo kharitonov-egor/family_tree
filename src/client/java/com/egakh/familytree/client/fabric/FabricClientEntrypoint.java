@@ -7,6 +7,7 @@ import com.egakh.familytree.network.payloads.LinkParentsResult;
 import com.egakh.familytree.network.payloads.SnapshotPagePayload;
 import com.egakh.familytree.network.payloads.RenamePetResult;
 import com.egakh.familytree.network.payloads.WaypointResult;
+import com.egakh.familytree.network.payloads.RelativesResult;
 import com.egakh.familytree.client.integration.MapWaypoints;
 import com.egakh.familytree.client.platform.ClientEnvironment;
 import net.fabricmc.loader.api.FabricLoader;
@@ -32,6 +33,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         FamilyTreeClient client = new FamilyTreeClient();
         client.initialize();
         KeyMappingHelper.registerKeyMapping(FamilyTreeKeybinds.OPEN_TREE);
+        KeyMappingHelper.registerKeyMapping(FamilyTreeKeybinds.SHOW_RELATIVES);
         //? if >=1.21 {
         ClientTransport.configure(ClientPlayNetworking::canSend, ClientPlayNetworking::send);
         ClientPlayNetworking.registerGlobalReceiver(SnapshotPagePayload.TYPE, (packet, context) ->
@@ -42,6 +44,8 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
                 context.client().execute(() -> FamilyTreeClient.receive(packet)));
         ClientPlayNetworking.registerGlobalReceiver(WaypointResult.TYPE, (packet, context) ->
                 context.client().execute(() -> FamilyTreeClient.receive(packet)));
+        ClientPlayNetworking.registerGlobalReceiver(RelativesResult.TYPE, (packet, context) ->
+                context.client().execute(() -> FamilyTreeClient.receive(packet)));
         //?} else {
         /*ClientTransport.configure(type -> ClientPlayNetworking.canSend(type.id()),
                 packet -> ClientPlayNetworking.send(packet.type().id(), PayloadCodecs.encode(packet)));
@@ -49,6 +53,7 @@ public final class FabricClientEntrypoint implements ClientModInitializer {
         receive(RenamePetResult.TYPE, RenamePetResult.STREAM_CODEC, FamilyTreeClient::receive);
         receive(LinkParentsResult.TYPE, LinkParentsResult.STREAM_CODEC, FamilyTreeClient::receive);
         receive(WaypointResult.TYPE, WaypointResult.STREAM_CODEC, FamilyTreeClient::receive);
+        receive(RelativesResult.TYPE, RelativesResult.STREAM_CODEC, FamilyTreeClient::receive);
         *///?}
         ClientTickEvents.END_CLIENT_TICK.register(client::tick);
     }
