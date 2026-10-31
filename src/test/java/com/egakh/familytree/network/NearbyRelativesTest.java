@@ -86,12 +86,14 @@ class NearbyRelativesTest {
         pet("Same hidden sire", ALEX, samsSire, null, 3);
         pet("Same dam, other hidden sire", ALEX, samsOtherSire, alexsDam, 3);
         AnimalRecord halfPup = pet("Half pup", ALEX, samsSire, alexsDam, 2);
+        pet("Same dam, same hidden sire", ALEX, samsSire, alexsDam, 3);
 
         assertEquals(0, ask(pup, ALEX, false).total(), "related only through Sam's sire");
-        assertEquals(Map.of("Same dam, other hidden sire", CloseRelation.SIBLING, "Alex's dam", CloseRelation.PARENT),
-                byName(ask(halfPup, ALEX, false)), "with the sires hidden, Family Tree can't tell half from full");
+        assertEquals(Map.of("Same dam, other hidden sire", CloseRelation.HALF_SIBLING, "Same dam, same hidden sire", CloseRelation.SIBLING,
+                        "Alex's dam", CloseRelation.PARENT), byName(ask(halfPup, ALEX, false)),
+                "linked through the dam, and half or full by the parent IDs both foals already show");
         assertEquals(Map.of("Same hidden sire", CloseRelation.SIBLING, "Sam's sire", CloseRelation.PARENT,
-                        "Half pup", CloseRelation.SIBLING), byName(ask(pup, ALEX, true)));
+                        "Half pup", CloseRelation.SIBLING, "Same dam, same hidden sire", CloseRelation.SIBLING), byName(ask(pup, ALEX, true)));
         assertEquals(CloseRelation.HALF_SIBLING, byName(ask(halfPup, ALEX, true)).get("Same dam, other hidden sire"));
 
         UUID pruned = new UUID(7, 7);

@@ -28,7 +28,7 @@ public final class RelativeLabels {
     public record Label(Component text, double base) {}
 
     private static final float NAME_TAG_SCALE = 0.025F;
-    private static final double NEAR = 6.0, FAR = 16.0;
+    private static final double NEAR = 6.0, FAR = 12.0;
     private static final double HEAD_ROOM = 0.3, EQUINE_HEAD = 0.35;
     private static final int TEXT = 0xFFFFFFFF, BACKGROUND = 0xA0000000, FULL_BRIGHT = 0xF000F0;
 

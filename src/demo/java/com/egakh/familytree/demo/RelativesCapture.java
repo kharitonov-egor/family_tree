@@ -335,13 +335,19 @@ public final class RelativesCapture {
         if (frame == 10) server.execute(() -> FamilyTreeState.get(server).update(family.get("Bit"),
                 record -> record.setParents(family.get("Rex"), null)));
         if (frame >= 20 && frame < 60) {
-            hold(client, 0, 101, 12.0);
-            if (frame == 20) look(client, 0, -15);
+            if (frame == 20) FamilyTreeClientSettings.setRelativeLines(false);
+            hold(client, 0, 101, frame < 40 ? 12.5 : 14.0);
+            look(client, 0, frame < 40 ? -8 : -15);
+        }
+        if (frame == 35) {
+            expectLabel(client, "Comet", CloseRelation.PARENT);
+            runner.capture(client, "relatives-horse-facing.png");
         }
         if (frame == 55) {
             expectLabel(client, "Comet", CloseRelation.PARENT);
-            runner.capture(client, "relatives-horse-facing.png");
-            passed.add("labels: a parent facing the camera");
+            runner.capture(client, "relatives-horse-facing-close.png");
+            FamilyTreeClientSettings.setRelativeLines(true);
+            passed.add("labels: a parent facing the camera from 4 and 2.5 blocks");
         }
         if (frame >= 60 && frame < 120) {
             hold(client, 0, 101, -6.0);
