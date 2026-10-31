@@ -60,10 +60,16 @@ class ParentLinksTest {
 
         assertTrue(ParentLinks.mayPick(mule, horse, null, pets::get));
         assertTrue(ParentLinks.mayPick(mule, donkey, null, pets::get));
-        assertFalse(ParentLinks.mayPick(mule, otherMule, null, pets::get), "mules are sterile in vanilla");
         assertTrue(ParentLinks.mayPick(mule, donkey, horse, pets::get));
         assertFalse(ParentLinks.mayPick(mule, mare, horse, pets::get), "two horses can't have a mule");
+        assertFalse(ParentLinks.mayPick(mule, otherMule, horse, pets::get), "a mule and a horse can't have a mule");
+        assertFalse(ParentLinks.mayPick(mule, wolf, null, pets::get));
         assertTrue(ParentLinks.mayPick(mule, horse, wolf, pets::get), "a recorded parent that could never fit is ignored");
+        for (AnimalRecord first : pets.values())
+            for (AnimalRecord second : pets.values())
+                if (ParentLinks.mayPick(mule, first, null, pets::get) && ParentLinks.mayPick(mule, second, first, pets::get))
+                    assertEquals(ParentLinks.Result.SUCCESS, ParentLinks.validate(mule.id(), first.id(), second.id(), false, owner, false, pets::get),
+                            first.speciesId() + " and " + second.speciesId());
     }
 
     private static Map<UUID, AnimalRecord> map(AnimalRecord... records) {
