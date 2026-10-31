@@ -66,8 +66,13 @@ public final class SmokePlugin extends JavaPlugin implements Listener {
         return familyTree.store();
     }
 
+    /** Spigot loads a newly forced chunk's entities a few ticks later, so animals are spawned once that has happened. */
     private void setUp() {
         for (int x = -1; x <= 0; x++) for (int z = 0; z <= 1; z++) world.setChunkForceLoaded(x, z, true);
+        getServer().getScheduler().runTaskLater(this, this::spawnAnimals, 40L);
+    }
+
+    private void spawnAnimals() {
         base = new Location(world, 4.5, world.getHighestBlockYAt(4, 4) + 1, 4.5);
         int before = store().all().size();
         horseA = horse(base.clone().add(0, 0, 0), true);
@@ -81,6 +86,13 @@ public final class SmokePlugin extends JavaPlugin implements Listener {
         wildD = sheep(base.clone().add(7, 0, 24), DyeColor.RED);
         frogA = (Animals) spawn(EntityType.valueOf("FROG"), base.clone().add(-16, 0, 0));
         frogB = (Animals) spawn(EntityType.valueOf("FROG"), base.clone().add(-16, 0, 1));
+        getServer().getScheduler().runTaskLater(this, () -> scanAndBreed(before), 20L);
+    }
+
+    private void scanAndBreed(int before) {
+        log("before scan: entities " + world.getEntities().size() + ", horse valid " + horseA.isValid() + ", tamed " + horseA.isTamed()
+                + ", owner " + com.egakh.familytree.plugin.track.Entities.owner(horseA)
+                + ", trackable " + familyTree.tracker().rules().isTrackable(horseA));
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "familytree scan");
         check("scan records the two owned horses", store().contains(horseA.getUniqueId()) && store().contains(horseB.getUniqueId()));
         check("a camel and an ownerless skeleton horse stay out", !store().contains(camel.getUniqueId()) && !store().contains(trapHorse.getUniqueId()));

@@ -6,10 +6,10 @@ stonecutter.active '26.1.1' /* [SC] DO NOT EDIT */
 
 tasks.register('buildAll') {
     group = 'project'
-    description = 'Builds and tests all Fabric, NeoForge, and Forge targets.'
+    description = 'Builds and tests all Fabric, NeoForge, and Forge targets and the Paper and Spigot plugin.'
     dependsOn ':1.20.1:build', ':1.21.1:build', ':1.21.4:build', ':1.21.5:build', ':1.21.8:build', ':1.21.10:build',
             ':1.21.11:build', ':26.1.1:build', ':26.1.2:build', ':26.2:build', ':26.3:build', ':26.4-snapshot-6:build',
-            'buildNeoForge', 'buildForge'
+            'buildNeoForge', 'buildForge', 'buildPlugin'
 }
 
 def neoForgeTargets = ['1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10', '1.21.11', '26.2', '26.3']
@@ -37,6 +37,15 @@ tasks.register('buildForge1_20_1', Exec) {
 }
 tasks.register('buildForge') {
     dependsOn 'buildForge1_20_1'
+}
+
+// The plugin compiles the mod's Minecraft-free source directly, so it needs no generated sources.
+tasks.register('buildPlugin', Exec) {
+    mustRunAfter 'buildForge1_20_1'
+    workingDir rootProject.projectDir
+    def wrapper = rootProject.file(System.getProperty('os.name').toLowerCase().contains('windows') ? 'gradlew.bat' : 'gradlew')
+    def arguments = [wrapper.absolutePath, '-p', 'paper', 'build', '--console=plain']
+    commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c'] + arguments : arguments)
 }
 
 // Source is authored against 26.1.1 (the vcsVersion). These replacements rewrite the

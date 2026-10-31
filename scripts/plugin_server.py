@@ -80,7 +80,7 @@ def main():
     values.update({'server-port': str(args.port), 'server-ip': '127.0.0.1', 'online-mode': 'false',
                    'spawn-protection': '0', 'view-distance': '4', 'simulation-distance': '4', 'difficulty': 'peaceful',
                    'level-type': values.get('level-type', 'minecraft\\:flat'), 'generate-structures': 'false',
-                   'enable-command-block': 'true'})
+                   'enable-command-block': 'true', 'white-list': 'false', 'enforce-whitelist': 'false'})
     properties.write_text(''.join(f'{key}={value}\n' for key, value in values.items()))
     plugins = directory / 'plugins'
     plugins.mkdir(exist_ok=True)

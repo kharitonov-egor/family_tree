@@ -21,6 +21,12 @@ FORGE = {'1.20.1': '47.1.0'}
 ALSO_RUNS_ON = {'1.21.8': ['1.21.6', '1.21.7'], '1.21.10': ['1.21.9']}
 # Snapshot builds stay out of releases unless --snapshots asks for them, and then publish as alpha.
 SNAPSHOTS = {'26.4-snapshot-6'}
+# The one plugin jar runs on these servers. List a version only after docs/plugin.md's checks pass on it.
+PLUGIN_GAME_VERSIONS = ['1.20.1', '1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10', '1.21.11', '26.1.2', '26.2', '26.3']
+# CraftBukkit without Spigot lacks the chat API the plugin uses, so the bukkit loader is not listed.
+PLUGIN_LOADERS = ['paper', 'spigot', 'purpur']
+PLUGIN_LANGUAGES = ['en_us', 'zh_cn', 'zh_tw', 'ru_ru', 'uk_ua', 'es_mx', 'es_es', 'pt_br', 'de_de', 'fr_fr',
+                    'it_it', 'ja_jp', 'ko_kr', 'pl_pl', 'tr_tr']
 
 
 def fabric_game_version(mc):
@@ -100,9 +106,42 @@ def main():
                 'sha512': hashlib.sha512(destination.read_bytes()).hexdigest(), 'size': destination.stat().st_size})
             source = folder / f'familytree-{release_version}-sources.jar'
             shutil.copyfile(source, output / source.name)
+    files.append(plugin_file(version, output))
     manifest = {'mod_version': version, 'commit': commit, 'license': 'MIT', 'files': files}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print(f'Verified {len(files)} release jars at {commit}. Output: {output}')
+
+
+def plugin_file(version, output):
+    """The Paper and Spigot plugin: one jar, Java 17, for every listed server version."""
+    release_version = f'{version}+plugin'
+    folder = ROOT / 'paper/build/libs'
+    path = folder / f'familytree-{release_version}.jar'
+    with zipfile.ZipFile(path) as jar:
+        names = jar.namelist()
+        assert jar.read('LICENSE_familytree') == (ROOT / 'LICENSE').read_bytes(), f'{path}: missing MIT license'
+        assert 'assets/familytree/icon.png' in names, f'{path}: missing icon'
+        assert not any('/smoke/' in name for name in names), f'{path}: development classes'
+        metadata = dict(line.split(':', 1) for line in jar.read('plugin.yml').decode().splitlines()
+                        if ':' in line and not line.startswith((' ', '#')))
+        assert metadata['version'].strip().strip("'") == release_version, f'{path}: plugin.yml version'
+        assert metadata['api-version'].strip().strip("'") == '1.20', f'{path}: api-version'
+        main = metadata['main'].strip().replace('.', '/') + '.class'
+        assert main in names, f'{path}: missing {main}'
+        for code in PLUGIN_LANGUAGES:
+            assert f'assets/familytree/lang/{code}.json' in names, f'{path}: missing {code}'
+            assert f'familytree-plugin/lang/{code}.json' in names, f'{path}: missing plugin {code}'
+        for name in names:
+            if name.endswith('.class') and name.startswith('com/egakh/familytree/'):
+                assert int.from_bytes(jar.read(name)[6:8], 'big') == 61, f'{path}: {name} is not Java 17'
+    destination = output / path.name
+    shutil.copyfile(path, destination)
+    source = folder / f'familytree-{release_version}-sources.jar'
+    shutil.copyfile(source, output / source.name)
+    return {'filename': path.name, 'version': release_version, 'minecraft': 'plugin', 'game_versions': PLUGIN_GAME_VERSIONS,
+            'loader': 'plugin', 'loaders': PLUGIN_LOADERS, 'minimum_loader': None, 'java': 17, 'dependencies': [],
+            'release_type': 'release', 'sha512': hashlib.sha512(destination.read_bytes()).hexdigest(),
+            'size': destination.stat().st_size}
 
 
 if __name__ == '__main__':
