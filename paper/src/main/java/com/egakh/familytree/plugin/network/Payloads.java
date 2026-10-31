@@ -13,6 +13,14 @@ import java.util.UUID;
  * the expected bytes in the mod's {@code WireFormatTest}.
  */
 public final class Payloads {
+    /**
+     * Vanilla fonts, and Family Tree before 1.4.0, draw bidi isolates as boxes. 1.4.0 added both the font that hides
+     * them and the relatives channel, so a client listening on that channel draws them as nothing.
+     */
+    public static boolean hidesIsolates(java.util.Collection<String> listeningChannels) {
+        return listeningChannels.contains(RELATIVES_RESULT);
+    }
+
     public static final String NAMESPACE = "familytree";
     public static final String OPEN = "familytree:open_request_v4";
     public static final String DISCOVER = "familytree:discover_v3";

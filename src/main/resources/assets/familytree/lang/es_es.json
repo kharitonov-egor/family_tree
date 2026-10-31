@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "Coincidencia %s de %s. Pulsa Intro para ver la siguiente.",
   "familytree.screen.tree.show_older": "Las generaciones más antiguas están ocultas. Haz clic para mostrar seis más.",
   "familytree.screen.tree.show_younger": "Las generaciones más jóvenes están ocultas. Haz clic para mostrar seis más.",
+  "familytree.screen.tree.return_hint": "Pulsa %s para volver al árbol genealógico",
   "familytree.rename.button": "Renombrar",
   "familytree.rename.title": "Renombrar en Family Tree",
   "familytree.rename.hint": "Esto solo cambia el nombre en Family Tree. El nombre del animal en el mundo no cambia.",

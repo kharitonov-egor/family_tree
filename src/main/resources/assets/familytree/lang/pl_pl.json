@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "Wynik %s z %s. Naciśnij Enter, aby przejść do następnego.",
   "familytree.screen.tree.show_older": "Starsze pokolenia są ukryte. Kliknij, aby pokazać sześć kolejnych.",
   "familytree.screen.tree.show_younger": "Młodsze pokolenia są ukryte. Kliknij, aby pokazać sześć kolejnych.",
+  "familytree.screen.tree.return_hint": "Naciśnij %s, aby wrócić do drzewa",
   "familytree.rename.button": "Zmień imię",
   "familytree.rename.title": "Zmiana imienia w Family Tree",
   "familytree.rename.hint": "Zmienia to tylko imię w Family Tree. Imię zwierzęcia w świecie pozostaje bez zmian.",

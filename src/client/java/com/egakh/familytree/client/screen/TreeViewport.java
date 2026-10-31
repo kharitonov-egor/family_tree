@@ -28,7 +28,7 @@ final class TreeViewport {
             return true;
         }
         if (anchor != null) {
-            center(anchor.x + TreeLayout.NODE_WIDTH / 2.0, anchor.y + TreeLayout.NODE_HEIGHT / 2.0, left, right, top, bottom);
+            center(anchor.x + TreeLayout.NODE_WIDTH / 2.0, anchor.y + tree.cardHeight / 2.0, left, right, top, bottom);
             return false;
         }
         TreeLayout.Node first = tree.nodes.get(0);

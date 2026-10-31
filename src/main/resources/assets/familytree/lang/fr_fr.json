@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "Résultat %s sur %s. Appuyez sur Entrée pour le suivant.",
   "familytree.screen.tree.show_older": "Les générations plus anciennes sont masquées. Cliquez pour en afficher six de plus.",
   "familytree.screen.tree.show_younger": "Les générations plus jeunes sont masquées. Cliquez pour en afficher six de plus.",
+  "familytree.screen.tree.return_hint": "Appuyez sur %s pour revenir à l'arbre généalogique",
   "familytree.rename.button": "Renommer",
   "familytree.rename.title": "Renommer dans Family Tree",
   "familytree.rename.hint": "Seul le nom dans Family Tree change. Le nom de l'animal dans le monde reste le même.",

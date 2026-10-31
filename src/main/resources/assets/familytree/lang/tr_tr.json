@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "Eşleşme %s / %s. Sonraki için Enter'a basın.",
   "familytree.screen.tree.show_older": "Daha eski nesiller gizli. Altı nesil daha göstermek için tıklayın.",
   "familytree.screen.tree.show_younger": "Daha genç nesiller gizli. Altı nesil daha göstermek için tıklayın.",
+  "familytree.screen.tree.return_hint": "Ağaca dönmek için %s tuşuna basın",
   "familytree.rename.button": "Yeniden Adlandır",
   "familytree.rename.title": "Family Tree'de Yeniden Adlandır",
   "familytree.rename.hint": "Bu yalnızca Family Tree'deki adı değiştirir. Hayvanın dünyadaki adı aynı kalır.",

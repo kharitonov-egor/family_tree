@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "Match %s of %s. Press Enter for the next one.",
   "familytree.screen.tree.show_older": "Older generations are hidden. Click to show six more.",
   "familytree.screen.tree.show_younger": "Younger generations are hidden. Click to show six more.",
+  "familytree.screen.tree.return_hint": "Press %s to return to the family tree",
   "familytree.rename.button": "Rename",
   "familytree.rename.title": "Rename in Family Tree",
   "familytree.rename.hint": "This only changes the name in Family Tree. The animal's name in the world stays the same.",

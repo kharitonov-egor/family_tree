@@ -69,7 +69,7 @@ public final class TreeLayout {
          */
         public double[] route() {
             if (route != null) return route;
-            double px = from.x + NODE_WIDTH / 2.0, py = from.y + NODE_HEIGHT;
+            double px = from.x + NODE_WIDTH / 2.0, py = from.y + (from.band == null ? NODE_HEIGHT : from.band.cardHeight);
             double cx = to.x + NODE_WIDTH / 2.0, cy = to.y;
             double middle = (py + cy) / 2;
             return new double[]{px, py, px, middle, cx, middle, cx, cy};
@@ -85,6 +85,8 @@ public final class TreeLayout {
         /** Cards whose descendants go further down than the tree shows, with how many more generations there are. */
         public final Map<UUID, Integer> youngerHidden = new HashMap<>();
         public double minX, maxX, minY, maxY;
+        /** Rows are spaced by this height, which the screen sizes to the cards' content. */
+        public int cardHeight = NODE_HEIGHT;
     }
 
     private static final class Band {
@@ -96,6 +98,7 @@ public final class TreeLayout {
         double left;
         double right;
         double gap;
+        double cardHeight = NODE_HEIGHT;
     }
 
     private record Link(UUID from, UUID to) {}
@@ -181,13 +184,21 @@ public final class TreeLayout {
     public static Result layoutForest(List<UUID> includedIds,
                                       Map<UUID, AnimalRecord> records,
                                       Map<UUID, List<UUID>> childIndex) {
+        return layoutForest(includedIds, records, childIndex, NODE_HEIGHT);
+    }
+
+    public static Result layoutForest(List<UUID> includedIds,
+                                      Map<UUID, AnimalRecord> records,
+                                      Map<UUID, List<UUID>> childIndex,
+                                      int cardHeight) {
         Result result = new Result();
+        result.cardHeight = cardHeight;
         if (includedIds.isEmpty()) return result;
 
         List<Result> layouts = new ArrayList<>();
         double rowWidth = -FOREST_GAP, widest = 0, area = 0;
         for (List<UUID> component : families(includedIds, records, childIndex)) {
-            Result componentLayout = layoutForestComponent(component, records, childIndex);
+            Result componentLayout = layoutForestComponent(component, records, childIndex, cardHeight);
             if (componentLayout.nodes.isEmpty()) continue;
             layouts.add(componentLayout);
             double width = componentLayout.maxX - componentLayout.minX, height = componentLayout.maxY - componentLayout.minY;
@@ -243,7 +254,18 @@ public final class TreeLayout {
                                 Set<UUID> hidden,
                                 Set<UUID> olderShown,
                                 Set<UUID> youngerShown) {
+        return layout(focusId, records, childIndex, hidden, olderShown, youngerShown, NODE_HEIGHT);
+    }
+
+    public static Result layout(UUID focusId,
+                                Map<UUID, AnimalRecord> records,
+                                Map<UUID, List<UUID>> childIndex,
+                                Set<UUID> hidden,
+                                Set<UUID> olderShown,
+                                Set<UUID> youngerShown,
+                                int cardHeight) {
         Result r = new Result();
+        r.cardHeight = cardHeight;
         AnimalRecord focusRecord = records.get(focusId);
         if (focusRecord == null) return r;
 
@@ -370,6 +392,7 @@ public final class TreeLayout {
             band.index = index++;
             placed.add(band);
             band.gap = H_SPACING;
+            band.cardHeight = cardHeight;
             if (band.nodes.size() > TREE_ROW_LIMIT) {
                 placeGrid(band, top, 0);
             } else {
@@ -462,7 +485,7 @@ public final class TreeLayout {
             node.band = band;
         }
         band.top = top;
-        band.bottom = top + NODE_HEIGHT;
+        band.bottom = top + band.cardHeight;
     }
 
     /** Wraps a wide generation into balanced rows centered on {@code center}, roughly 1.6 times as wide as tall. */
@@ -483,9 +506,9 @@ public final class TreeLayout {
             node.row = row;
             node.band = band;
             node.x = left + (columns - inRow) * pitch / 2 + column * pitch;
-            node.y = top + row * (NODE_HEIGHT + WRAP_GAP);
+            node.y = top + row * (band.cardHeight + WRAP_GAP);
         }
-        band.bottom = top + rows * NODE_HEIGHT + (rows - 1) * WRAP_GAP;
+        band.bottom = top + rows * band.cardHeight + (rows - 1) * WRAP_GAP;
         measureBand(band);
     }
 
@@ -506,10 +529,10 @@ public final class TreeLayout {
             if (from == null || to == null || to.top <= from.bottom) continue;
             double px = parent.x + NODE_WIDTH / 2.0, cx = child.x + NODE_WIDTH / 2.0;
             double exit = from.bottom + V_SPACING / 2.0;
-            List<Double> points = new ArrayList<>(List.of(px, parent.y + NODE_HEIGHT));
+            List<Double> points = new ArrayList<>(List.of(px, parent.y + from.cardHeight));
             double x = px;
             if (parent.row < from.rows - 1) {
-                double below = parent.y + NODE_HEIGHT + WRAP_GAP / 3.0;
+                double below = parent.y + from.cardHeight + WRAP_GAP / 3.0;
                 x = from.right + from.gap / 2;
                 points.addAll(List.of(px, below, x, below));
             }
@@ -564,7 +587,7 @@ public final class TreeLayout {
             result.minX = Math.min(result.minX, node.x);
             result.maxX = Math.max(result.maxX, node.x + NODE_WIDTH);
             result.minY = Math.min(result.minY, node.y);
-            result.maxY = Math.max(result.maxY, node.y + NODE_HEIGHT);
+            result.maxY = Math.max(result.maxY, node.y + result.cardHeight);
         }
         for (Edge edge : result.edges) {
             double[] route = edge.route();
@@ -577,8 +600,10 @@ public final class TreeLayout {
 
     private static Result layoutForestComponent(List<UUID> componentIds,
                                                 Map<UUID, AnimalRecord> records,
-                                                Map<UUID, List<UUID>> childIndex) {
+                                                Map<UUID, List<UUID>> childIndex,
+                                                int cardHeight) {
         Result result = new Result();
+        result.cardHeight = cardHeight;
         Set<UUID> included = new HashSet<>(componentIds);
         Map<UUID, Integer> generationById = new HashMap<>();
         Map<Integer, List<Node>> byGen = new HashMap<>();
@@ -673,6 +698,7 @@ public final class TreeLayout {
             bands.add(band);
             band.nodes.addAll(row);
             band.gap = rowGap;
+            band.cardHeight = cardHeight;
 
             List<Double> desiredCenters = new ArrayList<>(row.size());
             for (int i = 0; i < row.size(); i++) {

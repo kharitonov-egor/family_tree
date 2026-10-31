@@ -5,6 +5,7 @@ import com.egakh.familytree.client.platform.ClientTransport;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.network.payloads.WaypointRequest;
 import com.egakh.familytree.network.payloads.WaypointResult;
+import com.egakh.familytree.util.PetNames;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -53,7 +54,7 @@ public final class MapWaypoints {
             return;
         }
         AnimalRecord.LastSeen seen = pet.lastSeen();
-        if (seen == null) tell(Component.translatable("familytree.command.locate.no_position", pet.name()));
+        if (seen == null) tell(Component.translatable("familytree.command.locate.no_position", PetNames.isolate(pet.name())));
         else addEverywhere(pet.name(), BlockPos.containing(seen.x(), seen.y(), seen.z()), seen.dimension());
     }
 

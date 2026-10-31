@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "第 %s 个，共 %s 个匹配。按 Enter 查看下一个。",
   "familytree.screen.tree.show_older": "更早的世代已隐藏。点击再显示六代。",
   "familytree.screen.tree.show_younger": "更晚的世代已隐藏。点击再显示六代。",
+  "familytree.screen.tree.return_hint": "按 %s 返回家谱",
   "familytree.rename.button": "重命名",
   "familytree.rename.title": "在Family Tree中重命名",
   "familytree.rename.hint": "这只会修改Family Tree中的名字，动物在世界中的名字保持不变。",

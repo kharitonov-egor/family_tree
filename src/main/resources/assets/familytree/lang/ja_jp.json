@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "%s / %s 件目。Enter で次へ。",
   "familytree.screen.tree.show_older": "古い世代が隠れています。クリックするとさらに6世代表示します。",
   "familytree.screen.tree.show_younger": "新しい世代が隠れています。クリックするとさらに6世代表示します。",
+  "familytree.screen.tree.return_hint": "%sを押すと家系図に戻ります",
   "familytree.rename.button": "名前を変更",
   "familytree.rename.title": "Family Treeでの名前を変更",
   "familytree.rename.hint": "変わるのはFamily Tree内の名前だけです。ワールド内の動物の名前は変わりません。",

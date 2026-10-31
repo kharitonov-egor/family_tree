@@ -1,18 +1,14 @@
 package com.egakh.familytree.client.screen;
 
-import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
 import com.egakh.familytree.data.AnimalRecord;
-import com.egakh.familytree.util.AnimalCategory;
-import com.egakh.familytree.util.DeathMessages;
 import com.egakh.familytree.util.VariantText;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.network.chat.Component;
+import net.minecraft.locale.Language;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.List;
-import java.util.UUID;
-import java.util.function.Function;
 
 public final class TreeRenderer {
     private static final int BG_ALIVE = 0xFF202830;
@@ -26,6 +22,7 @@ public final class TreeRenderer {
     private static final int TEXT_GENERATION = 0xFFD9B25A;
     private static final int TEXT_GENERATION_DECEASED = 0xFF8A7A4A;
     private static final int TEXT_STATS = 0xFFDCE6F0;
+    private static final int TEXT_DEATH = 0xFFB94A4A;
     private static final String STATS_SEPARATOR = " \u00B7 ";
     private static final int EDGE_COLOR = 0xFF7C8DA8;
     /** Cards and links on the path between two compared animals. */
@@ -33,21 +30,18 @@ public final class TreeRenderer {
 
     private TreeRenderer() {}
 
-    public static void drawNode(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node node,
-                                long currentWorldDay, long currentEpochMillis, boolean isFocus, boolean collapsed,
-                                int generation, Function<UUID, AnimalRecord> lookup,
-                                double panX, double panY, double zoom) {
-        drawNode(gfx, font, node, currentWorldDay, currentEpochMillis, isFocus, false, collapsed, generation, lookup, panX, panY, zoom);
-    }
-
-    public static void drawNode(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node node,
-                                long currentWorldDay, long currentEpochMillis, boolean isFocus, boolean related, boolean collapsed,
-                                int generation, Function<UUID, AnimalRecord> lookup,
-                                double panX, double panY, double zoom) {
+    /**
+     * Draws a card at the viewport's zoom, scaling its text with it. When the zoom would draw a font pixel smaller
+     * than a screen pixel, the text stays at {@code minTextScale} and the card shows only the rows that still fit.
+     * Returns whether any of the card's text was shortened or left out.
+     */
+    public static boolean drawNode(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node node, TreeCard card, int cardHeight,
+                                boolean isFocus, boolean related, boolean collapsed,
+                                double panX, double panY, double zoom, double minTextScale) {
         int x = (int) Math.round(node.x * zoom + panX);
         int y = (int) Math.round(node.y * zoom + panY);
-        int w = TreeViewport.nodeWidth(zoom);
-        int h = TreeViewport.nodeHeight(zoom);
+        int w = scaled(TreeLayout.NODE_WIDTH, zoom);
+        int h = scaled(cardHeight, zoom);
         AnimalRecord r = node.record;
 
         int bg = r.deceased() ? BG_DECEASED : BG_ALIVE;
@@ -57,102 +51,111 @@ public final class TreeRenderer {
         gfx.fill(x, y, x + w, y + h, border);
         int inset = related && w > 6 && h > 6 ? 2 : 1;
         if (w > 2 && h > 2) gfx.fill(x + inset, y + inset, x + w - inset, y + h - inset, bg);
+        if (w < 8 || h < 6) return true;
 
-        int textColor = r.deceased() ? TEXT_DECEASED : TEXT_PRIMARY;
-        boolean hasFace = PetFaceRenderer.hasFace(r);
-        if (zoom < 0.65) {
-            drawCompactNode(gfx, font, r, x, y, w, h, hasFace, collapsed, textColor);
-            return;
-        }
+        TreeCard.Measure measure = TreeCard.measure(font);
+        boolean cut;
         gfx.enableScissor(x + 1, y + 1, x + w - 1, y + h - 1);
-        if (collapsed) {
-            gfx.text(font, "+", x + w - 10, y + 3, TEXT_GENERATION);
-        }
-        int basePad = Math.max(8, (int) Math.round(10 * zoom));
-        int iconSize = hasFace ? Math.max(28, (int) Math.round(36 * zoom)) : 0;
-        int iconPadding = hasFace ? Math.max(6, (int) Math.round(8 * zoom)) : 0;
-        int left = x + basePad + (hasFace ? iconSize + iconPadding : 0);
-        int lineHeight = Math.max(font.lineHeight + 2, (int) Math.round((font.lineHeight + 2) * zoom));
-        int textWidth = Math.max(24, w - basePad * 2 - (hasFace ? iconSize + iconPadding : 0));
-
-        if (hasFace) {
-            int iconX = x + basePad;
-            int iconY = y + Math.max(8, (int) Math.round(9 * zoom));
-            PetFaceRenderer.drawFace(gfx, font, r, iconX, iconY, iconSize);
-        }
-
-        int cursorY = y + Math.max(6, (int) Math.round(8 * zoom));
-        cursorY = drawWrapped(gfx, font, r.name(), left, cursorY, textWidth, lineHeight, textColor);
-
-        if (FamilyTreeClientSettings.showGeneration() && generation > 0) {
-            String genLine = Component.translatable("familytree.node.generation", generation).getString();
-            gfx.text(font, Component.literal(trimToWidth(font, genLine, textWidth)),
-                    left, cursorY, r.deceased() ? TEXT_GENERATION_DECEASED : TEXT_GENERATION);
-            cursorY += lineHeight;
-        }
-
-        if (FamilyTreeClientSettings.showHorseStats() && HorseStatsText.has(r)) {
-            cursorY = drawStats(gfx, font, HorseStatsText.card(r, lookup), left, cursorY, textWidth, lineHeight,
-                    r.deceased() ? TEXT_DECEASED : TEXT_STATS);
-        }
-
-        Component variant = VariantText.label(r);
-        if (variant != null) {
-            drawVariant(gfx, font, variant, VariantText.rare(r), left, cursorY, textWidth,
-                    r.deceased() ? TEXT_DECEASED : TEXT_STATS);
-            cursorY += lineHeight;
-        }
-
-        String tamedBy = buildTamedByLine(r);
-        if (!tamedBy.isEmpty()) {
-            cursorY = drawWrapped(gfx, font, tamedBy, left, cursorY, textWidth, lineHeight, TEXT_SECONDARY);
-        }
-
-        long worldAge;
-        if (r.deceased() && r.deathWorldDay() != null && r.deathEpochMillis() != null) {
-            worldAge = r.deathWorldDay() - r.birthWorldDay();
+        if (zoom >= minTextScale) {
+            cut = card.full.cut();
+            if (card.face) {
+                PetFaceRenderer.drawFace(gfx, font, r, x + scaled(TreeCard.PAD_X, zoom), y + scaled(TreeCard.FACE_TOP, zoom),
+                        scaled(TreeCard.FACE_SIZE, zoom));
+            }
+            pushScale(gfx, x, y, (float) zoom);
+            drawRows(gfx, font, measure, card.full.rows(), TreeCard.textLeft(card.face), TreeCard.PAD_TOP,
+                    TreeCard.textWidth(card.face), r.deceased());
+            if (collapsed) gfx.text(font, "+", TreeLayout.NODE_WIDTH - 10, 3, TEXT_GENERATION);
+            popScale(gfx);
         } else {
-            worldAge = currentWorldDay - r.birthWorldDay();
-        }
-
-        String dayLine = buildAgeSummary(r.birthWorldDay(), worldAge);
-        if (!dayLine.isEmpty()) {
-            gfx.text(font, Component.literal(trimToWidth(font, dayLine, textWidth)), left, cursorY, TEXT_SECONDARY);
-            cursorY += lineHeight;
-        }
-
-        if (r.deceased()) {
-            gfx.text(font, Component.literal(trimToWidth(font, buildDeathLine(r), textWidth)),
-                    left, cursorY, 0xFFB94A4A);
+            cut = drawCompact(gfx, font, measure, card, r, x, y, w, h, collapsed, minTextScale);
         }
         gfx.disableScissor();
+        return cut;
     }
 
-    private static void drawCompactNode(GuiGraphicsExtractor gfx, Font font, AnimalRecord record,
-                                        int x, int y, int w, int h, boolean hasFace,
-                                        boolean collapsed, int textColor) {
-        // At overview scales the cards remain visible, but text would be smaller than a pixel.
-        if (w < 24 || h < font.lineHeight + 4) return;
-        gfx.enableScissor(x + 1, y + 1, x + w - 1, y + h - 1);
+    /** At overview zooms the text keeps a readable size, so it shows the first rows that fit, from the name down. */
+    private static boolean drawCompact(GuiGraphicsExtractor gfx, Font font, TreeCard.Measure measure, TreeCard card,
+                                       AnimalRecord record, int x, int y, int w, int h, boolean collapsed, double scale) {
+        double step = TreeCard.lineStep(measure) * scale;
+        int maxRows = (int) Math.floor((h - 4 + 2 * scale) / step);
+        if (maxRows < 1 || w < 24) return true;
         int left = x + 4;
-        if (hasFace && w >= 64) {
+        if (card.face && w >= 64) {
             int size = Math.min(h - 8, Math.min(32, w / 3));
-            PetFaceRenderer.drawFace(gfx, font, record, left, y + (h - size) / 2, size);
-            left += size + 4;
+            if (size >= 8) {
+                PetFaceRenderer.drawFace(gfx, font, record, left, y + (h - size) / 2, size);
+                left += size + 4;
+            }
         }
-        int rightPadding = collapsed ? 14 : 4;
-        gfx.text(font, trimToWidth(font, record.name(), Math.max(1, x + w - rightPadding - left)),
-                left, y + (h - font.lineHeight) / 2, textColor);
+        int right = x + w - (collapsed ? 14 : 4);
+        int width = (int) Math.floor((right - left) / scale);
+        if (width < 8) return true;
+        TreeCard.Fitted fitted = card.compact(measure, width, maxRows);
+        int rows = fitted.rows().size();
+        double blockHeight = rows * step - 2 * scale;
+        pushScale(gfx, left, (float) (y + (h - blockHeight) / 2.0), (float) scale);
+        drawRows(gfx, font, measure, fitted.rows(), 0, 0, width, record.deceased());
+        popScale(gfx);
         if (collapsed) gfx.text(font, "+", x + w - 10, y + (h - font.lineHeight) / 2, TEXT_GENERATION);
-        gfx.disableScissor();
+        return fitted.cut();
     }
 
-    static void drawVariant(GuiGraphicsExtractor gfx, Font font, Component variant, boolean rare,
-                            int left, int top, int maxWidth, int color) {
-        String marker = rare ? " " + VariantText.RARE_MARKER : "";
-        String text = trimToWidth(font, variant.getString(), Math.max(1, maxWidth - font.width(marker)));
-        gfx.text(font, text, left, top, color);
-        if (rare) gfx.text(font, marker, left + font.width(text), top, VariantText.RARE_COLOR);
+    private static void drawRows(GuiGraphicsExtractor gfx, Font font, TreeCard.Measure measure, List<TreeCard.Row> rows,
+                                 int left, int top, int width, boolean deceased) {
+        int step = TreeCard.lineStep(measure);
+        int y = top;
+        for (TreeCard.Row row : rows) {
+            switch (row.kind()) {
+                case STATS -> drawStats(gfx, font, row.segments(), left, y, width, step, deceased ? TEXT_DECEASED : TEXT_STATS);
+                case VARIANT -> drawVariant(gfx, font, row.text(), row.rare(), left, y, deceased ? TEXT_DECEASED : TEXT_STATS);
+                default -> gfx.text(font, ordered(row.text()), left, y, color(row.kind(), deceased));
+            }
+            y += step;
+        }
+    }
+
+    private static int color(TreeCard.Kind kind, boolean deceased) {
+        return switch (kind) {
+            case NAME -> deceased ? TEXT_DECEASED : TEXT_PRIMARY;
+            case GENERATION -> deceased ? TEXT_GENERATION_DECEASED : TEXT_GENERATION;
+            case DEATH -> TEXT_DEATH;
+            default -> TEXT_SECONDARY;
+        };
+    }
+
+    static int scaled(int size, double zoom) {
+        return Math.max(1, (int) Math.round(size * zoom));
+    }
+
+    static void pushScale(GuiGraphicsExtractor gfx, float x, float y, float scale) {
+        //? if >=1.21.6 {
+        gfx.pose().pushMatrix();
+        gfx.pose().translate(x, y);
+        gfx.pose().scale(scale, scale);
+        //?} else {
+        /*gfx.pose().pushPose();
+        gfx.pose().translate(x, y, 0);
+        gfx.pose().scale(scale, scale, 1);
+        *///?}
+    }
+
+    static void popScale(GuiGraphicsExtractor gfx) {
+        //? if >=1.21.6 {
+        gfx.pose().popMatrix();
+        //?} else {
+        /*gfx.pose().popPose();
+        *///?}
+    }
+
+    /** Before 1.21.6, a string drawn directly skips bidi ordering unless the game's language reads right to left. */
+    static FormattedCharSequence ordered(String text) {
+        return Language.getInstance().getVisualOrder(FormattedText.of(text));
+    }
+
+    private static void drawVariant(GuiGraphicsExtractor gfx, Font font, String text, boolean rare, int left, int top, int color) {
+        gfx.text(font, ordered(text), left, top, color);
+        if (rare) gfx.text(font, " " + VariantText.RARE_MARKER, left + font.width(text), top, VariantText.RARE_COLOR);
     }
 
     static int statsWidth(Font font, List<HorseStatsText.Segment> segments) {
@@ -196,21 +199,6 @@ public final class TreeRenderer {
         return lineStarted ? y + lineHeight : y;
     }
 
-    private static String buildDeathLine(AnimalRecord r) {
-        Component line = r.deathWorldDay() == null ? null : DeathMessages.line(r);
-        return line == null ? Component.translatable("familytree.node.deceased").getString() : line.getString();
-    }
-
-    private static int drawWrapped(GuiGraphicsExtractor gfx, Font font, String text,
-                                   int left, int top, int maxWidth, int lineHeight, int color) {
-        int y = top;
-        for (FormattedCharSequence line : font.split(Component.literal(text), maxWidth)) {
-            gfx.text(font, line, left, y, color);
-            y += lineHeight;
-        }
-        return y;
-    }
-
     public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Edge edge, double panX, double panY, double zoom) {
         drawEdge(gfx, edge, panX, panY, zoom, EDGE_COLOR, 1);
     }
@@ -250,26 +238,7 @@ public final class TreeRenderer {
         return font.plainSubstrByWidth(text, Math.max(0, maxWidth - font.width("..."))) + "...";
     }
 
-    private static String buildAgeSummary(long birthDay, long worldAge) {
-        boolean showBirthDay = FamilyTreeClientSettings.showBirthDay();
-        boolean showAge = FamilyTreeClientSettings.showAge();
-        if (showBirthDay && showAge) {
-            return Component.translatable("familytree.screen.age_summary", birthDay, worldAge).getString();
-        }
-        if (showBirthDay) {
-            return Component.translatable("familytree.node.born_world", birthDay).getString();
-        }
-        if (showAge) {
-            return Component.translatable("familytree.screen.age_days", worldAge).getString();
-        }
-        return "";
-    }
-
     static String buildTamedByLine(AnimalRecord record) {
-        if (record.ownerName() == null || record.ownerName().isBlank()) {
-            return "";
-        }
-        boolean pet = PetFaceRenderer.category(record.speciesId()) == AnimalCategory.PETS;
-        return Component.translatable(pet ? "familytree.owner.tamed_by" : "familytree.owner.owner", record.ownerName()).getString();
+        return TreeCard.ownerLine(record);
     }
 }

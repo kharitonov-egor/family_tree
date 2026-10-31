@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "Treffer %s von %s. Enter zeigt den nächsten.",
   "familytree.screen.tree.show_older": "Ältere Generationen sind ausgeblendet. Klicke, um sechs weitere zu zeigen.",
   "familytree.screen.tree.show_younger": "Jüngere Generationen sind ausgeblendet. Klicke, um sechs weitere zu zeigen.",
+  "familytree.screen.tree.return_hint": "Drücke %s, um zum Stammbaum zurückzukehren",
   "familytree.rename.button": "Umbenennen",
   "familytree.rename.title": "In Family Tree umbenennen",
   "familytree.rename.hint": "Das ändert nur den Namen in Family Tree. Der Name des Tiers in der Welt bleibt gleich.",

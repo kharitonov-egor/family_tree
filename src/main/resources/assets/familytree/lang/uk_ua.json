@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "Збіг %s з %s. Enter — наступний.",
   "familytree.screen.tree.show_older": "Старші покоління приховано. Натисніть, щоб показати ще шість.",
   "familytree.screen.tree.show_younger": "Молодші покоління приховано. Натисніть, щоб показати ще шість.",
+  "familytree.screen.tree.return_hint": "Натисніть %s, щоб повернутися до родоводу",
   "familytree.rename.button": "Нове ім’я",
   "familytree.rename.title": "Перейменувати в Family Tree",
   "familytree.rename.hint": "Змінюється лише ім’я в Family Tree. Ім’я тварини у світі залишиться тим самим.",

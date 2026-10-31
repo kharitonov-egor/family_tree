@@ -76,6 +76,7 @@
   "familytree.screen.tree.find_result": "Risultato %s di %s. Premi Invio per il successivo.",
   "familytree.screen.tree.show_older": "Le generazioni più vecchie sono nascoste. Clicca per mostrarne altre sei.",
   "familytree.screen.tree.show_younger": "Le generazioni più giovani sono nascoste. Clicca per mostrarne altre sei.",
+  "familytree.screen.tree.return_hint": "Premi %s per tornare all'albero genealogico",
   "familytree.rename.button": "Rinomina",
   "familytree.rename.title": "Rinomina in Family Tree",
   "familytree.rename.hint": "Cambia solo il nome in Family Tree. Il nome dell'animale nel mondo resta lo stesso.",
