@@ -53,6 +53,26 @@ class TreeImageExporterTest {
         assertEquals("family-tree-Moss-" + today + "-2.png", second.getFileName().toString());
     }
 
+    /** QA B2: a card whose parent was pruned gets a mark, and the note under the tree wraps instead of being cut. */
+    @Test void aRemovedParentIsMarkedAndTheFooterNoteWraps() throws Exception {
+        Map<UUID, AnimalRecord> records = new LinkedHashMap<>();
+        AnimalRecord clover = pet("Clover", null, null), lamb = pet("Lamb", clover, null);
+        lamb.setParents(clover.id(), UUID.randomUUID());
+        records.put(clover.id(), clover);
+        records.put(lamb.id(), lamb);
+        var tree = TreeLayout.layoutForest(new ArrayList<>(records.keySet()), records, Map.of(clover.id(), List.of(lamb.id())));
+        var plain = TreeImageExporter.prepare(tree, "Lamb", "Family Tree", p -> "", p -> "Alive", p -> null,
+                p -> List.of(), p -> false, null);
+        var marked = TreeImageExporter.prepare(tree, "Lamb",
+                "A short line above a card marks a parent that was removed from the history or isn't shown.\nFamily Tree",
+                p -> "", p -> "Alive", p -> null, p -> List.of(), p -> false, null,
+                p -> com.egakh.familytree.util.MissingParents.hasMissingParent(p, records::get));
+        assertEquals(List.of(false, true), marked.cards().stream().map(TreeImageExporter.Card::missingParent).toList());
+        assertTrue(marked.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "two extra footer lines");
+        var image = TreeImageExporter.render(marked);
+        assertEquals(marked.height(), image.getHeight());
+    }
+
     @Test void horseCardsCarryStatsAndDrawMarkersForFoalsThatBeatOrTrailBothParents() throws Exception {
         Map<UUID, AnimalRecord> records = new LinkedHashMap<>();
         AnimalRecord comet = pet("Comet", null, null), dusk = pet("Dusk", null, null), ember = pet("Ember", comet, dusk);
