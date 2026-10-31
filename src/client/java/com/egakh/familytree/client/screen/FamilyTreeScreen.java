@@ -3,6 +3,7 @@ package com.egakh.familytree.client.screen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 //? if >=1.21.9 {
 import net.minecraft.client.input.MouseButtonEvent;
@@ -21,7 +22,9 @@ public abstract class FamilyTreeScreen extends Screen {
     protected static boolean isLeftButton(int button) { return button == InputConstants.MOUSE_BUTTON_LEFT; }
 
     protected void renderWidgets(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
-        //? if >=1.21.6 {
+        //? if >26.3 {
+        /*super.extractRenderState(gfx);
+        *///?} else if >=1.21.6 {
         super.extractRenderState(gfx, mouseX, mouseY, delta);
         //?} else {
         /*// Before 1.21.6, Screen.render also blurs everything already drawn.
@@ -30,6 +33,30 @@ public abstract class FamilyTreeScreen extends Screen {
                 renderable.render(gfx, mouseX, mouseY, delta);
         }
         *///?}
+    }
+
+    //? if >26.3 {
+    /*// 26.4 screens read the mouse and partial tick from the extractor. Screens keep the older signature.
+    @Override public final void extractRenderState(GuiGraphicsExtractor gfx) {
+        extractRenderState(gfx, gfx.mouseX(), gfx.mouseY(), gfx.partialTicks());
+    }
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(gfx);
+    }
+    *///?}
+
+    protected static void setVisible(AbstractWidget widget, boolean visible) {
+        //? if >26.3 {
+        /*widget.setVisible(visible);
+        *///?} else
+        widget.visible = visible;
+    }
+
+    protected static boolean isVisible(AbstractWidget widget) {
+        //? if >26.3 {
+        /*return widget.isVisible();
+        *///?} else
+        return widget.visible;
     }
 
     //? if >=1.21.9 {

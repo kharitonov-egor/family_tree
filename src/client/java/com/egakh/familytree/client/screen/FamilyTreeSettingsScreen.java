@@ -59,8 +59,14 @@ public class FamilyTreeSettingsScreen extends Screen {
     }
 
     @Override
+    //? if >26.3 {
+    /*public void extractRenderState(GuiGraphicsExtractor gfx) {
+    *///?} else
     public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         gfx.fill(0, 0, this.width, this.height, 0xCC0F1115);
+        //? if >26.3 {
+        /*super.extractRenderState(gfx);
+        *///?} else
         super.extractRenderState(gfx, mouseX, mouseY, delta);
         gfx.centeredText(this.font, this.title, this.width / 2, this.height / 2 - 66, 0xFFFFFFFF);
     }

@@ -13,6 +13,12 @@ import com.egakh.familytree.mixin.WolfVariantInvoker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+//? if >26.3 {
+/*import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+*///?} else
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;
@@ -89,7 +95,9 @@ public final class PetFaceRenderer {
         try {
             // Looking toward the left edge turns the head into a three-quarter view.
             float lookX = wholeBody ? x - size : centerX;
-            //? if >=1.21 {
+            //? if >26.3 {
+            /*extractPortrait(gfx, entity, x, y, x1, y1, scale, (float) Math.atan((centerX - lookX) / 40f));
+            *///?} else if >=1.21 {
             InventoryScreen.extractEntityInInventoryFollowsMouse(
                     gfx, x, y, x1, y1, scale, 0.0625f, lookX, centerY, entity);
             //?} else {
@@ -101,6 +109,30 @@ public final class PetFaceRenderer {
             gfx.disableScissor();
         }
     }
+
+    //? if >26.3 {
+    /*// 26.4's portrait helper turns the model toward the real mouse. This repeats its math with a fixed yaw, so
+    // portraits and exports keep the three-quarter view that older versions get from a fixed look point.
+    private static void extractPortrait(GuiGraphicsExtractor gfx, LivingEntity entity, int x0, int y0, int x1, int y1,
+                                        int scale, float yaw) {
+        EntityRenderState state = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entity)
+                .createRenderState(entity, 1f);
+        state.shadowPieces.clear();
+        state.outlineColor = 0;
+        if (state instanceof LivingEntityRenderState living) {
+            living.boundingBoxWidth /= living.scale;
+            living.boundingBoxHeight /= living.scale;
+            living.scale = 1f;
+            living.bodyRot = 180f + yaw * 20f;
+            living.yRot = yaw * 20f;
+            living.xRot = 0f;
+        }
+        Quaternionf camera = new Quaternionf();
+        Quaternionf rotation = new Quaternionf().rotateZ((float) Math.PI).mul(camera);
+        Vector3f pivot = new Vector3f(0f, state.boundingBoxHeight / 2f + 0.0625f, 0f);
+        gfx.entity(state, scale, pivot, rotation, camera, x0, y0, x1, y1);
+    }
+    *///?}
 
     private static void drawInitial(GuiGraphicsExtractor gfx, Font font, AnimalRecord record, int x, int y, int size) {
         String name = record.name();

@@ -115,7 +115,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
     private void refreshScopeButton() {
         if (scopeButton == null) return;
         boolean canToggle = snapshot != null && snapshot.mayViewAll();
-        scopeButton.visible = canToggle;
+        setVisible(scopeButton, canToggle);
         scopeButton.active = canToggle;
         scopeButton.setMessage(scopeLabel());
     }
@@ -203,7 +203,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         if (sortButton == null) return;
         boolean available = snapshot != null && FamilyTreeClientSettings.showHorseStats()
                 && snapshot.records().stream().anyMatch(HorseStatsText::has);
-        sortButton.visible = available;
+        setVisible(sortButton, available);
         sortButton.active = available;
         if (!available && sort != 0) {
             sort = 0;
@@ -406,7 +406,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
                 "familytree.screen.category." + (tab == null ? "all" : tab.key()))).toList();
         int total = -gap;
         for (Component label : labels) total += Math.max(44, this.font.width(label) + 12) + gap;
-        int helpRowEnd = sortButton != null && sortButton.visible ? 316 : 208;
+        int helpRowEnd = sortButton != null && isVisible(sortButton) ? 316 : 208;
         boolean inline = helpRowEnd + 8 + total <= right;
         int x = inline ? helpRowEnd + 8 : 16, y = inline ? speciesTop - 24 : speciesTop;
         for (int i = 0; i < tabs.size(); i++) {
