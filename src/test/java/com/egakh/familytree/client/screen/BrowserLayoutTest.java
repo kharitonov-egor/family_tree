@@ -34,6 +34,37 @@ class BrowserLayoutTest {
         }
     }
 
+    /** Every shipped language with all five tabs, measured about as wide as Minecraft's font draws them, or wider. */
+    @Test
+    void everyLanguageKeepsTwoRowsWithFiveTabs() {
+        for (String language : com.egakh.familytree.text.LangTables.SHIPPED) {
+            java.util.Map<String, String> lang = com.egakh.familytree.text.LangTables.table(language);
+            java.util.function.ToIntFunction<String> key = name -> width(lang.get(name));
+            int sort = 0;
+            for (String stat : List.of("name", "speed", "jump", "health"))
+                sort = Math.max(sort, width(lang.get("familytree.screen.sort").replace("%s", lang.get("familytree.screen.sort." + stat))));
+            int[] tabs = List.of("pets", "farm", "wildlife", "modded", "all").stream()
+                    .mapToInt(tab -> key.applyAsInt("familytree.screen.category." + tab)).toArray();
+            BrowserLayout.Widths widths = new BrowserLayout.Widths(key.applyAsInt("familytree.discover.button"),
+                    new int[]{key.applyAsInt("familytree.screen.filter.all"), key.applyAsInt("familytree.screen.filter.alive"),
+                            key.applyAsInt("familytree.screen.filter.deceased")}, sort,
+                    Math.max(key.applyAsInt("familytree.screen.scope.all"), key.applyAsInt("familytree.screen.scope.mine")),
+                    key.applyAsInt("familytree.screen.settings"), key.applyAsInt("familytree.help.button"), key.applyAsInt("familytree.refresh"),
+                    key.applyAsInt("familytree.feedback.button"), key.applyAsInt("familytree.screen.more"), tabs,
+                    Arrays.stream(tabs).max().orElse(0) + 24, speciesWidths(GERMAN_SPECIES));
+            for (int[] size : SIZES) {
+                BrowserLayout.Plan plan = BrowserLayout.plan(widths, size[0], size[1]);
+                int list = size[1] - BrowserLayout.BOTTOM_MARGIN - plan.listTop();
+                assertTrue(list >= BrowserLayout.MIN_LIST, language + " at " + size[0] + "x" + size[1] + " left " + list + " px for the list");
+                assertControlsFit(plan, size[0]);
+            }
+        }
+    }
+
+    private static int width(String text) {
+        return Math.max(40, text.codePoints().map(c -> c < 0x2E80 ? 6 : 9).sum() + 16);
+    }
+
     @Test
     void wideScreensKeepEveryButtonAndGiveSpeciesTheirOwnRow() {
         BrowserLayout.Plan plan = BrowserLayout.plan(widths(ENGLISH, ENGLISH_TABS, ENGLISH_SPECIES), 960, 540);
@@ -102,6 +133,6 @@ class BrowserLayoutTest {
         return new BrowserLayout.Widths(label(labels[0], 60), new int[]{label(labels[1], 36), label(labels[2], 36), label(labels[3], 36)},
                 label(labels[4], 60), label(labels[5], 60), label(labels[6], 40), label(labels[7], 40), label(labels[8], 40),
                 label(labels[9], 40), label(labels[10], 40), Arrays.stream(tabs).mapToInt(tab -> label(tab, 40)).toArray(),
-                speciesWidths(species));
+                Arrays.stream(tabs).mapToInt(tab -> label("< " + tab + " >", 40)).max().orElse(0), speciesWidths(species));
     }
 }

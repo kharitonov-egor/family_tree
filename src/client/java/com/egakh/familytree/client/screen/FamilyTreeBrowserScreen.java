@@ -173,6 +173,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         Component[] filterLabels = {Component.translatable("familytree.screen.filter.all"),
                 Component.translatable("familytree.screen.filter.alive"), Component.translatable("familytree.screen.filter.deceased")};
         boolean sortShown = sortAvailable();
+        if (!sortShown) sort = 0;
         boolean scopeShown = snapshot != null && snapshot.mayViewAll();
         Component settingsLabel = Component.translatable("familytree.screen.settings");
         Component helpLabel = Component.translatable("familytree.help.button");
@@ -187,11 +188,12 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         int[] filterWidths = new int[filterLabels.length];
         for (int i = 0; i < filterLabels.length; i++) filterWidths[i] = labelWidth(filterLabels[i], 36);
         int[] tabWidths = tabLabels.stream().mapToInt(label -> labelWidth(label, 40)).toArray();
+        int tabCycleWidth = tabLabels.stream().mapToInt(label -> labelWidth(cycleLabel(label), 40)).max().orElse(0);
         int[] speciesWidths = species.stream().mapToInt(entry -> labelWidth(entry.getValue(), 40)).toArray();
         BrowserLayout.Plan plan = BrowserLayout.plan(new BrowserLayout.Widths(labelWidth(discoverLabel, 60), filterWidths,
                 sortWidth, scopeShown ? Math.max(labelWidth(scopeLabel(true), 60), labelWidth(scopeLabel(false), 60)) : 0,
                 labelWidth(settingsLabel, 40), labelWidth(helpLabel, 40), labelWidth(refreshLabel, 40),
-                labelWidth(feedbackLabel, 40), labelWidth(moreLabel, 40), tabWidths, speciesWidths), this.width, this.height);
+                labelWidth(feedbackLabel, 40), labelWidth(moreLabel, 40), tabWidths, tabCycleWidth, speciesWidths), this.width, this.height);
         listTop = plan.listTop();
 
         HeaderFlow.Slot slot = plan.slot("search");
@@ -231,9 +233,15 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
             addAt(plan, "refresh", refreshLabel, b -> refresh());
             addAt(plan, "feedback", feedbackLabel, b -> openFeedback());
         }
-        for (int i = 0; i < tabs.size(); i++) {
-            AnimalCategory tab = tabs.get(i);
-            addAt(plan, "tab" + i, tabLabels.get(i), b -> chooseCategory(tab)).active = tab != category;
+        if (plan.tabCycle()) {
+            int current = Math.max(0, tabs.indexOf(category));
+            AnimalCategory next = tabs.get((current + 1) % tabs.size());
+            addAt(plan, "tabs", cycleLabel(tabLabels.get(current)), b -> chooseCategory(next));
+        } else {
+            for (int i = 0; i < tabs.size(); i++) {
+                AnimalCategory tab = tabs.get(i);
+                addAt(plan, "tab" + i, tabLabels.get(i), b -> chooseCategory(tab)).active = tab != category;
+            }
         }
         HeaderFlow.Slot strip = plan.slot("species");
         if (strip != null) addSpeciesStrip(strip, species, speciesWidths);
@@ -245,6 +253,11 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         }).bounds(this.width - 16 - plannerWidth, 8, plannerWidth, 18).build());
         plannerButton.active = snapshot != null;
         recompute();
+    }
+
+    /** On the smallest screens one button stands for the tabs and moves to the next tab on each press. */
+    private static Component cycleLabel(Component tab) {
+        return Component.literal("< ").append(tab).append(" >");
     }
 
     private Button addAt(BrowserLayout.Plan plan, String key, Component label, Button.OnPress action) {
@@ -276,11 +289,11 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         }).bounds(strip.x() + strip.width() - BrowserLayout.ARROW, strip.y(), BrowserLayout.ARROW, 18).build()).active = end < species.size();
     }
 
-    void openSettings() { minecraft.setScreen(new FamilyTreeSettingsScreen(this)); }
+    private void openSettings() { minecraft.setScreen(new FamilyTreeSettingsScreen(this)); }
 
-    void openHelp() { minecraft.setScreen(new FamilyTreeHelpScreen(this)); }
+    private void openHelp() { minecraft.setScreen(new FamilyTreeHelpScreen(this)); }
 
-    void openFeedback() { minecraft.setScreen(new FeedbackScreen(this)); }
+    private void openFeedback() { minecraft.setScreen(new FeedbackScreen(this)); }
 
     void refresh() {
         discoveryBaseline = null;

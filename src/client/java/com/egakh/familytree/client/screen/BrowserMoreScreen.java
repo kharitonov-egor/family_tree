@@ -35,15 +35,15 @@ public final class BrowserMoreScreen extends FamilyTreeScreen {
             }).bounds(x, y, width, 20).build());
             y += 24;
         }
-        addRenderableWidget(Button.builder(Component.translatable("familytree.help.button"), b -> browser.openHelp())
+        addRenderableWidget(Button.builder(Component.translatable("familytree.help.button"), b -> minecraft.setScreen(new FamilyTreeHelpScreen(this)))
                 .bounds(x, y, width, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("familytree.screen.settings"), b -> browser.openSettings())
+        addRenderableWidget(Button.builder(Component.translatable("familytree.screen.settings"), b -> minecraft.setScreen(new FamilyTreeSettingsScreen(this)))
                 .bounds(x, y + 24, width, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("familytree.refresh"), b -> {
             browser.refresh();
             onClose();
         }).bounds(x, y + 48, width, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("familytree.feedback.button"), b -> browser.openFeedback())
+        addRenderableWidget(Button.builder(Component.translatable("familytree.feedback.button"), b -> minecraft.setScreen(new FeedbackScreen(this)))
                 .bounds(x, y + 72, width, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"), b -> onClose())
                 .bounds(x, y + 104, width, 20).build());

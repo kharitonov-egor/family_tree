@@ -7,17 +7,17 @@ import java.util.List;
 
 /**
  * Lays out the browser header so the pet list keeps at least two full rows. When the header is too tall, the species
- * row first shares a row with the tabs, then the less used buttons fold into a More button, and last Sort and Showing
- * join them.
+ * row first shares a row with the tabs, then the less used buttons fold into a More button, then Sort and Showing join
+ * them, and last the tabs become one button that cycles through them.
  */
 final class BrowserLayout {
     static final int TOP = 30, MARGIN = 16, BOTTOM_MARGIN = 16, ARROW = 20, SEARCH_MIN = 120;
     static final int MIN_LIST = 2 * 42 + 8;
 
     record Widths(int discover, int[] filters, int sort, int scope, int settings, int help, int refresh, int feedback,
-                  int more, int[] tabs, int[] species) {}
+                  int more, int[] tabs, int tabCycle, int[] species) {}
 
-    record Plan(HeaderFlow.Result flow, boolean collapsed, boolean sortAndScopeInMore, int listTop) {
+    record Plan(HeaderFlow.Result flow, boolean collapsed, boolean sortAndScopeInMore, boolean tabCycle, int listTop) {
         HeaderFlow.Slot slot(String key) { return flow.find(key); }
     }
 
@@ -25,7 +25,7 @@ final class BrowserLayout {
 
     static Plan plan(Widths widths, int width, int height) {
         Plan plan = null;
-        for (int stage = 0; stage < 4; stage++) {
+        for (int stage = 0; stage < 5; stage++) {
             plan = attempt(widths, width, stage);
             if (height - BOTTOM_MARGIN - plan.listTop() >= MIN_LIST) break;
         }
@@ -35,6 +35,7 @@ final class BrowserLayout {
     private static Plan attempt(Widths widths, int width, int stage) {
         int left = MARGIN, right = width - MARGIN;
         boolean collapsed = stage >= 2, sortAndScopeInMore = stage >= 3 && widths.sort() + widths.scope() > 0;
+        boolean tabCycle = stage >= 4 && widths.tabs().length > 1;
         List<Item> items = new ArrayList<>();
         int group = 0;
         items.add(Item.flex("search", Math.max(SEARCH_MIN, (right - left) * 2 / 5), group, false));
@@ -52,10 +53,11 @@ final class BrowserLayout {
             items.add(Item.fixed("feedback", widths.feedback(), ++group));
         }
         group++;
-        for (int i = 0; i < widths.tabs().length; i++) items.add(Item.fixed("tab" + i, widths.tabs()[i], group));
+        if (tabCycle) items.add(Item.fixed("tabs", widths.tabCycle(), group));
+        else for (int i = 0; i < widths.tabs().length; i++) items.add(Item.fixed("tab" + i, widths.tabs()[i], group));
         if (widths.species().length > 0) items.add(Item.flex("species", stripMinimum(widths.species()), ++group, stage == 0));
         HeaderFlow.Result flow = HeaderFlow.place(items, left, right, TOP);
-        return new Plan(flow, collapsed, sortAndScopeInMore, flow.bottom(TOP));
+        return new Plan(flow, collapsed, sortAndScopeInMore, tabCycle, flow.bottom(TOP));
     }
 
     static int stripWidth(int[] species) {
