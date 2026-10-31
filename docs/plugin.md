@@ -100,7 +100,7 @@ The plugin has the mod's commands with the same arguments, names, and messages: 
 
 ## Permissions
 
-The plugin checks the same 14 `familytree.*` nodes as the mod, through Bukkit's permission API, which LuckPerms provides. [Family Tree on servers](servers.md#permission-nodes) lists them with their defaults.
+The plugin checks the mod's `familytree.*` nodes through Bukkit's permission API, which LuckPerms provides. [Family Tree on servers](servers.md#permission-nodes) lists them with their defaults. `familytree.relatives` covers a feature the plugin doesn't have yet, so it has no effect there.
 
 A node no permission plugin sets falls back to the default its settings give it, as in the mod. That is why `plugin.yml` declares every node with `default: false`: Bukkit and LuckPerms treat a `plugin.yml` default as a set node, which would override settings such as `ownersCanRename=false` and `viewPolicy`. An operator is a player with op, and the console counts as one.
 
@@ -110,7 +110,7 @@ A node no permission plugin sets falls back to the default its settings give it,
 
 Two differences:
 
-- `operatorLevel` doesn't apply. Bukkit tells plugins whether a player is an operator, not at which level.
+- `operatorLevel` doesn't apply. Bukkit tells plugins whether a player is an operator, not at which level. `relativesCooldownMillis` has no effect yet, for the same reason as `familytree.relatives`.
 - `clientMod`, `true` by default, exists only in the plugin. `false` sends players with the client mod to the chest menu like everyone else. The change applies to players who join after a reload.
 
 Datapack tags work as in the mod: a datapack can add species to the `familytree:tracked` and `familytree:ignored` entity type tags.
@@ -128,6 +128,7 @@ Use the client mod release that matches the plugin's version. Family Tree 1.3.0'
 - **Item text on Spigot.** Spigot can't put translatable text on items, so species names, wool colors, and death messages in Spigot's chest menus are in English. Family Tree's own words still follow each player's language, and so does chat everywhere. Paper shows all of it in the player's language.
 - **Text entry on older Spigot.** Paper, and Spigot from 1.21, open an anvil for search and rename. Spigot 1.20.1 has no API for an anvil that reads typed text, so players type the name in chat instead, `-` to clear it or `cancel` to stop.
 - **Frogs and sniffers on Spigot.** Paper reports when frogs and sniffers breed, and the plugin records both parents for the player, as the mod does. Spigot reports nothing for them, so on Spigot they need a name tag or the linking stick.
+- **Relatives.** The mod's relatives key and the chest menu's **Show relatives nearby** came in the same release and aren't in the plugin yet. The plugin's family page has no such button, and the client mod treats a plugin server like a 1.3.0 server for the relatives key.
 - **The book.** The family book and breeding plans open as a book screen instead of a lectern.
 - **Saving.** The plugin saves the history when the server saves the world, every five minutes when it changed, and when the server stops. Encoding runs on the main thread and writing on a background thread.
 
