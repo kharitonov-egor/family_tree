@@ -2,21 +2,19 @@
 
 [![Modrinth downloads](https://img.shields.io/modrinth/dt/familytree?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/familytree)
 
-Keep the family history of your Minecraft pets and the animals you breed. See who their parents were, find a missing pet's last known location, and save a family tree as an image.
+See who bred whom in Minecraft. Family Tree records the parents of every pet and animal you breed, so you can follow a family across generations, check whether a foal beat its parents' speed, jump, and health, and see where a pink lamb or a brown panda got its color. It runs in singleplayer and on servers, including for players who join without the mod.
 
-[Download Family Tree](https://modrinth.com/mod/familytree/versions)
+[Download on Modrinth](https://modrinth.com/mod/familytree/versions) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/family-tree/files). Fabric, NeoForge, and Forge builds are available.
 
-[Creator guide, demo steps, and downloadable clips](docs/creator-guide.md)
+[Creator guide, demo ideas, and the showcase clip](docs/creator-guide.md)
 
-[Download on CurseForge](https://www.curseforge.com/minecraft/mc-mods/family-tree/files). Fabric and NeoForge builds are available.
+![Panning across four generations of horses in the Family Tree screen](docs/media/tree-tour.webp)
 
-![A wolf family exported from Minecraft](docs/family-tree-gameplay-export.png)
+Four generations of horses in Minecraft 26.3. Vanilla AI bred every foal in an automated scene. The script tamed and named the eight founders and grew each foal up before the next generation. The [showcase clip](docs/launch/family-tree-showcase.mp4) and [vertical version](docs/launch/family-tree-showcase-vertical.mp4) are ready to share.
 
-Keep your first wolf in the family tree after it's gone. Family Tree records parents and descendants as you play, then exports the family as a PNG.
+![Alex's tree screen above Kai's chest menu, both showing Pepper's family on one server](docs/media/server-two-players.webp)
 
-![Vanilla wolves breed and their family tree exports](docs/family-tree-gameplay.webp)
-
-An automated scene in Minecraft 26.2. Vanilla feeding and AI breeding produce the actual puppy. Family Tree records its parents and retains its deceased ancestor. [Landscape video](docs/family-tree-gameplay.mp4) and [vertical video](docs/family-tree-gameplay-vertical.mp4) are ready to share.
+A Fabric 1.21.1 dedicated server running Family Tree 1.3.0 with two players online. Alex has the mod and sees the tree screen. Kai joined with unmodded Minecraft and uses `/familytree`. See [Players without the client mod](#players-without-the-client-mod).
 
 ## Install
 
@@ -61,7 +59,7 @@ Pets join on their own: tamed cats, wolves, parrots, horses, donkeys, mules, lla
 
 Minecraft does not retain older parentage or birth dates. Newly discovered pets start with an unknown family and the discovery day as their recorded birth day. Select a pet and choose **Add parents** to record a family you remember. The picker searches names, species, and UUIDs. Confirm the two parents before saving. The linking stick and age commands also remain available. Horse and donkey parents can link to a mule.
 
-## Browse, find, and remember
+## Browse and find
 
 Search by pet name or species, filter living or deceased pets, and follow generations through a tree you can pan and zoom. Select a pet to center it, rename it in the tree, or locate it. Custom tree names leave name tags in the world unchanged.
 
@@ -74,6 +72,10 @@ Death records retain the pet's name, family, death day, and cause when known. Se
 ## Players without the client mod
 
 On a server that runs Family Tree, a player with an unmodded client types `/familytree` and gets a chest menu instead of the screens. It lists their pets with spawn egg icons, names, age, and living or deceased status, 45 to a page. Filter by status or species, or search by name in an anvil.
+
+![Kai clicks Pepper in the chest menu, sees its parents and grandparents, then opens Alex's wolf](docs/media/server-chest-menu.webp)
+
+Kai's unmodded Minecraft 1.21.1 client on a Fabric server running Family Tree 1.3.0, with real clicks. The server console summoned and named the wild wolves and grew one up. The players tamed and fed them, and vanilla AI bred the puppies.
 
 Click a pet to see its parents, grandparents, and children, then click any relative to move through the family. Owners and operators can also:
 

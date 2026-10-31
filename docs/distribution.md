@@ -6,19 +6,7 @@ The 1.1.0 work addresses release reliability, current game support, known-family
 
 ## Available media
 
-- `family-tree-gameplay.mp4` is a landscape clip of vanilla feeding, AI breeding, recorded parents, and export.
-- `family-tree-gameplay-vertical.mp4` keeps the full game image in a vertical layout so both parents remain visible.
-- `family-tree-gameplay.webp` is the gallery animation.
-- `family-tree-gameplay-export.png` is the actual family export from that scene.
-- `family-tree-demo.webp` is the older staged three-generation example.
-
-The real gameplay runner sets up a disposable scene. It uses actual vanilla wolves and breeding, but the scene is automated. Captions and page copy must preserve that distinction. See `testing.md` and `scripts/build_media.py` for capture and packaging.
-
-The owner authorized email outreach after the release work. As of October 2, 2026, Gmail Sent records confirm pitches to 70 distinct recipients, including the original 20 and 50 additional contacts. One bounced pitch was retried at an alternate published address, for 71 sends in total. Two original addresses returned permanent delivery failures; one has no verified replacement. Recipients include mod reviewers, survival creators, tutorial channels, and editorial teams. Messages request unpaid consideration. These sends are not evidence of downloads or promised coverage.
-
-All confirmed sends have the Gmail label `minecraft`. A saved Gmail filter applies that label to future mail with "Family Tree" in the subject, including replies to these pitches. Private recipient addresses, source pages, exact messages, delivery failures, and send confirmations stay in the ignored `build/implementation/outreach/` folder. Check replies and delivery failures before deciding on further outreach. No community posts have been sent.
-
-The October 2 page update adds a short creator demonstration, direct gameplay downloads, and modpack trial instructions to Modrinth. The [creator guide](creator-guide.md) explains the demonstration, media captions, and compatibility limits.
+The current page media are in `docs/media/`, listed with their captions in `docs/media.json`, and the launch clips are in `docs/launch/`. [testing.md](testing.md#page-media) describes how they were captured. The horse, sheep, and panda scenes are automated with vanilla AI breeding; the server scene used two real clients. Captions and page copy must preserve that distinction. The older wolf clips and images stay in `docs/` because earlier pages and the v1.1.0 release link to them.
 
 ## CurseForge listing
 
@@ -66,6 +54,32 @@ Modrinth has twenty matching versions, checked by version ID for hash, game vers
 CurseForge received the same twenty files through the upload API, file IDs 9380487 to 9380506, with Quilt on the Fabric files. They go public after CurseForge's review. The project description there still describes 1.1.0.
 
 The Send feedback form works from this release on. The Vercel endpoint has its Resend key and sends from `feedback@hawksconnect.com`, and a test message reached the developer's Gmail.
+
+## Page refresh after 1.3.0
+
+The page used to lead with "Keep your first wolf in the family tree after it's gone", which sold the mod as a memorial. The refresh leads with seeing who bred whom: lineages across generations, foal stats against both parents, inherited colors, and servers. Death history stays on the page as a feature.
+
+Modrinth search ranks matches in the title above matches in the summary, then sorts by downloads. On October 31 Family Tree had 1,133 downloads. A public search API check that day found:
+
+| Query | Results | Family Tree before | Strongest results |
+| --- | --- | --- | --- |
+| family tree | 1 | 1st | none |
+| horse breeding | 3 | not listed | Horse Breeding Fix, 68k |
+| animal breeding | 14 | not listed | none above 9k |
+| breeding stats | 3 | not listed | none above 1k |
+| horse stats | 6 | not listed | Horse Stats Vanilla, 393k |
+| breeding | 78 | not listed | Just Enough Breeding, 8.6M |
+| lineage | 1 | not listed | a bee mod, 158 |
+| pedigree | 0 | | |
+| genetics | 19 | not listed | Realistic Horse Genetics, 114k |
+| pets | 169 | 46th | Adorable Hamster Pets, 5.7M |
+| animals | 250 | not listed | Respawning Animals, 674k |
+
+The new title is "Family Tree: Animal Breeding & Lineage". "Breeding" in the title should place Family Tree about 12th of 78 for "breeding", near the top for "animal breeding", and first for "lineage". The summary carries "pets", "horses", "farm animals", "horse breeding stats", "foal", and "servers", which brings "horse breeding", "horse stats", and "breeding stats" onto the first page. "Pets" moved from the title to the summary; at 46th it was on the third page anyway. Modrinth's rules ask for titles that are the project's name "without any other unnecessary filler data" and enforce that loosely, so the title stays short. Categories stay Mobs and Utility, with Management added as an additional category, as Just Enough Breeding uses it.
+
+The gallery was rebuilt from `docs/media.json`: 15 items led by the four-generation tree, with the 1.0.0, 1.0.1, 1.1.0, and "Previous release" items removed. The icon stays: a pixel-art replacement drawn on a 48-pixel grid read more clearly as two parents and a foal at 48 px, but it looked flatter and less like a tree, so it did not clearly beat the current one.
+
+CurseForge's description can't be edited through the upload API, and its site blocks automated browsers. To update it by hand, paste `docs/curseforge-description.md` into the Markdown editor, or `docs/curseforge-description.html` into the WYSIWYG one. Its images load from GitHub, with GIFs for animations. Then upload the gallery items in `docs/media.json` with their captions, and remove the 1.1.0 images.
 
 ## Measurement decisions
 
