@@ -1,5 +1,6 @@
 package com.egakh.familytree.plugin.command;
 
+import com.egakh.familytree.breeding.BreedingPlan;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FarmRecords;
 import com.egakh.familytree.data.HorseStats;
@@ -10,10 +11,12 @@ import com.egakh.familytree.plugin.FamilyTreePlugin;
 import com.egakh.familytree.plugin.WorldClock;
 import com.egakh.familytree.plugin.storage.FamilyTreeStore;
 import com.egakh.familytree.plugin.text.GameText;
+import com.egakh.familytree.plugin.text.PlanLines;
 import com.egakh.familytree.plugin.text.Text;
 import com.egakh.familytree.plugin.track.Tracker;
 import com.egakh.familytree.util.Genealogy;
 import com.egakh.familytree.util.HorseStatUnits;
+import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.util.PetNames;
 import com.egakh.familytree.util.PetRelations;
 import org.bukkit.Bukkit;
@@ -43,7 +46,7 @@ import java.util.logging.Level;
 /** {@code /familytree} with the mod's subcommands, permission nodes, and messages. */
 public final class FamilyTreeCommand implements TabExecutor {
     private static final List<String> SUBCOMMANDS = List.of("menu", "list", "scan", "locate", "info", "pair", "unpair",
-            "setage", "setbirth", "prune", "reload", "settings", "confirmlink", "cancellink");
+            "setage", "setbirth", "breed", "prune", "reload", "settings", "confirmlink", "cancellink");
     private final FamilyTreePlugin plugin;
     private final Set<String> registeredAliases = new LinkedHashSet<>();
     private List<String> startupAliases;
@@ -160,6 +163,12 @@ public final class FamilyTreeCommand implements TabExecutor {
                 else if (sub.equalsIgnoreCase("setage")) runSetAge(sender, name, value);
                 else runSetBirthDay(sender, name, value);
             }
+            case "breed" -> {
+                if (denied(sender, FamilyTreePermission.BREED)) break;
+                String first = args.next(), second = args.next();
+                if (second == null || !args.done()) usage(sender, "/" + label + " breed <first> <second>");
+                else runBreed(sender, first, second);
+            }
             case "prune" -> {
                 if (denied(sender, FamilyTreePermission.PRUNE)) break;
                 String what = args.next();
@@ -199,13 +208,13 @@ public final class FamilyTreeCommand implements TabExecutor {
     /** Players without the client mod get the chest menu. Players with it are reminded of their key. */
     private void runRoot(CommandSender sender) {
         Player player = sender instanceof Player p ? p : null;
-        if (player != null && plugin.settings().vanillaMenu() && !plugin.bridge().hasClientMod(player)
-                && access().allowed(sender, FamilyTreePermission.MENU)) {
+        boolean clientMod = player != null && plugin.bridge().hasClientMod(player);
+        if (player != null && !clientMod && plugin.settings().vanillaMenu() && access().allowed(sender, FamilyTreePermission.MENU)) {
             plugin.menus().open(player);
             return;
         }
         chat().send(sender, "familytree.command.usage");
-        if (player != null) chat().send(sender, "familytree.command.menu_hint", Text.keybind("key.familytree.open_tree"));
+        if (clientMod) chat().send(sender, "familytree.command.menu_hint", Text.keybind("key.familytree.open_tree"));
         if (access().allowed(sender, FamilyTreePermission.RELOAD) || access().allowed(sender, FamilyTreePermission.SETTINGS))
             chat().send(sender, "familytree.command.admin_usage");
     }
@@ -268,8 +277,21 @@ public final class FamilyTreeCommand implements TabExecutor {
         if (parentB != null && access().canView(sender, parentB)) chat().send(sender, "familytree.command.info.parent_b", parentB.name());
     }
 
+    /** Kinship uses only the animals this sender may view, as the screens do. */
+    private void runBreed(CommandSender sender, String firstName, String secondName) {
+        FamilyTreeStore state = store();
+        AnimalRecord first = findUnique(state, firstName, sender, false);
+        if (first == null) return;
+        AnimalRecord second = findUnique(state, secondName, sender, false);
+        if (second == null) return;
+        Map<UUID, AnimalRecord> visible = new HashMap<>();
+        for (AnimalRecord record : state.all()) if (access().canView(sender, record)) visible.put(record.id(), record);
+        BreedingPlan plan = new BreedingPlan(first, second, new Kinship(visible));
+        for (Text line : PlanLines.chat(chat().language(sender), plan)) chat().send(sender, line);
+    }
+
     private void runInfoHelp(CommandSender sender) {
-        for (String key : List.of("title", "summary", "commands", "scan", "pair", "unpair", "setage", "setbirth"))
+        for (String key : List.of("title", "summary", "commands", "scan", "pair", "unpair", "setage", "setbirth", "breed"))
             chat().send(sender, "familytree.command.info.help." + key);
     }
 
@@ -475,6 +497,7 @@ public final class FamilyTreeCommand implements TabExecutor {
         if (!mayUse(sender, sub)) return List.of();
         return switch (sub) {
             case "info" -> names(sender, false, last, true);
+            case "breed" -> args.length <= 3 ? names(sender, false, last, false) : List.of();
             case "locate" -> names(sender, true, last, true);
             case "pair" -> args.length <= 4 ? names(sender, true, last, false) : List.of();
             case "unpair", "setage", "setbirth" -> args.length == 2 ? names(sender, true, last, false) : List.of();
@@ -493,6 +516,7 @@ public final class FamilyTreeCommand implements TabExecutor {
             case "locate" -> FamilyTreePermission.LOCATE;
             case "pair", "unpair" -> FamilyTreePermission.PARENTS;
             case "setage", "setbirth" -> FamilyTreePermission.AGE;
+            case "breed" -> FamilyTreePermission.BREED;
             case "prune" -> FamilyTreePermission.PRUNE;
             case "reload" -> FamilyTreePermission.RELOAD;
             case "settings" -> FamilyTreePermission.SETTINGS;

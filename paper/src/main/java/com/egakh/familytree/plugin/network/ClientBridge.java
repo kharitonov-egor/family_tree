@@ -113,7 +113,7 @@ public final class ClientBridge implements PluginMessageListener {
         }
         FamilyTreeStore state = plugin.store();
         AnimalRecord pet = state.get(request.petId());
-        if (!plugin.access().allowed(player, FamilyTreePermission.LOCATE) || !plugin.access().canManage(player, pet)) {
+        if (denied(player, FamilyTreePermission.LOCATE) || !plugin.access().canManage(player, pet)) {
             send(player, Payloads.WAYPOINT_RESULT, Payloads.encodeWaypointResult(
                     Payloads.WaypointResult.failed(request.requestId(), Payloads.WaypointResult.Status.NOT_ALLOWED)));
             return;
@@ -131,12 +131,20 @@ public final class ClientBridge implements PluginMessageListener {
     }
 
     private void rename(Player player, Payloads.RenameRequest request) {
+        if (denied(player, FamilyTreePermission.RENAME)) {
+            send(player, Payloads.RENAME_RESULT, Payloads.encodeRenameResult(request.requestId(), PetRenaming.Result.NOT_ALLOWED.ordinal(), null));
+            return;
+        }
         PetRenaming.Result result = Edits.rename(plugin, player, request.petId(), request.name());
         AnimalRecord record = result == PetRenaming.Result.SUCCESS ? plugin.store().get(request.petId()) : null;
         send(player, Payloads.RENAME_RESULT, Payloads.encodeRenameResult(request.requestId(), result.ordinal(), record));
     }
 
     private void link(Player player, Payloads.LinkRequest request) {
+        if (denied(player, FamilyTreePermission.PARENTS)) {
+            send(player, Payloads.LINK_RESULT, Payloads.encodeLinkResult(request.requestId(), ParentLinks.Result.NOT_ALLOWED.ordinal()));
+            return;
+        }
         ParentLinks.Result result = Edits.link(plugin, player, request.child(), request.parentA(), request.parentB(), request.clear());
         send(player, Payloads.LINK_RESULT, Payloads.encodeLinkResult(request.requestId(), result.ordinal()));
     }

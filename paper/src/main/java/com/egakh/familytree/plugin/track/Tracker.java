@@ -149,7 +149,9 @@ public final class Tracker {
 
     /**
      * Records a birth of animals other than pets. A player's breeding brings the baby and both parents into the
-     * history, owned by the breeder. Without a player, only families already in the history continue.
+     * history. Each new parent belongs to the player who fed it, or to the breeder when nobody fed it. Without a
+     * player, only families already in the history continue. The baby belongs to its first parent's owner, or to
+     * the breeder when neither parent has one.
      */
     public void recordBirth(Animals parentA, Animals parentB, Animals child, UUID breeder, String breederName) {
         FamilyTreeStore state = store();
@@ -169,8 +171,11 @@ public final class Tracker {
             noticeFarmLimit(state, breeder, "familytree.farm.limit");
             return;
         }
-        AnimalRecord a = recordParent(state, parentA, parentB, breeder, breederName);
-        AnimalRecord b = recordParent(state, parentB, parentA, breeder, breederName);
+        Player feederA = feeder(parentA), feederB = feeder(parentB);
+        AnimalRecord a = recordParent(state, parentA, parentB, feederA != null ? feederA.getUniqueId() : breeder,
+                feederA != null ? feederA.getName() : breederName);
+        AnimalRecord b = recordParent(state, parentB, parentA, feederB != null ? feederB.getUniqueId() : breeder,
+                feederB != null ? feederB.getName() : breederName);
         AnimalRecord owner = a.ownerId() != null ? a : b.ownerId() != null ? b : null;
         AnimalRecord record = newRecord(state, child);
         record.setParents(parentA.getUniqueId(), parentB.getUniqueId());
@@ -191,8 +196,16 @@ public final class Tracker {
             noticeFarmLimit(state, breeder.getUniqueId(), "familytree.farm.limit_parents");
             return;
         }
-        recordParent(state, parentA, parentB, breeder.getUniqueId(), breeder.getName());
-        recordParent(state, parentB, parentA, breeder.getUniqueId(), breeder.getName());
+        for (Animals parent : new Animals[]{parentA, parentB}) {
+            Player fed = feeder(parent) != null ? feeder(parent) : breeder;
+            recordParent(state, parent, parent == parentA ? parentB : parentA, fed.getUniqueId(), fed.getName());
+        }
+    }
+
+    /** The online player who fed this animal, like Minecraft's love cause. */
+    private static Player feeder(Animals animal) {
+        UUID cause = animal.getBreedCause();
+        return cause == null ? null : Bukkit.getPlayer(cause);
     }
 
     private AnimalRecord recordParent(FamilyTreeStore state, Entity parent, Entity mate, UUID breeder, String breederName) {

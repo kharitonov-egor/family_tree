@@ -8,7 +8,7 @@ website: https://modrinth.com/mod/familytree
 commands:
   familytree:
     description: Browse families in a chest menu, or list, locate, and edit recorded animals.
-    usage: /familytree [menu|list|scan|locate|info|pair|unpair|setage|setbirth|prune|reload|settings]
+    usage: /familytree [menu|list|scan|locate|info|pair|unpair|setage|setbirth|breed|prune|reload|settings]
 # Every node defaults to false here because Bukkit and LuckPerms treat a plugin.yml default as a set node.
 # Family Tree applies the defaults from config.yml to nodes no permission plugin sets.
 permissions:
@@ -32,6 +32,9 @@ permissions:
     default: false
   familytree.age:
     description: /familytree setage and setbirth. Everyone by default, operators with ownersCanSetAge false.
+    default: false
+  familytree.breed:
+    description: /familytree breed and Plan breeding in the chest menu. Everyone by default.
     default: false
   familytree.linkingstick:
     description: Use the linking stick, which also adds animals other than pets. Everyone by default.

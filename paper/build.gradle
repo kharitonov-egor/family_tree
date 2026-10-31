@@ -29,6 +29,12 @@ repositories {
 // Minecraft-free classes from the mod, compiled unchanged against the plugin's own AnimalRecord and HorseStats.
 def sharedJava = [
         'FamilyTreeMod.java',
+        'breeding/BestPairs.java',
+        'breeding/BreedingPair.java',
+        'breeding/BreedingPlan.java',
+        'breeding/LlamaStrength.java',
+        'breeding/OffspringStats.java',
+        'breeding/VariantOdds.java',
         'data/FarmRecords.java',
         'menu/MenuText.java',
         'naming/NameGenerator.java',
@@ -45,6 +51,7 @@ def sharedJava = [
         'util/AnimalCategory.java',
         'util/Genealogy.java',
         'util/HorseStatUnits.java',
+        'util/Kinship.java',
         'util/PetNames.java',
         'util/PetRelations.java',
         'util/VariantRules.java',

@@ -251,6 +251,10 @@ python scripts/build_media.py --page build/demo-26.3 --recording build/media/rec
 
 The console summons three wild wolves with names. The players tame them with bones (`tame`), Alex feeds his pair beef, and vanilla AI breeds a puppy that Alex names with a name tag. The console grows it up, then Alex and Kai each feed one wolf and vanilla AI breeds Pepper, which Kai names. The screenshots cover Alex's tree screen, Kai's `/familytree` list, family, book, and a view-only page for Alex's wolf, and both views after `server stop`, `server start`, and both clients rejoining. `python scripts/build_media.py --server-shots build/server-media/shots --server-recording <Kai's recording> --server-start <seconds>` packages them, and `--showcase` with the singleplayer inputs renders the launch clips in `docs/launch/`.
 
+## Paper and Spigot plugin
+
+`./gradlew -p paper build` runs the plugin's tests, including the save-format checks against real mod-written files and the wire-format check against `WireFormatTest`. `scripts/plugin_server.py --smoke` runs real Paper or Spigot servers with a development plugin, and `scripts/plugin_client_check.py` drives an unmodded client through taming, breeding, the chest menus, inventory protection, a pet owned by someone else, and a restart. [Family Tree for Paper and Spigot](plugin.md#testing) describes both and records the results.
+
 ## Release packaging
 
 After testing and committing source, run `python scripts/release_manifest.py`. It checks Minecraft metadata, Java class versions, license, icon, and development-class exclusions, then copies the tested artifacts and records hashes under `build/releases/<mod-version>/`. Publish those files with `scripts/publish_modrinth.py --manifest <path-to-manifest>`. Snapshot targets stay out of the manifest unless `--snapshots` is passed, which marks them alpha. The publisher rejects files whose hashes changed after verification.

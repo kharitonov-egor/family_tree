@@ -37,6 +37,10 @@ public final class LinkingStick implements Listener {
     private final FamilyTreePlugin plugin;
     private final Tracker tracker;
     private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
+    private final Map<UUID, LastUse> lastUse = new ConcurrentHashMap<>();
+
+    /** One click can reach the server as two interactions in the same tick. */
+    private record LastUse(UUID entity, long tick) {}
 
     public LinkingStick(FamilyTreePlugin plugin, Tracker tracker) {
         this.plugin = plugin;
@@ -55,6 +59,8 @@ public final class LinkingStick implements Listener {
         if (!isLinkingTool(held) || !(event.getRightClicked() instanceof Animals entity)) return;
         event.setCancelled(true);
         if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR) return;
+        LastUse use = new LastUse(entity.getUniqueId(), entity.getWorld().getFullTime());
+        if (use.equals(lastUse.put(player.getUniqueId(), use))) return;
         FamilyTreeStore state = plugin.store();
         if (state.readOnly()) return;
         if (!plugin.access().allowed(player, FamilyTreePermission.LINKING_STICK)) {
@@ -257,10 +263,12 @@ public final class LinkingStick implements Listener {
 
     public void forget(UUID player) {
         sessions.remove(player);
+        lastUse.remove(player);
     }
 
     public void clear() {
         sessions.clear();
+        lastUse.clear();
     }
 
     private boolean expired(Session session, long now) {
