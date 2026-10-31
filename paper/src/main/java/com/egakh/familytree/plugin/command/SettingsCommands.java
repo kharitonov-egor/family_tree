@@ -33,6 +33,7 @@ final class SettingsCommands {
         }
         List<SettingProblem> shown = new ArrayList<>(problems);
         plugin.command().registerAliases(plugin.settings().commandAliases());
+        plugin.bridge().update();
         if (plugin.command().aliasesChangedSinceStartup())
             shown.add(new SettingProblem("commandAliases", "familytree.config.restart", "commandAliases"));
         plugin.chat().send(sender, "familytree.reload.done", FILE);

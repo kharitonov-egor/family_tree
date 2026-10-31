@@ -41,6 +41,12 @@ public final class ClientBridge implements PluginMessageListener {
         registered = true;
     }
 
+    /** Bukkit announces channels to players as they join, so a change after a reload reaches players who join later. */
+    public void update() {
+        if (plugin.clientModSupport()) register();
+        else unregister();
+    }
+
     public void unregister() {
         if (!registered) return;
         Bukkit.getMessenger().unregisterOutgoingPluginChannel(plugin);
