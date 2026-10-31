@@ -7,6 +7,9 @@ import com.egakh.familytree.data.HorseStats;
 import com.egakh.familytree.event.PetLifecycleListeners;
 import com.egakh.familytree.interaction.LinkingTool;
 import com.egakh.familytree.FamilyTreeMod;
+import com.egakh.familytree.breeding.BreedingPlan;
+import com.egakh.familytree.breeding.PlanText;
+import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.menu.Menus;
 import com.egakh.familytree.network.payloads.SnapshotPagePayload;
 import com.egakh.familytree.platform.ServerTransport;
@@ -98,6 +101,12 @@ public final class FamilyTreeCommand {
                                         .executes(ctx -> runPruneSpecies(
                                                 ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "species_id"))))))
+                .then(Commands.literal("breed")
+                        .then(Commands.argument("first", StringArgumentType.string())
+                                .then(Commands.argument("second", StringArgumentType.string())
+                                        .executes(ctx -> runBreed(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "first"),
+                                                StringArgumentType.getString(ctx, "second"))))))
                 .then(Commands.literal("info").executes(ctx -> runInfoHelp(ctx.getSource()))
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(ctx -> runInfo(ctx.getSource(),
@@ -208,6 +217,20 @@ public final class FamilyTreeCommand {
             }
         }
         return 1;
+    }
+
+    /** Uses only records the player may view, so the relationship never passes through hidden animals. */
+    private static int runBreed(CommandSourceStack source, String firstName, String secondName) {
+        FamilyTreeState state = FamilyTreeState.get(source.getServer());
+        AnimalRecord first = findUnique(state, firstName, source, false);
+        if (first == null) return 0;
+        AnimalRecord second = findUnique(state, secondName, source, false);
+        if (second == null) return 0;
+        java.util.Map<java.util.UUID, AnimalRecord> visible = new java.util.HashMap<>();
+        for (AnimalRecord record : state.all()) if (ServerPetAccess.canView(source, record)) visible.put(record.id(), record);
+        BreedingPlan plan = new BreedingPlan(first, second, new Kinship(visible));
+        for (Component line : PlanText.lines(plan)) ServerText.success(source, () -> line, false);
+        return plan.canBreed ? 1 : 0;
     }
 
     private static int runLocate(CommandSourceStack source, String name) {
@@ -348,6 +371,7 @@ public final class FamilyTreeCommand {
         ServerText.success(source, () -> Component.translatable("familytree.command.info.help.unpair"), false);
         ServerText.success(source, () -> Component.translatable("familytree.command.info.help.setage"), false);
         ServerText.success(source, () -> Component.translatable("familytree.command.info.help.setbirth"), false);
+        ServerText.success(source, () -> Component.translatable("familytree.command.info.help.breed"), false);
         return 1;
     }
 

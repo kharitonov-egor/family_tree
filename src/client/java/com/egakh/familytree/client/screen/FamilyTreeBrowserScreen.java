@@ -38,6 +38,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
     private Button settingsButton;
     private Button scopeButton;
     private Button discoverButton;
+    private Button plannerButton;
     private boolean viewingAll = true;
     private final List<Button> speciesButtons = new ArrayList<>();
     private final List<Button> categoryButtons = new ArrayList<>();
@@ -110,6 +111,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         recompute();
         refreshScopeButton();
         if (discoverButton != null) discoverButton.active = ClientTransport.canSend(DiscoverPetsRequest.TYPE);
+        if (plannerButton != null) plannerButton.active = true;
     }
 
     private void refreshScopeButton() {
@@ -187,6 +189,12 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         }).bounds(212, scopeY + 24, 104, 18).build());
         addRenderableWidget(Button.builder(Component.translatable("familytree.feedback.button"), button ->
                 minecraft.setScreen(new FeedbackScreen(this))).bounds(this.width - 116, wrapControls ? btnY : scopeY + 24, 100, 18).build());
+        Component plannerLabel = Component.translatable("familytree.planner.title");
+        int plannerWidth = Math.max(80, Math.min(130, this.font.width(plannerLabel) + 12));
+        plannerButton = addRenderableWidget(Button.builder(plannerLabel, button -> {
+            if (snapshot != null) minecraft.setScreen(new BreedingPlannerScreen(this, snapshot, null, null));
+        }).bounds(this.width - 16 - plannerWidth, 8, plannerWidth, 18).build());
+        plannerButton.active = snapshot != null;
         refreshSortButton();
         refreshSpeciesButtons();
         recompute();

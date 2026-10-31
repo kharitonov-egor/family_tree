@@ -82,6 +82,8 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // Forge already runs ASM. The breeding tests read Minecraft's own horse rules with it.
+    testCompileOnly 'org.ow2.asm:asm-tree:9.9.1'
 }
 test { useJUnitPlatform() }
 

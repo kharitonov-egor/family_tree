@@ -17,6 +17,8 @@ public abstract class FamilyTreeScreen extends Screen {
     protected void onMouseRelease(int button) {}
     protected boolean onMouseDrag(double x, double y, int button, double dx, double dy) { return false; }
     protected boolean onKeyPress(int key) { return false; }
+    /** Whether Shift was held for the click that {@link #onMouseClick} is handling. */
+    protected boolean shiftClick;
 
     // Minecraft 26.3 numbers mouse buttons from 1 as SDL does; older versions number them from 0.
     protected static boolean isLeftButton(int button) { return button == InputConstants.MOUSE_BUTTON_LEFT; }
@@ -61,6 +63,7 @@ public abstract class FamilyTreeScreen extends Screen {
 
     //? if >=1.21.9 {
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        shiftClick = event.hasShiftDown();
         return super.mouseClicked(event, doubleClick) || onMouseClick(event.x(), event.y(), event.button(), doubleClick);
     }
     @Override public boolean mouseReleased(MouseButtonEvent event) {
@@ -83,6 +86,7 @@ public abstract class FamilyTreeScreen extends Screen {
         lastClick = now;
         lastClickX = x;
         lastClickY = y;
+        shiftClick = hasShiftDown();
         return super.mouseClicked(x, y, button) || onMouseClick(x, y, button, doubleClick);
     }
     @Override public boolean mouseReleased(double x, double y, int button) {

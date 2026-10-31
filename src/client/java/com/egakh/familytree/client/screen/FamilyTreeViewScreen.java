@@ -13,7 +13,10 @@ import com.egakh.familytree.permissions.PetAccess;
 import java.util.concurrent.CompletableFuture;
 import com.egakh.familytree.client.platform.ClientTransport;
 import com.egakh.familytree.client.settings.FamilyTreeClientSettings;
+import com.egakh.familytree.breeding.BreedingPair;
 import com.egakh.familytree.util.Genealogy;
+import com.egakh.familytree.util.Kinship;
+import com.egakh.familytree.util.KinshipText;
 import com.egakh.familytree.util.HorseStatUnits.Trend;
 import com.egakh.familytree.util.VariantText;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -38,6 +41,11 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     private FamilyTreeSnapshotPayload snapshot;
     private final UUID focusId;
     private final String aggregateSpeciesId;
+    private final List<UUID> forestIds;
+    private Kinship kinship;
+    private UUID compareId;
+    private Set<UUID> relationPath = Set.of();
+    private Button planButton;
 
     private final Map<UUID, AnimalRecord> records = new HashMap<>();
     private final Map<UUID, List<UUID>> childIndex = new HashMap<>();
@@ -76,6 +84,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         this.focusId = focusId;
         this.selectedId = focusId;
         this.aggregateSpeciesId = null;
+        this.forestIds = null;
         loadRecords();
     }
 
@@ -85,7 +94,34 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         this.snapshot = snapshot;
         this.focusId = null;
         this.aggregateSpeciesId = aggregateSpeciesId;
+        this.forestIds = null;
         loadRecords();
+    }
+
+    private FamilyTreeViewScreen(Screen parent, FamilyTreeSnapshotPayload snapshot, UUID first, UUID second) {
+        super(Component.translatable("familytree.kin.title", nameIn(snapshot, first), nameIn(snapshot, second)));
+        this.parent = parent;
+        this.snapshot = snapshot;
+        this.focusId = null;
+        this.aggregateSpeciesId = null;
+        loadRecords();
+        Set<UUID> shown = new java.util.LinkedHashSet<>(kinship.path(first, second));
+        shown.add(first);
+        shown.add(second);
+        shown.removeIf(id -> !records.containsKey(id));
+        this.forestIds = List.copyOf(shown);
+        this.selectedId = first;
+        this.compareId = second;
+        updateRelation();
+    }
+
+    /** The two animals and everyone on the shortest routes to their nearest shared ancestors. */
+    public static FamilyTreeViewScreen forRelationship(Screen parent, FamilyTreeSnapshotPayload snapshot, UUID first, UUID second) {
+        return new FamilyTreeViewScreen(parent, snapshot, first, second);
+    }
+
+    private static String nameIn(FamilyTreeSnapshotPayload snapshot, UUID id) {
+        return snapshot.records().stream().filter(r -> r.id().equals(id)).findFirst().map(AnimalRecord::name).orElse("?");
     }
 
     public static FamilyTreeViewScreen forSpecies(Screen parent, FamilyTreeSnapshotPayload snapshot,
@@ -97,6 +133,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         snapshot = updated;
         records.clear(); childIndex.clear(); generations.clear();
         loadRecords();
+        updateRelation();
         fullTree = null;
         collapsed.clear();
         clearWidgets();
@@ -116,13 +153,23 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
             }
         }
         generations.putAll(Genealogy.computeGenerations(records));
+        kinship = new Kinship(records);
+    }
+
+    private void updateRelation() {
+        boolean comparing = compareId != null && selectedId != null && !compareId.equals(selectedId)
+                && records.containsKey(compareId) && records.containsKey(selectedId);
+        if (!comparing) compareId = null;
+        relationPath = comparing ? kinship.path(selectedId, compareId) : Set.of();
     }
 
     @Override
     protected void init() {
         dragging = false;
         if (fullTree == null) {
-            if (aggregateSpeciesId == null) {
+            if (forestIds != null) {
+                fullTree = TreeLayout.layoutForest(forestIds, records, childIndex);
+            } else if (aggregateSpeciesId == null) {
                 fullTree = TreeLayout.layout(focusId, records, childIndex);
             } else {
                 List<UUID> includedIds = snapshot.records().stream()
@@ -149,6 +196,13 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
                         this.minecraft.setScreen(new RenamePetScreen(this, selected));
                     }
                 }).bounds(this.width - 72, 8, 64, 18).build());
+        Component planLabel = Component.translatable("familytree.planner.button");
+        int planWidth = planButtonWidth();
+        planButton = this.addRenderableWidget(Button.builder(planLabel, button -> {
+            if (selectedId != null && this.minecraft != null)
+                this.minecraft.setScreen(new BreedingPlannerScreen(this, snapshot, selectedId, compareId));
+        }).bounds(this.width - 76 - planWidth, 8, planWidth, 18).build());
+        planButton.setTooltip(Tooltip.create(Component.translatable("familytree.planner.button.hint")));
         int x = Math.max(8, (this.width - 304) / 2);
         this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.tree.fit"),
                 b -> fitTree()).bounds(x, 32, 56, 18).build());
@@ -250,9 +304,14 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         updateControls();
     }
 
+    private int planButtonWidth() {
+        return Math.max(64, Math.min(110, this.font.width(Component.translatable("familytree.planner.button")) + 12));
+    }
+
     private void updateControls() {
         centerButton.active = selectedId != null && tree.byId.containsKey(selectedId);
         AnimalRecord selected = records.get(selectedId);
+        planButton.active = selected != null && !selected.deceased() && BreedingPair.breeds(selected.speciesId());
         centerButton.setTooltip(selected == null ? null : Tooltip.create(
                 Component.translatable("familytree.screen.tree.selected", selected.name())));
         branchButton.active = centerButton.active
@@ -371,13 +430,21 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
             for (TreeLayout.Edge e : tree.edges) {
                 if (!onCanvas(Math.min(e.from.x, e.to.x), Math.min(e.from.y, e.to.y),
                         Math.abs(e.from.x - e.to.x) + TreeLayout.NODE_WIDTH, Math.abs(e.from.y - e.to.y) + TreeLayout.NODE_HEIGHT)) continue;
+                if (relationPath.contains(e.from.id) && relationPath.contains(e.to.id)) continue;
                 TreeRenderer.drawEdge(gfx, e.from, e.to, viewport.panX, viewport.panY, viewport.zoom);
+            }
+            // Highlighted links go on top, so crossing lines never hide the path.
+            for (TreeLayout.Edge e : tree.edges) {
+                if (!relationPath.contains(e.from.id) || !relationPath.contains(e.to.id)) continue;
+                TreeRenderer.drawEdge(gfx, e.from, e.to, viewport.panX, viewport.panY, viewport.zoom,
+                        TreeRenderer.RELATION_COLOR, viewport.zoom >= 0.65 ? 2 : 1);
             }
             for (TreeLayout.Node n : tree.nodes) {
                 if (!onCanvas(n.x, n.y, TreeLayout.NODE_WIDTH, TreeLayout.NODE_HEIGHT)) continue;
                 TreeRenderer.drawNode(gfx, this.font, n,
                         snapshot.currentWorldDay(), snapshot.currentEpochMillis(),
-                        n.id.equals(selectedId), collapsed.contains(n.id), generations.getOrDefault(n.id, 0),
+                        n.id.equals(selectedId), n.id.equals(compareId) || relationPath.contains(n.id),
+                        collapsed.contains(n.id), generations.getOrDefault(n.id, 0),
                         records::get, viewport.panX, viewport.panY, viewport.zoom);
             }
         }
@@ -387,9 +454,9 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         gfx.fill(0, canvasBottom(), this.width, this.height, 0xFF151A21);
         AnimalRecord focus = records.get(focusId);
         Component currentTitle = focus == null ? this.title : Component.translatable("familytree.screen.view.title", focus.name());
-        gfx.text(this.font, this.font.plainSubstrByWidth(currentTitle.getString(), Math.max(1, this.width - 156)),
+        gfx.text(this.font, this.font.plainSubstrByWidth(currentTitle.getString(), Math.max(1, this.width - 160 - planButtonWidth())),
                 76, 13, 0xFFFFFFFF);
-        Component hint = exportStatus.getString().isEmpty() ? Component.translatable("familytree.screen.tree.controls") : exportStatus;
+        Component hint = exportStatus.getString().isEmpty() ? Component.translatable("familytree.screen.tree.controls_compare") : exportStatus;
         gfx.text(this.font, this.font.plainSubstrByWidth(hint.getString(), Math.max(1, this.width - 64)),
                 8, this.height - 25, 0xFFB0B7C0);
         Component panHint = Component.translatable("familytree.screen.tree.pan_controls");
@@ -407,6 +474,49 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
         double left = x * viewport.zoom + viewport.panX, top = y * viewport.zoom + viewport.panY;
         return left < this.width && left + width * viewport.zoom >= 0
                 && top < canvasBottom() && top + height * viewport.zoom >= CANVAS_TOP;
+    }
+
+    /** The relationship between the selected card and the Shift-clicked one, wrapped to the panel width. */
+    private List<net.minecraft.util.FormattedCharSequence> relationLines() {
+        AnimalRecord a = records.get(selectedId), b = records.get(compareId);
+        if (a == null || b == null || tree == null) return List.of();
+        int width = Math.max(80, Math.min(this.width - 28, 420));
+        List<net.minecraft.util.FormattedCharSequence> lines = new ArrayList<>();
+        lines.addAll(this.font.split(KinshipText.describe(kinship.relation(a.id(), b.id()), a.name(), b.name()), width));
+        if (BreedingPair.canBreed(a.speciesId(), b.speciesId())) {
+            lines.addAll(this.font.split(KinshipText.inbreeding(kinship.foalInbreeding(a.id(), b.id())), width));
+            if (!a.deceased() && !b.deceased())
+                lines.addAll(this.font.split(Component.translatable("familytree.kin.plan_hint"), width));
+        }
+        lines.addAll(this.font.split(Component.translatable("familytree.kin.compare_hint"), width));
+        return lines;
+    }
+
+    private int relationPanelHeight() {
+        List<net.minecraft.util.FormattedCharSequence> lines = relationLines();
+        return lines.isEmpty() ? 0 : (lines.size() + 1) * (this.font.lineHeight + 2) + 8;
+    }
+
+    private void drawRelationPanel(GuiGraphicsExtractor gfx) {
+        List<net.minecraft.util.FormattedCharSequence> lines = relationLines();
+        AnimalRecord a = records.get(selectedId), b = records.get(compareId);
+        int lineHeight = this.font.lineHeight + 2;
+        String title = Component.translatable("familytree.kin.title", a.name(), b.name()).getString();
+        int contentWidth = this.font.width(title);
+        for (var line : lines) contentWidth = Math.max(contentWidth, this.font.width(line));
+        contentWidth = Math.min(contentWidth, Math.max(80, this.width - 28));
+        statsLeft = 8;
+        statsBottom = canvasBottom() - 6;
+        statsTop = Math.max(CANVAS_TOP + 4, statsBottom - relationPanelHeight());
+        statsRight = statsLeft + contentWidth + 12;
+        gfx.fill(statsLeft, statsTop, statsRight, statsBottom, 0xE8151A21);
+        gfx.fill(statsLeft, statsTop, statsRight, statsTop + 1, TreeRenderer.RELATION_COLOR);
+        int y = statsTop + 5;
+        gfx.text(this.font, this.font.plainSubstrByWidth(title, contentWidth), statsLeft + 6, y, 0xFFFFD24A);
+        for (int i = 0; i < lines.size(); i++) {
+            y += lineHeight;
+            gfx.text(this.font, lines.get(i), statsLeft + 6, y, i == 0 ? 0xFFFFFFFF : 0xFFB0B7C0);
+        }
     }
 
     private AnimalRecord statsSubject() {
@@ -460,6 +570,7 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     }
 
     private int statsPanelHeight() {
+        if (compareId != null) return relationPanelHeight();
         AnimalRecord pet = statsSubject();
         if (pet == null) return 0;
         int lineHeight = this.font.lineHeight + 2;
@@ -470,6 +581,10 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
 
     private void drawStatsPanel(GuiGraphicsExtractor gfx) {
         statsRight = statsLeft;
+        if (compareId != null && relationPanelHeight() > 0) {
+            drawRelationPanel(gfx);
+            return;
+        }
         AnimalRecord selected = statsSubject();
         if (selected == null) return;
         int lineHeight = this.font.lineHeight + 2;
@@ -553,9 +668,18 @@ public class FamilyTreeViewScreen extends FamilyTreeScreen {
     protected boolean onMouseClick(double mouseX, double mouseY, int button, boolean doubleClick) {
         if (!isLeftButton(button) || !inCanvas(mouseX, mouseY)) return false;
         TreeLayout.Node hit = inStatsPanel(mouseX, mouseY) ? null : findNodeAt(mouseX, mouseY);
+        if (hit != null && shiftClick) {
+            if (hit.id.equals(compareId)) compareId = null;
+            else if (!hit.id.equals(selectedId)) compareId = hit.id;
+            updateRelation();
+            updateControls();
+            return true;
+        }
         if (hit != null) {
             boolean openTree = doubleClick && hit.id.equals(selectedId);
+            if (hit.id.equals(compareId)) compareId = selectedId;
             selectedId = hit.id;
+            updateRelation();
             updateControls();
             if (openTree && this.minecraft != null) {
                 this.minecraft.setScreen(new FamilyTreeViewScreen(this, snapshot, hit.id));
