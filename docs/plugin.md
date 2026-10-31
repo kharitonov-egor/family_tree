@@ -8,11 +8,13 @@ Family Tree also comes as a server plugin for Paper, Spigot, and Paper forks suc
 2. Restart the server. Family Tree writes `plugins/FamilyTree/config.yml` with a comment above every setting.
 3. Players type `/familytree`.
 
+![The Family Tree browser on a Paper 26.3 server, seen from an unmodded client](media/plugin-chest-menu.webp)
+
 The plugin has no dependencies. It needs the Java version the server already needs: 17 for 1.20.1, 21 for 1.21.x, and 25 for 26.x.
 
 ## Supported servers
 
-One jar runs on every version below. Each one passed the checks under [Testing](#testing) with a real server and an unmodded client.
+One jar covers every version below. Each one marked Yes passed the checks under [Testing](#testing) on a real server with an unmodded client.
 
 | Minecraft | Paper | Spigot |
 | --- | --- | --- |
@@ -27,7 +29,7 @@ One jar runs on every version below. Each one passed the checks under [Testing](
 | 1.21.1 | Yes | Not tested |
 | 1.20.1 | Yes | Yes |
 
-Purpur, Leaf, and other Paper forks run Paper's code and API, so they work like Paper. Patches between the listed versions, such as 1.21.6 or 26.1.1, use the same API and probably work, but weren't tested. Folia is not supported, and Folia refuses to load the plugin. Servers that load both mods and plugins, such as Arclight and Mohist, should use the mod instead.
+Purpur 26.3 passed the same checks. Leaf and other Paper forks run Paper's code and API, so they should work like Paper, but weren't tested. Patches between the listed versions, such as 1.21.6 or 26.1.1, use the same API and probably work, but weren't tested. Folia is not supported, and Folia refuses to load the plugin. Servers that load both mods and plugins, such as Arclight and Mohist, should use the mod instead.
 
 ## Architecture decision
 
@@ -64,13 +66,13 @@ bStats' global Bukkit charts on October 31, 2026 counted about 187,000 servers:
 
 **Bukkit API only.** One jar covers Spigot, Paper, Purpur, and Leaf, about 90% of the servers above, across 1.20.1 to 26.3. New Minecraft versions usually keep working without a rebuild. The cost is reuse: the mod's event hooks, menus, and text are written against Minecraft classes, so the plugin needs its own versions of them.
 
-**Paper with paperweight-userdev.** The plugin would compile the Stonecutter-generated shared source against Mojang-mapped Paper internals for each Minecraft version, and reuse the save code, menus, commands, and packet handlers. Each version would need its own Paper dev bundle, which downloads and remaps a server jar before the first build. That means at least nine extra builds, one jar per Minecraft version, and no Spigot support, because Spigot keeps obfuscated names at runtime. The mixins that record breeding, taming, and name tags don't apply on Paper either, so those would become Bukkit event listeners anyway. CraftBukkit also patches the container and command layers the shared menus and commands depend on.
+**Paper with paperweight-userdev.** The plugin would compile the Stonecutter-generated shared source against Mojang-mapped Paper internals for each Minecraft version, and reuse the save code, menus, commands, and packet handlers. Each version would need its own Paper dev bundle, which downloads and remaps a server jar before the first build. That means at least nine extra builds and one jar per Minecraft version, and a jar built against Paper's internals doesn't load on Spigot. The mixins that record breeding, taming, and name tags don't apply on Paper either, so those would become Bukkit event listeners anyway. CraftBukkit also patches the container and command layers the shared menus and commands depend on.
 
 ### Decision
 
 Bukkit API only. One jar reaches more servers, keeps `buildAll` to one fast Java project, and doesn't need a new build for every Minecraft release. The plugin still shares what must match the mod exactly:
 
-- **Logic.** The plugin compiles the mod's Minecraft-free classes from `src/main/java` unchanged: permissions and parent-link validation, ancestry and cycle checks, renaming rules, generated names, variant inheritance, horse stat units, tracking rules, animal categories, the farm limit, cooldowns, and language tables. A change to those rules reaches both.
+- **Logic.** The plugin compiles the mod's Minecraft-free classes from `src/main/java` unchanged: permission nodes and their defaults, server settings, ownership and parent-link validation, ancestry and cycle checks, renaming rules, generated names, variant inheritance, the breeding planner and kinship, horse stat units, tracking rules, animal categories, the farm limit, cooldowns, and language tables. A change to those rules reaches both.
 - **Saved history.** The plugin reads and writes the mod's `familytree.dat` format with its own NBT code, using the same `AnimalRecord` field names. A world keeps its history when it moves between the mod and the plugin.
 - **Wire format.** The client-mod bridge writes the same payload bytes as the mod's codecs. A test checks the plugin's bytes against the expected bytes in `WireFormatTest`.
 - **Translations.** The plugin ships the mod's 15 language files from `src/main/resources`.
@@ -117,6 +119,8 @@ Datapack tags work as in the mod: a datapack can add species to the `familytree:
 
 The plugin registers the mod's network channels and answers with the bytes the mod's server would send, so a player with the client mod gets its screens: the browser on **H**, trees, rename, Add parents, Locate, **Find existing pets**, and map waypoints. `/familytree` prints the command list for them, and `/familytree menu` still opens the chest menu. A test checks every payload the plugin writes against the expected bytes in the mod's own `WireFormatTest`.
 
+![Family Tree 1.3.0's Fabric client showing a foal's tree on a Paper server with the plugin](media/plugin-client-mod.webp)
+
 Use the client mod release that matches the plugin's version. Family Tree 1.3.0's Fabric client for 26.3 joined a Paper 26.3 server with the plugin and used the browser, the tree, rename, Locate, and Find existing pets. Add parents and waypoints from the mod's screens use the same code and checks as the chest menu and Locate, but weren't tried from a modded client, and no map mod was installed.
 
 ## Differences from the mod
@@ -126,7 +130,6 @@ Use the client mod release that matches the plugin's version. Family Tree 1.3.0'
 - **Frogs and sniffers on Spigot.** Paper reports when frogs and sniffers breed, and the plugin records both parents for the player, as the mod does. Spigot reports nothing for them, so on Spigot they need a name tag or the linking stick.
 - **The book.** The family book and breeding plans open as a book screen instead of a lectern.
 - **Saving.** The plugin saves the history when the server saves the world, every five minutes when it changed, and when the server stops. Encoding runs on the main thread and writing on a background thread.
-- **Owner names.** As in the mod, a pet's owner is named while they are online. Bukkit's cached names for offline players can mean reading their player file, so the plugin doesn't use them.
 
 ## Testing
 
@@ -149,11 +152,24 @@ The smoke run loads the development plugin from `paper/src/smoke`, which never e
 
 The client check starts a server and a vanilla client through portablemc on an Xvfb display and drives the client with xdotool. The player tames two wolves with bones and breeds them with beef, names three sheep with name tags, searches the chest menu, renames a sheep in an anvil, and adds its parents through the picker and confirmation. It then tries shift-click, number keys, double-click, dragging, `Q`, `F`, and closing over the menu, and compares the inventory and offhand before and after. Next it adds a wolf owned by someone else, takes away the player's op, applies `viewPolicy: EVERYONE_ALL` with `/familytree reload`, and checks that the menu offers no Locate, Rename, or Add parents for it and that commands refuse it. Finally it restarts the server and checks the history, names, and parents. Results go to `client-check.txt`, and screenshots to `shots/`.
 
-Results on October 31, 2026, with the plugin built from this branch:
+Results on October 31, 2026, before the 1.4.0 release:
 
 | Server | Smoke | Client check |
 | --- | --- | --- |
-RESULTS_TABLE_PLACEHOLDER
+| Paper 26.3 | Pass | Pass |
+| Paper 26.2 | Pass | Pass |
+| Paper 26.1.2 | Pass | Pass |
+| Paper 1.21.11 | Pass | Pass |
+| Paper 1.21.10 | Pass | Pass |
+| Paper 1.21.8 | Pass | Pass on the second run. In the first, a wolf walked in front of a sheep and took a name tag click, so the script now freezes the wolves first. |
+| Paper 1.21.5 | Pass | Pass |
+| Paper 1.21.4 | Pass | Pass |
+| Paper 1.21.1 | Pass | Pass |
+| Paper 1.20.1 | Pass | Pass |
+| Purpur 26.3 | Pass | Pass |
+| Spigot 26.3 | Pass | Pass |
+| Spigot 1.21.11 | Pass | Pass |
+| Spigot 1.20.1 | Pass | Pass, with search and rename typed in chat |
 
 The smoke runs also covered loading a history the mod wrote: Paper 1.21.11 started on a world seeded with the mod's 1.21.11 smoke file and kept all 14 records, and a restart kept all 20 after the smoke added six. In the other direction, Family Tree 1.3.0 on a Fabric 26.3 server listed all 10 records of a history the plugin wrote on Paper 26.3, with tree names, parents, generations, and wool colors.
 
