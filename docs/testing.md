@@ -159,6 +159,17 @@ Summon owned, named wolves from the server console with the player's offline UUI
 
 Join the same server with a modded client as well. `/familytree` must print the command list, and **H** must open the screens.
 
+## Several players, permission mods, and server mods
+
+[Family Tree on servers](servers.md#tested-servers) records the last run of these checks. Install the release jar on a dedicated server with `online-mode=false`, then join one client with the mod and one without, each with `-Xmx1G`. Offline players' UUIDs are the name-based UUID of `OfflinePlayer:<name>`, which `Owner` and `LoveCause` take as int arrays.
+
+- Summon two owned wolves per player with `InLove:600`, plus one pair with a wolf from each player. Summon two cows with `InLove:600`, one with each player's `LoveCause`. Each parent must belong to the player whose `LoveCause` it had.
+- Open `/familytree` on the unmodded client and **H** on the modded one. Each player sees only their own animals, and a parent owned by the other player shows as unknown.
+- Edit `config/familytree-server.properties` while both are online, run `/familytree reload`, and check the reported problems and the changed behavior without a restart.
+- Add LuckPerms, set nodes from the console with `lp user <uuid> permission set familytree.<node> false`, and check that the command, menu button, or screen action is refused. Unset them and check the defaults again.
+- For other server mods, drop their jars into `mods/` and repeat breeding, both interfaces, a restart, and `chunky radius 300` with `chunky start`.
+- For performance, add records to a copy of a disposable world's `familytree.dat`, then run `/spark profiler start`, use Family Tree, and `/spark profiler stop --save-to-file`. spark saves the profile under `config/spark/`; decode it with spark's protobuf schema instead of uploading it.
+
 ## Release jars in real 1.21.x instances
 
 The 1.21.4, 1.21.5, 1.21.8, and 1.21.10 jars were checked with a separate dedicated server and client. The server is the Fabric server launcher for Loader 0.19.3, or NeoForge installed with `--install-server`. The client joins it through portablemc:

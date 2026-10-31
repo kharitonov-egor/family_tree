@@ -88,10 +88,11 @@ The menus follow the same permissions and cooldowns as the screens. They never s
 
 Players who have the client mod keep the full screens, and `/familytree menu` opens the chest menu for them too.
 
-Menu text and chat messages follow each player's Minecraft language when Family Tree has a translation, and English otherwise. Server operators can change two settings in `config/familytree-server.properties`, then restart:
+Menu text and chat messages follow each player's Minecraft language when Family Tree has a translation, and English otherwise. Server operators can change these settings in `config/familytree-server.properties`, then run `/familytree reload`:
 
 - `vanillaMenu=false` turns the chest menu off. `/familytree` then prints the command list.
-- `commandAliases=pets,ft` adds `/pets` and `/ft` as other names for `/familytree`. Family Tree skips an alias that another command already uses and logs a warning.
+- `commandAliases=pets,ft` adds `/pets` and `/ft` as other names for `/familytree` after `/reload` or a restart. Family Tree skips an alias that another command already uses and logs a warning.
+- `serverLanguage=en_us` answers every player in one language instead of their own.
 
 ## Horse breeding stats
 
@@ -129,7 +130,7 @@ Modded animals use the same rules. In a test with Naturalist 2.0.7 on NeoForge 1
 
 ### Server settings for animals
 
-`config/familytree-server.properties` decides which new animals join. Settings never remove history; animals already recorded keep their record up to date. Restart the server after editing the file.
+`config/familytree-server.properties` decides which new animals join. Settings never remove history; animals already recorded keep their record up to date. Run `/familytree reload` or restart the server after editing the file. Datapacks and KubeJS can also choose species with the `familytree:tracked` and `familytree:ignored` entity type tags. The settings file wins when they disagree, as [Family Tree on servers](docs/servers.md#datapack-tags) explains.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
@@ -180,11 +181,22 @@ Tooltips show only what the player could open in Family Tree's own screens: pets
 
 ## Existing families and server permissions
 
-Rename a stick to `familytree` in an anvil. Right-click the first parent, second parent, and child, then confirm in chat. Clicking an animal other than a pet that isn't in the history yet adds it for you first. Sneak and right-click a pet to clear its parents after confirmation. Manual links require distinct pets and reject ancestry loops. Horse and donkey parents can link to a mule.
+Rename a stick to `familytree` in an anvil, or to the name in the server's `linkingStickName` setting. Right-click the first parent, second parent, and child, then confirm in chat. Clicking an animal other than a pet that isn't in the history yet adds it for you first. Sneak and right-click a pet to clear its parents after confirmation. Manual links require distinct pets and reject ancestry loops. Horse and donkey parents can link to a mule.
 
-Owners and server operators can locate or edit their pets. Linking two parents requires permission for all three animals. By default, only operators can browse everyone's pets. A server can change `viewPolicy` in `config/familytree-server.properties` to `EVERYONE_ALL` or `OWN_ONLY`, then restart. Public viewing does not grant editing rights or reveal other players' pet locations. The same file holds the chest menu settings described under [Players without the client mod](#players-without-the-client-mod).
+Owners and server operators can locate or edit their pets. Linking two parents requires permission for all three animals. By default, only operators can browse everyone's pets. A server can change `viewPolicy` in `config/familytree-server.properties` to `EVERYONE_ALL` or `OWN_ONLY`, then run `/familytree reload`. Public viewing does not grant editing rights or reveal other players' pet locations. The same file holds the chest menu settings described under [Players without the client mod](#players-without-the-client-mod).
 
 [Command reference](docs/commands.md) includes locating, pairing, age corrections, and operator pruning.
+
+## Running a server
+
+[Family Tree on servers](docs/servers.md) is the guide for server owners and modpack authors.
+
+- LuckPerms and other permission mods can grant or deny each action through `familytree.*` permission nodes, such as `familytree.rename`, `familytree.others.view`, and `familytree.prune`. Without a permission mod, Family Tree uses operator levels exactly as 1.3.0 did.
+- `config/familytree-server.properties` explains every setting in a comment with its default and allowed values. `/familytree reload` reads it again and names any value it can't use, and `/familytree settings` shows what differs from the defaults.
+- Settings cover cooldowns, which owner actions need an operator, the linking stick's name, the chat language, and more.
+- Family Tree was tested on dedicated Fabric, NeoForge, and Forge servers with clients with and without the mod, and with LuckPerms, spark, Lithium, FerriteCore, ModernFix, C2ME, ServerCore, Chunky, and other common server mods. The guide lists the versions and one known LuckPerms problem on NeoForge 1.21.1.
+
+![config/familytree-server.properties with a comment above every setting](docs/media/server-config.webp)
 
 ## Languages
 
