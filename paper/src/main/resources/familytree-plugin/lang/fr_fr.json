@@ -1,0 +1,4 @@
+{
+  "familytree.plugin.prompt.rename": "Écrivez dans le chat un nouveau nom Family Tree pour %s. Écrivez - pour rétablir son nom d'origine, ou cancel pour arrêter.",
+  "familytree.plugin.prompt.search": "Écrivez dans le chat un nom à rechercher. Écrivez - pour afficher tous les animaux, ou cancel pour arrêter."
+}

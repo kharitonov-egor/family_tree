@@ -1,0 +1,4 @@
+{
+  "familytree.plugin.prompt.rename": "채팅에 %s의 새 Family Tree 이름을 입력하세요. 원래 이름으로 되돌리려면 -, 그만하려면 cancel을 입력하세요.",
+  "familytree.plugin.prompt.search": "채팅에 검색할 이름을 입력하세요. 모든 동물을 보려면 -, 그만하려면 cancel을 입력하세요."
+}

@@ -1,0 +1,4 @@
+{
+  "familytree.plugin.prompt.rename": "%s の新しい Family Tree 名をチャットに入力してください。- で元の名前に戻し、cancel で中止します。",
+  "familytree.plugin.prompt.search": "検索する名前をチャットに入力してください。- ですべての動物を表示し、cancel で中止します。"
+}

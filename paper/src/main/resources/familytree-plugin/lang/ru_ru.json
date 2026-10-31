@@ -1,0 +1,4 @@
+{
+  "familytree.plugin.prompt.rename": "Введите в чат новое имя для %s в Family Tree. Введите -, чтобы вернуть исходное имя, или cancel для отмены.",
+  "familytree.plugin.prompt.search": "Введите в чат имя для поиска. Введите -, чтобы показать всех животных, или cancel для отмены."
+}

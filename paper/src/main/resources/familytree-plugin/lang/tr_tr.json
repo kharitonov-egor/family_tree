@@ -1,0 +1,4 @@
+{
+  "familytree.plugin.prompt.rename": "%s için yeni bir Family Tree adını sohbete yaz. Asıl adına döndürmek için -, vazgeçmek için cancel yaz.",
+  "familytree.plugin.prompt.search": "Aramak istediğin adı sohbete yaz. Tüm hayvanları göstermek için -, vazgeçmek için cancel yaz."
+}
