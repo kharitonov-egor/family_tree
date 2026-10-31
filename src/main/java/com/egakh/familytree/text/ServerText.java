@@ -106,7 +106,10 @@ public final class ServerText {
         player.sendSystemMessage(localize(language(player), message));
     }
 
-    /** Copies the component, adding fallbacks to every Family Tree key, including keys nested in arguments. */
+    /**
+     * Copies the component, giving every Family Tree key a fallback in the player's language, including keys nested in
+     * arguments. The language file wins over a fallback the code supplied, which is usually English.
+     */
     public static MutableComponent localize(String language, Component component) {
         boolean forced = !com.egakh.familytree.settings.FamilyTreeServerSettings.language()
                 .equals(com.egakh.familytree.settings.ServerSettings.AUTO_LANGUAGE);
@@ -123,13 +126,12 @@ public final class ServerText {
             }
             String key = translatable.getKey();
             String template = key.startsWith(PREFIX) ? LangTables.template(language, key) : null;
-            String fallback = translatable.getFallback();
+            String fallback = template != null ? template : translatable.getFallback();
             if (resolve && template != null) {
                 copy = Component.empty();
                 for (Object part : Templates.split(template, java.util.Arrays.asList(args)))
                     copy.append(part instanceof Component text ? text : Component.literal(String.valueOf(part)));
             } else {
-                if (fallback == null) fallback = template;
                 copy = fallback == null ? Component.translatable(key, args) : Component.translatableWithFallback(key, fallback, args);
             }
         } else {

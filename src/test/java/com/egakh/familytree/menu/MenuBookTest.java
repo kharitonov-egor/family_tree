@@ -1,6 +1,8 @@
 package com.egakh.familytree.menu;
 
 import com.egakh.familytree.breeding.BreedingPlan;
+import com.egakh.familytree.breeding.PlanText;
+import com.egakh.familytree.breeding.VariantOdds;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.Kinship;
@@ -36,6 +38,38 @@ class MenuBookTest {
         assertEquals(3, MenuText.bookLines("The foal takes either parent's coat, each half the time.", false));
         assertEquals(2, MenuText.bookLines("one\ntwo", false));
         assertEquals(2, MenuText.bookLines("x".repeat(20), false), "a word wider than the page breaks inside it");
+    }
+
+    @Test
+    void countsWiderCyrillicAndLatinLetters() {
+        assertEquals(1, MenuText.bookLines("Ю".repeat(14), false));
+        assertEquals(2, MenuText.bookLines("Ю".repeat(15), false));
+        assertEquals(2, MenuText.bookLines("Щ".repeat(13), false));
+        assertEquals(2, MenuText.bookLines("Æ".repeat(12), false));
+        assertEquals(1, MenuText.bookLines("Привет мир", false));
+    }
+
+    @Test
+    void cyrillicChildNamesContinueOnNewPages() {
+        List<AnimalRecord> children = new java.util.ArrayList<>();
+        for (int i = 0; i < 13; i++) children.add(wolf(30 + i, "Ю".repeat(18), null));
+        List<Component> pages = FamilyBook.children("ru_ru", children, 0);
+        assertTrue(pages.size() >= 2, pages.size() + " pages for 13 two-line names");
+        for (Component page : pages) {
+            int lines = 0;
+            for (String line : ServerText.plain("ru_ru", page).split("\n", -1)) lines += MenuText.bookLines(line, false);
+            assertTrue(lines <= MenuText.BOOK_LINES, lines + " lines on one page");
+        }
+    }
+
+    @Test
+    void vanillaClientsGetTranslatedCoatNames() {
+        Component pale = PlanText.label("minecraft:wolf", VariantOdds.Kind.VARIANT, "minecraft:pale");
+        assertEquals("Blass", ServerText.localize("de_de", pale).getString());
+        Component tuxedo = PlanText.label("minecraft:cat", VariantOdds.Kind.VARIANT, "minecraft:black");
+        assertEquals("Tuxedo", ServerText.localize("en_us", tuxedo).getString());
+        Component modded = PlanText.label("minecraft:wolf", VariantOdds.Kind.VARIANT, "otherpack:moon_grey");
+        assertEquals("Moon grey", ServerText.localize("de_de", modded).getString());
     }
 
     @Test

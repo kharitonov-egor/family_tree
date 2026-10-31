@@ -9,6 +9,12 @@ public final class MenuText {
     /** A book page shows 14 lines of 9 pixels in a text area 114 pixels wide, on every supported version. */
     public static final int BOOK_LINES = 14;
     private static final int BOOK_WIDTH = 114;
+    /** Latin, Greek, and Cyrillic letters the default font draws wider than six pixels, for advances of 7, 8, 9, and 10. */
+    private static final String[] WIDER = {
+            "«¶»ÐĐđħŁƀƄƅƇƈƉƑƓƝƬƳǤǥȽɃɇɈɉɊɋɌɍσϔЊЋДЦЪдщъыђњћѢѣѴѵѶѷҊҋҌҍҒҗҚҞҠҢңҤҥҨҩҲҳҵҶҷӅӆӉӊӍӎӹӺԆԇԎԏԤԥԦԧԨԩԬԭԮԯ",
+            "¤©®¼½¾ďĦŉƁƊƠơƢƣƤƯưƴǉȡȵɄɎɏΆΈΉΌΎΏωώЂЉЖФШЫЮюљҴҼҽҾҿӁӜӸԄԅ",
+            "ƕǶЩҖҦҧԂԃԈԉԊԋԔԕԖԗԠԡԢԣ",
+            "ÆæŒœǄǅǆǇǈǊǋǌǢǣǱǲǳǼǽȸȹϓӔӕԘԙԪԫ"};
 
     private MenuText() {}
 
@@ -22,7 +28,8 @@ public final class MenuText {
 
     /**
      * The number of lines a paragraph takes on a book page. It breaks lines the way the game does, at the last space
-     * that fits, using the default font's widths. Characters outside ASCII count as wide as the widest letters.
+     * that fits, using the default font's widths. Other scripts count as wide as the widest glyph, so a page may end
+     * early but never runs past its last line.
      */
     public static int bookLines(String text, boolean bold) {
         int[] points = text.codePoints().toArray();
@@ -60,7 +67,14 @@ public final class MenuText {
             if (point == '@' || point == '~') return 7;
             return 6;
         }
-        return wide(point) || point > 0xFFFF ? 9 : 6;
+        if (wide(point) || point > 0xFFFF) return 9;
+        if (point < 0x250 || point >= 0x370 && point < 0x530) {
+            for (int i = WIDER.length - 1; i >= 0; i--) {
+                if (WIDER[i].indexOf(point) >= 0) return 7 + i;
+            }
+            return 6;
+        }
+        return 10;
     }
 
     /**
