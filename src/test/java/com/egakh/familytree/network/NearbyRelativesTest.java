@@ -78,6 +78,30 @@ class NearbyRelativesTest {
                 byName(everyone));
     }
 
+    @Test void aHiddenParentLinksNobodyButAnUnlistedOneStillDoes() {
+        AnimalRecord samsSire = pet("Sam's sire", SAM, null, null, 4);
+        AnimalRecord samsOtherSire = pet("Sam's other sire", SAM, null, null, 4);
+        AnimalRecord alexsDam = pet("Alex's dam", ALEX, null, null, 4);
+        AnimalRecord pup = pet("Pup", ALEX, samsSire, null, 2);
+        pet("Same hidden sire", ALEX, samsSire, null, 3);
+        pet("Same dam, other hidden sire", ALEX, samsOtherSire, alexsDam, 3);
+        AnimalRecord halfPup = pet("Half pup", ALEX, samsSire, alexsDam, 2);
+
+        assertEquals(0, ask(pup, ALEX, false).total(), "related only through Sam's sire");
+        assertEquals(Map.of("Same dam, other hidden sire", CloseRelation.SIBLING, "Alex's dam", CloseRelation.PARENT),
+                byName(ask(halfPup, ALEX, false)), "with the sires hidden, Family Tree can't tell half from full");
+        assertEquals(Map.of("Same hidden sire", CloseRelation.SIBLING, "Sam's sire", CloseRelation.PARENT,
+                        "Half pup", CloseRelation.SIBLING), byName(ask(pup, ALEX, true)));
+        assertEquals(CloseRelation.HALF_SIBLING, byName(ask(halfPup, ALEX, true)).get("Same dam, other hidden sire"));
+
+        UUID pruned = new UUID(7, 7);
+        AnimalRecord orphan = pet("Orphan", ALEX, null, null, 2);
+        orphan.setParents(pruned, null);
+        pet("Orphan's sibling", ALEX, null, null, 3).setParents(pruned, null);
+        assertEquals(Map.of("Orphan's sibling", CloseRelation.SIBLING), byName(ask(orphan, ALEX, false)),
+                "a parent ID without a record still links siblings, as in the screens");
+    }
+
     @Test void refusesATargetTheViewerCannotSee() {
         AnimalRecord samsWolf = pet("Rex", SAM, null, null, 2);
         pet("Rex junior", SAM, samsWolf, null, 3);
