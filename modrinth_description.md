@@ -31,7 +31,7 @@ Families can cross owners. In the images above, Alex's wolf Biscuit and Kai's wo
 
 History lives in the world save, so it survives restarts and Family Tree updates. Pruning writes a JSON backup before it deletes anything, and Family Tree never deletes pets or named animals on its own.
 
-Server settings live in `config/familytree-server.properties`, with a comment above each one that gives its default and allowed values. `/familytree reload` applies changes without a restart and names any value it can't use.
+Server settings live in `config/familytree-server.properties`, with a comment above each one that gives its default and allowed values. `/familytree reload` applies changes without a restart, except command aliases, and names any value it can't use.
 
 - `viewPolicy` sets who can browse whose animals. With the default, `OP_ONLY_ALL`, players see their own animals and operators see everyone's. `EVERYONE_ALL` lets every player browse every family, as on the server above. `OWN_ONLY` limits everyone, operators included, to their own animals.
 - `vanillaMenu=false` turns the chest menus off. `commandAliases=pets,ft` adds `/pets` and `/ft`.
