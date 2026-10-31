@@ -110,8 +110,7 @@ public final class DemoClient {
             }
             if (tick == 380) {
                 capture(client, "pet-picker.png");
-                var choice = currentScreen.children().stream().filter(widget -> widget instanceof Button button && button.getMessage().getString().contains("Cedar")).findFirst().orElseThrow();
-                press(((Button) choice).getMessage().getString());
+                ((com.egakh.familytree.client.screen.PetPickerScreen) currentScreen).pick(cedar.id());
                 currentScreen = activeScreen(client);
             }
             if (tick == 400) press(tr("familytree.parents.confirm"));

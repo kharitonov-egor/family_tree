@@ -33,8 +33,57 @@ class ParentLinksTest {
         assertFalse(PetRelations.speciesMatch("minecraft:wolf", "minecraft:cat", "minecraft:wolf"));
     }
 
+    @Test void pickerOffersOnlyParentsTheServerAccepts() {
+        UUID owner = UUID.randomUUID();
+        AnimalRecord sheep = pet(owner, "minecraft:sheep"), ewe = pet(owner, "minecraft:sheep"), ram = pet(owner, "minecraft:sheep");
+        AnimalRecord wolf = pet(owner, "minecraft:wolf"), lamb = pet(owner, "minecraft:sheep"), grandLamb = pet(owner, "minecraft:sheep");
+        lamb.setParents(sheep.id(), ewe.id());
+        grandLamb.setParents(lamb.id(), null);
+        Map<UUID, AnimalRecord> pets = map(sheep, ewe, ram, wolf, lamb, grandLamb);
+
+        assertTrue(ParentLinks.mayPick(sheep, ram, null, pets::get));
+        assertFalse(ParentLinks.mayPick(sheep, wolf, null, pets::get), "another species");
+        assertFalse(ParentLinks.mayPick(sheep, sheep, null, pets::get), "the child itself");
+        assertFalse(ParentLinks.mayPick(sheep, lamb, null, pets::get), "a child would close a loop");
+        assertFalse(ParentLinks.mayPick(sheep, grandLamb, null, pets::get), "a grandchild would close a loop");
+        assertFalse(ParentLinks.mayPick(sheep, ram, ram, pets::get), "the other chosen parent");
+        for (AnimalRecord candidate : pets.values())
+            if (ParentLinks.mayPick(sheep, candidate, ram, pets::get))
+                assertEquals(ParentLinks.Result.SUCCESS, ParentLinks.validate(sheep.id(), candidate.id(), ram.id(), false, owner, false, pets::get));
+    }
+
+    @Test void muleParentsMustBeOneHorseAndOneDonkey() {
+        UUID owner = UUID.randomUUID();
+        AnimalRecord mule = pet(owner, "minecraft:mule"), horse = pet(owner, "minecraft:horse"), mare = pet(owner, "minecraft:horse");
+        AnimalRecord donkey = pet(owner, "minecraft:donkey"), otherMule = pet(owner, "minecraft:mule"), wolf = pet(owner, "minecraft:wolf");
+        Map<UUID, AnimalRecord> pets = map(mule, horse, mare, donkey, otherMule, wolf);
+
+        assertTrue(ParentLinks.mayPick(mule, horse, null, pets::get));
+        assertTrue(ParentLinks.mayPick(mule, donkey, null, pets::get));
+        assertTrue(ParentLinks.mayPick(mule, donkey, horse, pets::get));
+        assertFalse(ParentLinks.mayPick(mule, mare, horse, pets::get), "two horses can't have a mule");
+        assertFalse(ParentLinks.mayPick(mule, otherMule, horse, pets::get), "a mule and a horse can't have a mule");
+        assertFalse(ParentLinks.mayPick(mule, wolf, null, pets::get));
+        assertTrue(ParentLinks.mayPick(mule, horse, wolf, pets::get), "a recorded parent that could never fit is ignored");
+        for (AnimalRecord first : pets.values())
+            for (AnimalRecord second : pets.values())
+                if (ParentLinks.mayPick(mule, first, null, pets::get) && ParentLinks.mayPick(mule, second, first, pets::get))
+                    assertEquals(ParentLinks.Result.SUCCESS, ParentLinks.validate(mule.id(), first.id(), second.id(), false, owner, false, pets::get),
+                            first.speciesId() + " and " + second.speciesId());
+    }
+
+    private static Map<UUID, AnimalRecord> map(AnimalRecord... records) {
+        Map<UUID, AnimalRecord> pets = new HashMap<>();
+        for (AnimalRecord record : records) pets.put(record.id(), record);
+        return pets;
+    }
+
     private AnimalRecord pet(UUID owner) {
-        return new AnimalRecord(UUID.randomUUID(), "minecraft:wolf", "Rover", false, null, null,
+        return pet(owner, "minecraft:wolf");
+    }
+
+    private AnimalRecord pet(UUID owner, String species) {
+        return new AnimalRecord(UUID.randomUUID(), species, "Rover", false, null, null,
                 0, 0, false, null, null, owner, null, null, null, null);
     }
 }

@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
-public class FamilyTreeSettingsScreen extends Screen {
+public class FamilyTreeSettingsScreen extends FamilyTreeScreen {
 
     private record Toggle(String key, BooleanSupplier value, Consumer<Boolean> setter) {
         Component label() {
@@ -58,26 +58,20 @@ public class FamilyTreeSettingsScreen extends Screen {
             y += ROW;
         }
 
-        this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"),
-                        button -> {
-                            if (this.minecraft != null) {
-                                this.minecraft.setScreen(parent);
-                            }
-                        })
+        this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.back"), button -> onClose())
                 .bounds(centerX - 100, y + 4, 200, 20)
                 .build());
     }
 
     @Override
-    //? if >26.3 {
-    /*public void extractRenderState(GuiGraphicsExtractor gfx) {
-    *///?} else
+    public void onClose() {
+        if (this.minecraft != null) this.minecraft.setScreen(parent);
+    }
+
+    @Override
     public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         gfx.fill(0, 0, this.width, this.height, 0xCC0F1115);
-        //? if >26.3 {
-        /*super.extractRenderState(gfx);
-        *///?} else
-        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        renderWidgets(gfx, mouseX, mouseY, delta);
         gfx.centeredText(this.font, this.title, this.width / 2, top - 16, 0xFFFFFFFF);
     }
 

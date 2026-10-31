@@ -9,20 +9,24 @@ import com.egakh.familytree.client.platform.ClientTransport;
 import com.egakh.familytree.util.AnimalCategory;
 import com.egakh.familytree.util.HorseStatUnits.Stat;
 import com.egakh.familytree.util.VariantText;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
@@ -35,27 +39,23 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
     private Button filterAll;
     private Button filterAlive;
     private Button filterDeceased;
-    private Button settingsButton;
-    private Button scopeButton;
     private Button discoverButton;
     private Button plannerButton;
     private boolean viewingAll = true;
-    private final List<Button> speciesButtons = new ArrayList<>();
-    private final List<Button> categoryButtons = new ArrayList<>();
     // Remembers the chosen tab while the game runs. Null shows every animal.
     private static AnimalCategory lastCategory = AnimalCategory.PETS;
     private AnimalCategory category = lastCategory;
-    private int categoryRows = 0;
+    private List<AnimalCategory> tabs = List.of();
 
     private enum Filter { ALL, ALIVE, DECEASED }
     private Filter filter = Filter.ALL;
 
     private static final Stat[] SORTS = {null, Stat.SPEED, Stat.JUMP, Stat.HEALTH};
     private int sort = 0;
-    private Button sortButton;
 
     private int scroll = 0;
     private static final int ROW_HEIGHT = 42;
+    private static final int HINT_HEIGHT = 20;
     private static final int CARD_BG_ALIVE = 0x99202830;
     private static final int CARD_BG_DECEASED = 0x991A1A1A;
     private static final int CARD_HOVER_OVERLAY = 0x22FFFFFF;
@@ -66,17 +66,31 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
     private static final int TEXT_PRIMARY_DIM = 0xFFBBBBBB;
     private static final int TEXT_SECONDARY = 0xFFAAB1BB;
     private static final int TEXT_MUTED = 0xFF8A909A;
-    private int speciesRows = 0;
-    private int speciesTop = 84;
+    private static final int TEXT_LINK = 0xFF8CC8FF;
+    private static final int STATUS_INFO = 0xFFCCCCCC;
+    private static final int STATUS_WARNING = 0xFFFFB35C;
+    private int listTop = 84;
+    private int speciesOffset;
     private int discoveryTicks;
     private boolean loadingFailed;
+
+    private final Map<AnimalCategory, Integer> otherTabMatches = new EnumMap<>(AnimalCategory.class);
+    private int hintTop = -1;
+    private Set<UUID> discoveryBaseline;
+    private Component status;
+    private int statusColor;
+    private int statusTicks;
 
     public static void loadingFailed() {
         FamilyTreeBrowserScreen screen = ACTIVE.get();
         if (screen != null) {
             screen.loadingFailed = true;
             screen.discoveryTicks = 0;
-            if (screen.discoverButton != null) screen.discoverButton.active = true;
+            if (screen.discoveryBaseline != null) {
+                screen.discoveryBaseline = null;
+                screen.showStatus(Component.translatable("familytree.discover.refused"), STATUS_WARNING);
+            }
+            if (screen.discoverButton != null) screen.discoverButton.active = ClientTransport.canSend(DiscoverPetsRequest.TYPE);
         }
     }
 
@@ -103,135 +117,216 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
 
     private void applySnapshot(FamilyTreeSnapshotPayload payload) {
         loadingFailed = false;
+        if (discoveryBaseline != null) {
+            int added = 0;
+            for (AnimalRecord record : payload.records()) if (!discoveryBaseline.contains(record.id())) added++;
+            discoveryBaseline = null;
+            showStatus(added > 0 ? Component.translatable("familytree.discover.found", added)
+                    : Component.translatable("familytree.discover.none"), STATUS_INFO);
+        }
         this.snapshot = payload;
         discoveryTicks = 0;
         this.viewingAll = payload.viewingAll();
-        refreshSortButton();
-        refreshSpeciesButtons();
+        if (!sortAvailable()) sort = 0;
+        if (this.minecraft != null) relayout();
+    }
+
+    private void showStatus(Component message, int color) {
+        status = message;
+        statusColor = color;
+        statusTicks = 160;
+    }
+
+    private Component scopeLabel(boolean all) {
+        return Component.translatable(all ? "familytree.screen.scope.all" : "familytree.screen.scope.mine");
+    }
+
+    Component scopeLabel() { return scopeLabel(viewingAll); }
+
+    boolean scopeAvailable() { return snapshot != null && snapshot.mayViewAll(); }
+
+    Component sortLabel() { return sortLabel(sort); }
+
+    void cycleSort() {
+        sort = (sort + 1) % SORTS.length;
+        scroll = 0;
         recompute();
-        refreshScopeButton();
-        if (discoverButton != null) discoverButton.active = ClientTransport.canSend(DiscoverPetsRequest.TYPE);
-        if (plannerButton != null) plannerButton.active = true;
     }
 
-    private void refreshScopeButton() {
-        if (scopeButton == null) return;
-        boolean canToggle = snapshot != null && snapshot.mayViewAll();
-        setVisible(scopeButton, canToggle);
-        scopeButton.active = canToggle;
-        scopeButton.setMessage(scopeLabel());
+    boolean sortAvailable() {
+        return snapshot != null && FamilyTreeClientSettings.showHorseStats()
+                && snapshot.records().stream().anyMatch(HorseStatsText::has);
     }
 
-    private Component scopeLabel() {
-        return Component.translatable(viewingAll
-                ? "familytree.screen.scope.all"
-                : "familytree.screen.scope.mine");
+    private void relayout() {
+        rebuildWidgets();
     }
 
     @Override
     protected void init() {
-        int top = 36;
-        int leftPad = 16;
-        int searchWidth = this.width - leftPad * 2 - 136;
+        tabs = computeTabs();
+        List<Map.Entry<String, Component>> species = new ArrayList<>(collectSpecies(snapshot == null ? List.of()
+                : snapshot.records().stream().filter(record -> tabs.isEmpty() || category == null
+                        || PetFaceRenderer.category(record.speciesId()) == category).toList()).entrySet());
 
+        Component discoverLabel = Component.translatable("familytree.discover.button");
+        Component[] filterLabels = {Component.translatable("familytree.screen.filter.all"),
+                Component.translatable("familytree.screen.filter.alive"), Component.translatable("familytree.screen.filter.deceased")};
+        boolean sortShown = sortAvailable();
+        if (!sortShown) sort = 0;
+        boolean scopeShown = snapshot != null && snapshot.mayViewAll();
+        Component settingsLabel = Component.translatable("familytree.screen.settings");
+        Component helpLabel = Component.translatable("familytree.help.button");
+        Component refreshLabel = Component.translatable("familytree.refresh");
+        Component feedbackLabel = Component.translatable("familytree.feedback.button");
+        Component moreLabel = Component.translatable("familytree.screen.more");
+        List<Component> tabLabels = tabs.stream().<Component>map(tab -> Component.translatable(
+                "familytree.screen.category." + (tab == null ? "all" : tab.key()))).toList();
+
+        int sortWidth = 0;
+        if (sortShown) for (int i = 0; i < SORTS.length; i++) sortWidth = Math.max(sortWidth, labelWidth(sortLabel(i), 60));
+        int[] filterWidths = new int[filterLabels.length];
+        for (int i = 0; i < filterLabels.length; i++) filterWidths[i] = labelWidth(filterLabels[i], 36);
+        int[] tabWidths = tabLabels.stream().mapToInt(label -> labelWidth(label, 40)).toArray();
+        int tabCycleWidth = tabLabels.stream().mapToInt(label -> labelWidth(cycleLabel(label), 40)).max().orElse(0);
+        int[] speciesWidths = species.stream().mapToInt(entry -> labelWidth(entry.getValue(), 40)).toArray();
+        BrowserLayout.Plan plan = BrowserLayout.plan(new BrowserLayout.Widths(labelWidth(discoverLabel, 60), filterWidths,
+                sortWidth, scopeShown ? Math.max(labelWidth(scopeLabel(true), 60), labelWidth(scopeLabel(false), 60)) : 0,
+                labelWidth(settingsLabel, 40), labelWidth(helpLabel, 40), labelWidth(refreshLabel, 40),
+                labelWidth(feedbackLabel, 40), labelWidth(moreLabel, 40), tabWidths, tabCycleWidth, speciesWidths), this.width, this.height);
+        listTop = plan.listTop();
+
+        HeaderFlow.Slot slot = plan.slot("search");
         String previousSearch = search == null ? "" : search.getValue();
-        this.search = new EditBox(this.font, leftPad, top, searchWidth, 18,
+        this.search = new EditBox(this.font, slot.x(), slot.y(), slot.width(), 18,
                 Component.translatable("familytree.screen.search"));
-        this.search.setResponder(s -> recompute());
         this.search.setMaxLength(64);
         this.search.setValue(previousSearch);
+        this.search.setResponder(s -> { scroll = 0; recompute(); });
         this.search.setHint(Component.translatable("familytree.screen.search"));
         this.addRenderableWidget(this.search);
         this.setInitialFocus(this.search);
-        discoverButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.discover.button"),
-                button -> {
-                    button.active = false;
-                    discoveryTicks = 200;
-                    FamilyTreeClient.discover(viewingAll);
-                }).bounds(this.width - leftPad - 132, top, 132, 18).build());
-        discoverButton.active = ClientTransport.canSend(DiscoverPetsRequest.TYPE);
 
-        int btnY = top + 24;
-        int btnW = 80;
-        boolean wrapControls = this.width < 500;
-        int scopeY = wrapControls ? btnY + 24 : btnY;
-        speciesTop = scopeY + 48;
-        this.filterAll = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.filter.all"),
-                        b -> { filter = Filter.ALL; recompute(); })
-                .bounds(leftPad, btnY, btnW, 18).build());
-        this.filterAlive = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.filter.alive"),
-                        b -> { filter = Filter.ALIVE; recompute(); })
-                .bounds(leftPad + btnW + 4, btnY, btnW, 18).build());
-        this.filterDeceased = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.filter.deceased"),
-                        b -> { filter = Filter.DECEASED; recompute(); })
-                .bounds(leftPad + (btnW + 4) * 2, btnY, btnW, 18).build());
-        this.settingsButton = this.addRenderableWidget(Button.builder(Component.translatable("familytree.screen.settings"),
-                        b -> {
-                            if (this.minecraft != null) {
-                                this.minecraft.setScreen(new FamilyTreeSettingsScreen(this));
-                            }
-                        })
-                .bounds(this.width - 100, scopeY, 84, 18).build());
+        discoverButton = addAt(plan, "discover", discoverLabel, button -> {
+            button.active = false;
+            discoveryTicks = 200;
+            discoveryBaseline = new HashSet<>();
+            if (snapshot != null) for (AnimalRecord record : snapshot.records()) discoveryBaseline.add(record.id());
+            showStatus(Component.translatable("familytree.discover.searching"), STATUS_INFO);
+            FamilyTreeClient.discover(viewingAll);
+        });
+        discoverButton.active = discoveryTicks == 0 && ClientTransport.canSend(DiscoverPetsRequest.TYPE);
 
-        this.scopeButton = this.addRenderableWidget(Button.builder(scopeLabel(),
-                        b -> toggleScope())
-                .bounds(this.width - 100 - 88, scopeY, 84, 18).build());
-
-        addRenderableWidget(Button.builder(Component.translatable("familytree.help.button"), button ->
-                minecraft.setScreen(new FamilyTreeHelpScreen(this))).bounds(16, scopeY + 24, 110, 18).build());
-        addRenderableWidget(Button.builder(Component.translatable("familytree.refresh"), button ->
-                FamilyTreeClient.requestSnapshot(viewingAll)).bounds(130, scopeY + 24, 78, 18).build());
-        sortButton = addRenderableWidget(Button.builder(sortLabel(), button -> {
-            sort = (sort + 1) % SORTS.length;
+        filterAll = addAt(plan, "filter0", filterLabels[0], b -> chooseFilter(Filter.ALL));
+        filterAlive = addAt(plan, "filter1", filterLabels[1], b -> chooseFilter(Filter.ALIVE));
+        filterDeceased = addAt(plan, "filter2", filterLabels[2], b -> chooseFilter(Filter.DECEASED));
+        if (sortShown && !plan.sortAndScopeInMore()) addAt(plan, "sort", sortLabel(sort), button -> {
+            cycleSort();
             button.setMessage(sortLabel());
-            scroll = 0;
-            recompute();
-        }).bounds(212, scopeY + 24, 104, 18).build());
-        addRenderableWidget(Button.builder(Component.translatable("familytree.feedback.button"), button ->
-                minecraft.setScreen(new FeedbackScreen(this))).bounds(this.width - 116, wrapControls ? btnY : scopeY + 24, 100, 18).build());
+        });
+        if (scopeShown && !plan.sortAndScopeInMore()) addAt(plan, "scope", scopeLabel(viewingAll), b -> toggleScope());
+        if (plan.collapsed()) {
+            addAt(plan, "more", moreLabel, b -> minecraft.setScreen(new BrowserMoreScreen(this, plan.sortAndScopeInMore())));
+        } else {
+            addAt(plan, "settings", settingsLabel, b -> openSettings());
+            addAt(plan, "help", helpLabel, b -> openHelp());
+            addAt(plan, "refresh", refreshLabel, b -> refresh());
+            addAt(plan, "feedback", feedbackLabel, b -> openFeedback());
+        }
+        if (plan.tabCycle()) {
+            int current = Math.max(0, tabs.indexOf(category));
+            AnimalCategory next = tabs.get((current + 1) % tabs.size());
+            addAt(plan, "tabs", cycleLabel(tabLabels.get(current)), b -> chooseCategory(next));
+        } else {
+            for (int i = 0; i < tabs.size(); i++) {
+                AnimalCategory tab = tabs.get(i);
+                addAt(plan, "tab" + i, tabLabels.get(i), b -> chooseCategory(tab)).active = tab != category;
+            }
+        }
+        HeaderFlow.Slot strip = plan.slot("species");
+        if (strip != null) addSpeciesStrip(strip, species, speciesWidths);
+
         Component plannerLabel = Component.translatable("familytree.planner.title");
-        int plannerWidth = Math.max(80, Math.min(130, this.font.width(plannerLabel) + 12));
+        int plannerWidth = Math.min(this.width / 2, labelWidth(plannerLabel, 80));
         plannerButton = addRenderableWidget(Button.builder(plannerLabel, button -> {
             if (snapshot != null) minecraft.setScreen(new BreedingPlannerScreen(this, snapshot, null, null));
         }).bounds(this.width - 16 - plannerWidth, 8, plannerWidth, 18).build());
         plannerButton.active = snapshot != null;
-        refreshSortButton();
-        refreshSpeciesButtons();
         recompute();
-        refreshScopeButton();
     }
 
-    private Component sortLabel() {
-        Stat stat = SORTS[sort];
+    /** On the smallest screens one button stands for the tabs and moves to the next tab on each press. */
+    private static Component cycleLabel(Component tab) {
+        return Component.literal("< ").append(tab).append(" >");
+    }
+
+    private Button addAt(BrowserLayout.Plan plan, String key, Component label, Button.OnPress action) {
+        HeaderFlow.Slot slot = plan.slot(key);
+        return addRenderableWidget(Button.builder(label, action).bounds(slot.x(), slot.y(), slot.width(), 18).build());
+    }
+
+    private void addSpeciesStrip(HeaderFlow.Slot strip, List<Map.Entry<String, Component>> species, int[] widths) {
+        speciesOffset = Math.max(0, Math.min(speciesOffset, species.size() - 1));
+        int[] shown = BrowserLayout.visibleSpecies(widths, speciesOffset, strip.width());
+        boolean arrows = shown[0] > 0 || shown[1] < species.size();
+        int x = strip.x() + (arrows ? BrowserLayout.ARROW + HeaderFlow.GAP : 0);
+        for (int i = shown[0]; i < shown[1]; i++) {
+            Map.Entry<String, Component> entry = species.get(i);
+            int width = Math.min(widths[i], strip.width() - (arrows ? 2 * (BrowserLayout.ARROW + HeaderFlow.GAP) : 0));
+            addRenderableWidget(Button.builder(entry.getValue(), b -> openSpeciesForest(entry.getKey(), entry.getValue()))
+                    .bounds(x, strip.y(), width, 18).build());
+            x += width + HeaderFlow.GAP;
+        }
+        if (!arrows) return;
+        int first = shown[0], end = shown[1];
+        addRenderableWidget(Button.builder(Component.literal("<"), b -> {
+            speciesOffset = BrowserLayout.previousPage(widths, first, strip.width());
+            relayout();
+        }).bounds(strip.x(), strip.y(), BrowserLayout.ARROW, 18).build()).active = first > 0;
+        addRenderableWidget(Button.builder(Component.literal(">"), b -> {
+            speciesOffset = end;
+            relayout();
+        }).bounds(strip.x() + strip.width() - BrowserLayout.ARROW, strip.y(), BrowserLayout.ARROW, 18).build()).active = end < species.size();
+    }
+
+    private void openSettings() { minecraft.setScreen(new FamilyTreeSettingsScreen(this)); }
+
+    private void openHelp() { minecraft.setScreen(new FamilyTreeHelpScreen(this)); }
+
+    private void openFeedback() { minecraft.setScreen(new FeedbackScreen(this)); }
+
+    void refresh() {
+        discoveryBaseline = null;
+        FamilyTreeClient.requestSnapshot(viewingAll);
+    }
+
+    private void chooseFilter(Filter chosen) {
+        filter = chosen;
+        scroll = 0;
+        recompute();
+    }
+
+    private Component sortLabel(int index) {
+        Stat stat = SORTS[index];
         return Component.translatable("familytree.screen.sort",
                 stat == null ? Component.translatable("familytree.screen.sort.name").getString() : HorseStatsText.sortValueLabel(stat));
     }
 
-    private void refreshSortButton() {
-        if (sortButton == null) return;
-        boolean available = snapshot != null && FamilyTreeClientSettings.showHorseStats()
-                && snapshot.records().stream().anyMatch(HorseStatsText::has);
-        setVisible(sortButton, available);
-        sortButton.active = available;
-        if (!available && sort != 0) {
-            sort = 0;
-            sortButton.setMessage(sortLabel());
-        }
-    }
-
     private void recompute() {
         filtered.clear();
+        otherTabMatches.clear();
         if (snapshot == null) return;
         String q = search == null ? "" : search.getValue().toLowerCase(Locale.ROOT).trim();
         for (AnimalRecord r : snapshot.records()) {
             if (filter == Filter.ALIVE && r.deceased()) continue;
             if (filter == Filter.DECEASED && !r.deceased()) continue;
-            if (!categoryButtons.isEmpty() && category != null && PetFaceRenderer.category(r.speciesId()) != category) continue;
-            if (!q.isEmpty()) {
-                Component variant = VariantText.label(r);
-                String hay = (r.name() + " " + r.speciesId() + " " + speciesName(r.speciesId()).getString()
-                        + (variant == null ? "" : " " + variant.getString())).toLowerCase(Locale.ROOT);
-                if (!hay.contains(q)) continue;
+            if (!q.isEmpty() && !matches(r, q)) continue;
+            if (!tabs.isEmpty() && category != null) {
+                AnimalCategory recordCategory = PetFaceRenderer.category(r.speciesId());
+                if (recordCategory != category) {
+                    if (!q.isEmpty()) otherTabMatches.merge(recordCategory, 1, Integer::sum);
+                    continue;
+                }
             }
             filtered.add(r);
         }
@@ -244,22 +339,43 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         Stat stat = SORTS[sort];
         filtered.sort(stat == null ? byName : Comparator.comparing((AnimalRecord pet) -> stat.value(pet.horseStats()),
                 Comparator.nullsLast(Comparator.reverseOrder())).thenComparing(byName));
-        scroll = Math.min(scroll, Math.max(0, filtered.size() * ROW_HEIGHT - (this.height - 16 - getListTop())));
+        scroll = Math.min(scroll, maxScroll());
+    }
+
+    private static boolean matches(AnimalRecord r, String query) {
+        Component variant = VariantText.label(r);
+        String hay = (r.name() + " " + r.speciesId() + " " + speciesName(r.speciesId()).getString()
+                + (variant == null ? "" : " " + variant.getString())).toLowerCase(Locale.ROOT);
+        return hay.contains(query);
+    }
+
+    private int otherTabTotal() {
+        int total = 0;
+        for (int count : otherTabMatches.values()) total += count;
+        return total;
+    }
+
+    private int contentHeight() {
+        return filtered.size() * ROW_HEIGHT + (otherTabTotal() > 0 ? HINT_HEIGHT : 0);
+    }
+
+    private int maxScroll() {
+        return Math.max(0, contentHeight() + 4 - (this.height - 16 - listTop));
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         super.extractRenderState(gfx, mouseX, mouseY, delta);
+        drawTitle(gfx);
 
-        gfx.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFFFF);
-
-        int listTop = getListTop();
         int listBottom = this.height - 16;
         int listLeft = 16;
         int listRight = this.width - 16;
+        hintTop = -1;
 
         gfx.fill(listLeft, listTop, listRight, listBottom, 0x80000000);
-        drawPanelBorder(gfx, listLeft, listTop, listRight, listBottom, 0x40FFFFFF);
+        drawBorder(gfx, listLeft, listTop, listRight, listBottom, 0x40FFFFFF);
+        drawStatus(gfx);
 
         if (snapshot == null) {
             gfx.centeredText(this.font, Component.translatable(loadingFailed ? "familytree.screen.load_failed" : "familytree.screen.loading"),
@@ -267,29 +383,55 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
             return;
         }
 
-        if (filtered.isEmpty()) {
-            int messageY = listTop + 24;
-            for (var line : this.font.split(Component.translatable(snapshot.records().isEmpty()
-                    ? "familytree.screen.empty" : "familytree.screen.no_matches"), this.width - 64)) {
-                gfx.text(this.font, line, (this.width - this.font.width(line)) / 2, messageY, 0xFFCCCCCC);
-                messageY += this.font.lineHeight + 3;
-            }
-            return;
-        }
-
         gfx.enableScissor(listLeft, listTop, listRight, listBottom);
-
         int y = listTop + 4 - scroll;
+        if (filtered.isEmpty()) {
+            y = listTop + 12;
+            for (String line : wrap(Component.translatable(snapshot.records().isEmpty()
+                    ? "familytree.screen.empty" : "familytree.screen.no_matches"), this.width - 64)) {
+                gfx.text(this.font, line, (this.width - this.font.width(line)) / 2, y, 0xFFCCCCCC);
+                y += this.font.lineHeight + 3;
+            }
+            y += 4;
+        }
         for (int i = 0; i < filtered.size(); i++) {
             AnimalRecord r = filtered.get(i);
             int rowTop = y + i * ROW_HEIGHT;
             int rowBottom = rowTop + ROW_HEIGHT - 2;
             if (rowBottom < listTop || rowTop > listBottom) continue;
-            boolean hover = mouseX >= listLeft && mouseX <= listRight
-                    && mouseY >= rowTop && mouseY <= rowBottom;
+            boolean hover = mouseX >= listLeft && mouseX <= listRight && mouseY >= Math.max(rowTop, listTop)
+                    && mouseY <= Math.min(rowBottom, listBottom);
             drawCard(gfx, r, listLeft + 4, rowTop, listRight - 4, rowBottom, hover);
         }
+        int others = otherTabTotal();
+        if (others > 0) {
+            hintTop = y + filtered.size() * ROW_HEIGHT;
+            boolean hover = mouseY >= Math.max(hintTop, listTop) && mouseY < Math.min(hintTop + HINT_HEIGHT, listBottom)
+                    && mouseX >= listLeft && mouseX <= listRight;
+            String text = trimToWidth(Component.translatable("familytree.screen.other_tabs", others).getString(), listRight - listLeft - 16);
+            gfx.text(this.font, Component.literal(text).withStyle(ChatFormatting.UNDERLINE).getVisualOrderText(),
+                    (this.width - this.font.width(text)) / 2, hintTop + 6, hover ? TEXT_PRIMARY : TEXT_LINK);
+        }
         gfx.disableScissor();
+    }
+
+    /** Centered when it clears the planner button, otherwise left-aligned and shortened. */
+    private void drawTitle(GuiGraphicsExtractor gfx) {
+        int right = plannerButton == null ? this.width - 16 : plannerButton.getX() - 8;
+        int titleWidth = this.font.width(this.title);
+        if ((this.width + titleWidth) / 2 <= right) {
+            gfx.centeredText(this.font, this.title, this.width / 2, 13, 0xFFFFFFFF);
+        } else {
+            gfx.text(this.font, trimToWidth(this.title.getString(), right - 16), 16, 13, 0xFFFFFFFF);
+        }
+    }
+
+    private void drawStatus(GuiGraphicsExtractor gfx) {
+        if (status == null || statusTicks <= 0) return;
+        String text = trimToWidth(status.getString(), this.width - 40);
+        int x = (this.width - this.font.width(text)) / 2;
+        gfx.fill(x - 4, this.height - 14, x + this.font.width(text) + 4, this.height - 2, 0xC0101418);
+        gfx.text(this.font, text, x, this.height - 12, statusColor);
     }
 
     @Override
@@ -297,8 +439,6 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         if (!isLeftButton(button)) return false;
         if (snapshot == null) return false;
 
-
-        int listTop = getListTop();
         int listBottom = this.height - 16;
         int listLeft = 16;
         int listRight = this.width - 16;
@@ -306,10 +446,15 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         if (mouseX < listLeft || mouseX > listRight || mouseY < listTop || mouseY > listBottom) {
             return false;
         }
+        if (hintTop >= 0 && mouseY >= hintTop && mouseY < hintTop + HINT_HEIGHT) {
+            showOtherTabs();
+            return true;
+        }
+        if (filtered.isEmpty()) return false;
 
         int relY = (int) (mouseY - (listTop + 4) + scroll);
         int idx = relY / ROW_HEIGHT;
-        if (idx < 0 || idx >= filtered.size()) return false;
+        if (relY < 0 || idx >= filtered.size()) return false;
         AnimalRecord clicked = filtered.get(idx);
         if (this.minecraft != null) {
             this.minecraft.setScreen(new FamilyTreeViewScreen(this, snapshot, clicked.id()));
@@ -317,11 +462,15 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         return true;
     }
 
+    /** Opens the one tab that holds the other matches, or All animals when they are spread over several. */
+    private void showOtherTabs() {
+        AnimalCategory target = otherTabMatches.size() == 1 && filtered.isEmpty() ? otherTabMatches.keySet().iterator().next() : null;
+        chooseCategory(target);
+    }
+
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        scroll = Math.max(0, scroll - (int) (verticalAmount * ROW_HEIGHT));
-        int max = Math.max(0, filtered.size() * ROW_HEIGHT - (this.height - 16 - getListTop()));
-        if (scroll > max) scroll = max;
+        scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) (verticalAmount * ROW_HEIGHT)));
         return true;
     }
 
@@ -335,18 +484,16 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         return colon >= 0 ? id.substring(colon + 1) : id;
     }
 
-    private int getListTop() {
-        return speciesTop + (categoryRows + speciesRows) * 22;
-    }
-
     @Override public void tick() {
         super.tick();
+        if (statusTicks > 0) statusTicks--;
         if (discoveryTicks > 0 && --discoveryTicks == 0 && discoverButton != null)
             discoverButton.active = ClientTransport.canSend(DiscoverPetsRequest.TYPE);
     }
 
-    private void toggleScope() {
+    void toggleScope() {
         if (snapshot == null || !snapshot.mayViewAll()) return;
+        discoveryBaseline = null;
         FamilyTreeClient.requestSnapshot(!viewingAll);
     }
 
@@ -355,116 +502,41 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         this.minecraft.setScreen(FamilyTreeViewScreen.forSpecies(this, snapshot, speciesId, title));
     }
 
-    private void refreshSpeciesButtons() {
-        for (Button button : speciesButtons) {
-            this.removeWidget(button);
-        }
-        for (Button button : categoryButtons) {
-            this.removeWidget(button);
-        }
-        speciesButtons.clear();
-        categoryButtons.clear();
-        speciesRows = 0;
-        categoryRows = 0;
-
-        if (snapshot == null) return;
-
-        refreshCategoryButtons();
-        Map<String, Component> species = collectSpecies(snapshot.records().stream()
-                .filter(record -> categoryButtons.isEmpty() || category != null && PetFaceRenderer.category(record.speciesId()) == category)
-                .toList());
-        if (species.isEmpty()) {
-            return;
-        }
-
-        int leftPad = 16;
-        int btnY = speciesTop + categoryRows * 22;
-        int btnW = 96;
-        int btnGap = 4;
-        int perRow = Math.max(1, (this.width - leftPad * 2 + btnGap) / (btnW + btnGap));
-
-        int index = 0;
-        for (Map.Entry<String, Component> entry : species.entrySet()) {
-            int row = index / perRow;
-            int col = index % perRow;
-            int x = leftPad + col * (btnW + btnGap);
-            int y = btnY + row * 22;
-            Button button = this.addRenderableWidget(Button.builder(entry.getValue(),
-                            b -> openSpeciesForest(entry.getKey(), entry.getValue()))
-                    .bounds(x, y, btnW, 18).build());
-            speciesButtons.add(button);
-            index++;
-        }
-        speciesRows = (species.size() + perRow - 1) / perRow;
-    }
-
-    /**
-     * Tabs appear once a player has more than one kind of animal, so a pet-only history looks as it did before.
-     * They share the row with Getting started when they fit, which keeps more of the list visible at large GUI scales.
-     */
-    private void refreshCategoryButtons() {
-        java.util.EnumSet<AnimalCategory> present = java.util.EnumSet.noneOf(AnimalCategory.class);
+    /** Tabs appear once a player has more than one kind of animal, so a pet-only history looks as it did before. */
+    private List<AnimalCategory> computeTabs() {
+        if (snapshot == null) return List.of();
+        EnumSet<AnimalCategory> present = EnumSet.noneOf(AnimalCategory.class);
         for (AnimalRecord record : snapshot.records()) present.add(PetFaceRenderer.category(record.speciesId()));
-        if (present.size() < 2) return;
+        if (present.size() < 2) return List.of();
         if (category != null && !present.contains(category)) category = present.iterator().next();
-        List<AnimalCategory> tabs = new ArrayList<>(present);
-        tabs.add(null);
-        int gap = 4, right = this.width - 16;
-        List<Component> labels = tabs.stream().<Component>map(tab -> Component.translatable(
-                "familytree.screen.category." + (tab == null ? "all" : tab.key()))).toList();
-        int total = -gap;
-        for (Component label : labels) total += Math.max(44, this.font.width(label) + 12) + gap;
-        int helpRowEnd = sortButton != null && isVisible(sortButton) ? 316 : 208;
-        boolean inline = helpRowEnd + 8 + total <= right;
-        int x = inline ? helpRowEnd + 8 : 16, y = inline ? speciesTop - 24 : speciesTop;
-        for (int i = 0; i < tabs.size(); i++) {
-            AnimalCategory tab = tabs.get(i);
-            int width = Math.max(44, this.font.width(labels.get(i)) + 12);
-            if (x > 16 && x + width > right && !inline) {
-                x = 16;
-                y += 22;
-            }
-            Button button = this.addRenderableWidget(Button.builder(labels.get(i), b -> chooseCategory(tab))
-                    .bounds(x, y, width, 18).build());
-            button.active = tab != category;
-            categoryButtons.add(button);
-            x += width + gap;
-        }
-        categoryRows = inline ? 0 : (y - speciesTop) / 22 + 1;
+        List<AnimalCategory> result = new ArrayList<>(present);
+        result.add(null);
+        return result;
     }
 
     private void chooseCategory(AnimalCategory chosen) {
         category = chosen;
         lastCategory = chosen;
         scroll = 0;
-        refreshSpeciesButtons();
-        recompute();
+        speciesOffset = 0;
+        relayout();
     }
 
     private Map<String, Component> collectSpecies(Collection<AnimalRecord> records) {
         Map<String, Component> species = new LinkedHashMap<>();
         records.stream()
                 .sorted(Comparator.comparing(record -> speciesSortKey(record.speciesId())))
-                .forEach(record -> species.putIfAbsent(record.speciesId(), speciesLabel(record.speciesId())));
+                .forEach(record -> species.putIfAbsent(record.speciesId(), speciesName(record.speciesId())));
 
         return species;
     }
 
     private static String speciesSortKey(String speciesId) {
         return switch (speciesId) {
-            case "minecraft:wolf" -> "01_dogs";
-            case "minecraft:cat" -> "02_cats";
-            case "minecraft:parrot" -> "03_parrots";
+            case "minecraft:wolf" -> "01_wolf";
+            case "minecraft:cat" -> "02_cat";
+            case "minecraft:parrot" -> "03_parrot";
             default -> "99_" + shortSpecies(speciesId);
-        };
-    }
-
-    private static Component speciesLabel(String speciesId) {
-        return switch (speciesId) {
-            case "minecraft:wolf" -> Component.translatable("familytree.screen.species.dogs");
-            case "minecraft:cat" -> Component.translatable("familytree.screen.species.cats");
-            case "minecraft:parrot" -> Component.translatable("familytree.screen.species.parrots");
-            default -> speciesName(speciesId);
         };
     }
 
@@ -517,20 +589,22 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         drawPill(gfx, pillX, pillY, pillW, pillH, statusText,
                 deceased ? PILL_DECEASED : PILL_ALIVE);
 
+        int textLeft = avatarX + AVATAR_SIZE + 10;
         long worldAge = deceased && r.deathWorldDay() != null
                 ? r.deathWorldDay() - r.birthWorldDay()
                 : snapshot.currentWorldDay() - r.birthWorldDay();
         String ageStr = buildAgeSummary(r.birthWorldDay(), worldAge);
+        int subtitleRight = pillX;
         if (!ageStr.isEmpty()) {
-            int aw = this.font.width(ageStr);
-            gfx.text(this.font, Component.literal(ageStr), right - 10 - aw, pillY + pillH + 4, TEXT_MUTED);
+            ageStr = trimToWidth(ageStr, Math.max(10, right - 10 - textLeft - 40));
+            int ageX = right - 10 - this.font.width(ageStr);
+            gfx.text(this.font, Component.literal(ageStr), ageX, pillY + pillH + 4, TEXT_MUTED);
+            subtitleRight = Math.min(subtitleRight, ageX);
         }
 
-        int textLeft = avatarX + AVATAR_SIZE + 10;
-        int textMax = Math.max(10, pillX - 8 - textLeft);
-        gfx.text(this.font, Component.literal(trimToWidth(r.name(), textMax)),
+        gfx.text(this.font, Component.literal(trimToWidth(r.name(), Math.max(10, pillX - 8 - textLeft))),
                 textLeft, top + 9, deceased ? TEXT_PRIMARY_DIM : TEXT_PRIMARY);
-        gfx.text(this.font, Component.literal(trimToWidth(buildSubtitle(r), textMax)),
+        gfx.text(this.font, Component.literal(trimToWidth(buildSubtitle(r), Math.max(10, subtitleRight - 8 - textLeft))),
                 textLeft, top + 22, TEXT_SECONDARY);
     }
 
@@ -555,18 +629,14 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
                 x + w / 2, y + (h - this.font.lineHeight) / 2 + 1, 0xFFFFFFFF);
     }
 
-    private static void drawPanelBorder(GuiGraphicsExtractor gfx, int l, int t, int r, int b, int color) {
-        drawBorder(gfx, l, t, r, b, color);
-    }
-
-    private static void drawBorder(GuiGraphicsExtractor gfx, int l, int t, int r, int b, int color) {
+    static void drawBorder(GuiGraphicsExtractor gfx, int l, int t, int r, int b, int color) {
         gfx.fill(l, t, r, t + 1, color);
         gfx.fill(l, b - 1, r, b, color);
         gfx.fill(l, t, l + 1, b, color);
         gfx.fill(r - 1, t, r, b, color);
     }
 
-    private static int speciesAccentColor(String speciesId) {
+    static int speciesAccentColor(String speciesId) {
         return switch (speciesId) {
             case "minecraft:wolf" -> 0xFF9AA0A8;
             case "minecraft:cat" -> 0xFFE0883B;
@@ -588,16 +658,7 @@ public class FamilyTreeBrowserScreen extends FamilyTreeScreen {
         if (FamilyTreeClientSettings.showHorseStats() && HorseStatsText.has(r)) {
             for (HorseStatsText.Segment segment : HorseStatsText.card(r, id -> null)) subtitle += "  ·  " + segment.text();
         }
-        String tamedBy = buildTamedByLine(r);
+        String tamedBy = TreeRenderer.buildTamedByLine(r);
         return tamedBy.isEmpty() ? subtitle : subtitle + "  ·  " + tamedBy;
-    }
-
-    private String trimToWidth(String text, int maxWidth) {
-        if (this.font.width(text) <= maxWidth) return text;
-        return this.font.plainSubstrByWidth(text, Math.max(0, maxWidth - this.font.width("..."))) + "...";
-    }
-
-    private String buildTamedByLine(AnimalRecord record) {
-        return TreeRenderer.buildTamedByLine(record);
     }
 }
