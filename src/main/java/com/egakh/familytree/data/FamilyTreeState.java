@@ -147,8 +147,13 @@ public class FamilyTreeState extends SavedData {
     public static final Codec<FamilyTreeState> CODEC = new Codec<>() {
         @Override public <T> DataResult<Pair<FamilyTreeState, T>> decode(DynamicOps<T> ops, T input) {
             FamilyTreeState state = new FamilyTreeState();
-            state.initialized = true;
             Dynamic<T> root = new Dynamic<>(ops, input);
+            // Before 1.21.5 Minecraft passes an empty compound when the file has no data wrapper, such as a raw
+            // legacy history. Leaving the state uninitialized makes get() read the file itself instead of saving over it.
+            if (input == null || ops.getMap(input).result().isPresent()
+                    && root.get("data_version").result().isEmpty() && root.get("records").result().isEmpty())
+                return DataResult.success(Pair.of(state, ops.empty()));
+            state.initialized = true;
             var versionField = root.get("data_version").result();
             var versionNumber = root.get("data_version").asNumber().result();
             int version = versionNumber.map(Number::intValue).orElse(CURRENT_DATA_VERSION);
@@ -264,17 +269,21 @@ public class FamilyTreeState extends SavedData {
         //?} else {
         /*FamilyTreeState state = storage.computeIfAbsent(FamilyTreeState::load, FamilyTreeState::new, LEGACY_STATE_KEY);
         *///?}
-        if (!state.initialized) {
-            state.initialized = true;
-            FamilyTreeState legacyState = loadWithoutMinecraft(savedFile(server),
-                    server.getWorldPath(LevelResource.ROOT).resolve("data").resolve(LEGACY_STATE_KEY + ".dat"), state);
-            if (legacyState != null) {
-                storage.set(TYPE, legacyState);
-                legacyState.setDirty();
-                return legacyState;
-            }
+        FamilyTreeState legacyState = afterMinecraft(state, savedFile(server),
+                server.getWorldPath(LevelResource.ROOT).resolve("data").resolve(LEGACY_STATE_KEY + ".dat"));
+        if (legacyState != state) {
+            storage.set(TYPE, legacyState);
+            legacyState.setDirty();
         }
-        return state;
+        return legacyState;
+    }
+
+    /** The state to use once Minecraft has loaded, or failed to load, {@code fromMinecraft}. */
+    static FamilyTreeState afterMinecraft(FamilyTreeState fromMinecraft, Path saved, Path legacy) {
+        if (fromMinecraft.initialized) return fromMinecraft;
+        fromMinecraft.initialized = true;
+        FamilyTreeState loaded = loadWithoutMinecraft(saved, legacy, fromMinecraft);
+        return loaded == null ? fromMinecraft : loaded;
     }
 
     public static FamilyTreeState get(Level world) {
@@ -304,9 +313,11 @@ public class FamilyTreeState extends SavedData {
         if (!Files.exists(source)) return null;
         try {
             FamilyTreeState loaded = readFile(source);
+            if (loaded.readOnly()) throw new IOException("Family Tree can't use the data version or layout in " + source);
             Path backup = source.resolveSibling(source.getFileName() + ".migration-backup");
             if (!Files.exists(backup)) Files.copy(source, backup);
-            if (source.equals(saved)) FamilyTreeMod.LOGGER.warn("Minecraft could not read Family Tree data at {}, so Family Tree read it directly. Original file preserved at {}", source, backup);
+            // Fabric 1.21.1 and 1.21.4 take this path on every start: vanilla calls update on the null DataFixTypes and fails.
+            if (source.equals(saved)) FamilyTreeMod.LOGGER.info("Family Tree read its history from {}. A copy is kept at {}", source, backup);
             else FamilyTreeMod.LOGGER.info("Imported legacy Family Tree data. Original file preserved at {}", backup);
             return loaded;
         } catch (IOException | RuntimeException failure) {

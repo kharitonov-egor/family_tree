@@ -35,7 +35,10 @@ public final class NeoForgeEntrypoint {
         modBus.addListener(this::registerPackets);
         NeoForgePermissions permissions = new NeoForgePermissions();
         NeoForge.EVENT_BUS.addListener(permissions::register);
-        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, permissions::loggedIn);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, (net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) -> {
+            permissions.loggedIn(event);
+            if (event.getEntity() instanceof ServerPlayer player) com.egakh.familytree.data.SaveNotice.joined(player);
+        });
         NeoForge.EVENT_BUS.addListener(permissions::loggedOut);
         ServerPetAccess.configure(permissions);
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> FamilyTreeCommand.register(event.getDispatcher()));
@@ -55,9 +58,6 @@ public final class NeoForgeEntrypoint {
                 event.setCancellationResult(result);
                 event.setCanceled(true);
             }
-        });
-        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) -> {
-            if (event.getEntity() instanceof ServerPlayer player) com.egakh.familytree.data.SaveNotice.joined(player);
         });
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) -> {
             FamilyTreePackets.disconnect(event.getEntity().getUUID()); LinkingTool.disconnect(event.getEntity().getUUID());

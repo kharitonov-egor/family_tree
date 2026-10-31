@@ -117,8 +117,9 @@ public final class StoreFiles {
 
     /** Minecraft keeps saved data under {@code data}. A file holding the records directly is read as it is. */
     private static Object dataOf(Nbt.Compound root, Path path) throws IOException {
-        if (root.has("records") || root.has("data_version")) return root;
-        if (root.has("data")) return root.get("data");
-        throw new IOException("No Family Tree records in " + path);
+        Object data = root.has("records") || root.has("data_version") ? root : root.get("data");
+        if (data == null || data instanceof Nbt.Compound compound && !compound.has("records") && !compound.has("data_version"))
+            throw new IOException("No Family Tree records in " + path);
+        return data;
     }
 }

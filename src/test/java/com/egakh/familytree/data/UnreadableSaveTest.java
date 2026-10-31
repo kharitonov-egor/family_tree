@@ -112,6 +112,52 @@ class UnreadableSaveTest {
         assertEquals(1, imported.all().size());
     }
 
+    /** Before 1.21.5, Minecraft hands the codec an empty compound when the file has no data wrapper. */
+    @Test void aRawHistoryMinecraftReadsAsEmptyIsReadDirectlyInsteadOfSavedOver() throws IOException {
+        Path saved = world.resolve("data/familytree.dat");
+        Files.createDirectories(saved.getParent());
+        FamilyTreeState raw = new FamilyTreeState();
+        raw.put(pet());
+        raw.put(pet());
+        try (OutputStream out = Files.newOutputStream(saved)) {
+            NbtIo.writeCompressed((CompoundTag) FamilyTreeState.CODEC.encodeStart(NbtOps.INSTANCE, raw).getOrThrow(), out);
+        }
+        FamilyTreeState fromMinecraft = FamilyTreeState.CODEC.parse(NbtOps.INSTANCE, new CompoundTag()).getOrThrow();
+        FamilyTreeState used = FamilyTreeState.afterMinecraft(fromMinecraft, saved, saved);
+        assertNotSame(fromMinecraft, used);
+        assertEquals(2, used.all().size());
+        assertFalse(used.readOnly());
+    }
+
+    @Test void aRejected26xImportLocksWithoutWritingSoTheNextStartRetries() throws IOException {
+        Path saved = world.resolve("dimensions/minecraft/overworld/data/familytree/familytree.dat");
+        Path legacy = world.resolve("data/familytree.dat");
+        Files.createDirectories(legacy.getParent());
+        FamilyTreeState state = new FamilyTreeState();
+        state.put(pet());
+        CompoundTag data = (CompoundTag) FamilyTreeState.CODEC.encodeStart(NbtOps.INSTANCE, state).getOrThrow();
+        data.putInt("data_version", 2);
+        CompoundTag root = new CompoundTag();
+        root.put("data", data);
+        try (OutputStream out = Files.newOutputStream(legacy)) {
+            NbtIo.writeCompressed(root, out);
+        }
+        FamilyTreeState fresh = new FamilyTreeState();
+        fresh.setDirty();
+        assertSame(fresh, FamilyTreeState.afterMinecraft(fresh, saved, legacy));
+        assertTrue(fresh.readOnly());
+        assertFalse(fresh.isDirty());
+        assertEquals(legacy, fresh.unreadableFile());
+
+        data.putInt("data_version", 1);
+        try (OutputStream out = Files.newOutputStream(legacy)) {
+            NbtIo.writeCompressed(root, out);
+        }
+        FamilyTreeState imported = FamilyTreeState.afterMinecraft(new FamilyTreeState(), saved, legacy);
+        assertEquals(1, imported.all().size());
+        assertFalse(imported.readOnly());
+    }
+
     @Test void aNewWorldHasNothingToRead() {
         Path saved = world.resolve("data/familytree.dat");
         FamilyTreeState fresh = new FamilyTreeState();

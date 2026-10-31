@@ -72,6 +72,9 @@ class TreeImageExporterTest {
         assertTrue(marked.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "the note wraps above the footer");
         var image = ImageIO.read(TreeImageExporter.save(marked, directory.resolve("marked"), "Lamb").toFile());
         assertEquals(marked.height(), image.getHeight());
+        var japanese = TreeImageExporter.prepare(tree, "Lamb", "カードの上の短い線は、記録から削除されたか表示されていない親を示します。".repeat(3),
+                p -> "", p -> "Alive", p -> null, p -> List.of(), p -> false, null, p -> false);
+        assertTrue(japanese.height() >= plain.height() + 2 * 16 * TreeImageExporter.SCALE, "text without spaces wraps too");
     }
 
     @Test void horseCardsCarryStatsAndDrawMarkersForFoalsThatBeatOrTrailBothParents() throws Exception {

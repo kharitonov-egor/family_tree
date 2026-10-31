@@ -65,6 +65,26 @@ class SaveSafetyTest {
         assertTrue(imported.dirty());
     }
 
+    @Test void anEmptyDataWrapperIsUnreadableRatherThanAnEmptyHistory() throws IOException {
+        Nbt.Compound root = new Nbt.Compound();
+        root.put("data", new Nbt.Compound());
+        root.put("DataVersion", 3955);
+        StoreFiles older = StoreFiles.forLevel(temp, false);
+        Files.createDirectories(older.file().getParent());
+        try (var out = Files.newOutputStream(older.file())) {
+            Nbt.writeCompressed(root, out);
+        }
+        FamilyTreeStore existing = older.load(LOGGER);
+        assertTrue(existing.readOnly());
+        assertEquals(older.file(), existing.unreadableFile());
+
+        StoreFiles modern = StoreFiles.forLevel(temp, true);
+        FamilyTreeStore imported = modern.load(LOGGER);
+        assertTrue(imported.readOnly());
+        assertFalse(imported.dirty());
+        assertFalse(Files.exists(modern.file()));
+    }
+
     @Test void theShutdownSaveIsWrittenAfterOlderQueuedSaves() throws Exception {
         StoreFiles files = StoreFiles.forLevel(temp, false);
         ExecutorService writer = Executors.newSingleThreadExecutor();

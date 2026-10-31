@@ -197,7 +197,10 @@ public final class TreeImageExporter {
         g.drawString(text, x + 12, y + 12);
     }
 
-    /** Wraps the footer at spaces and line breaks. Each line after the first makes the picture taller. */
+    /**
+     * Wraps the footer at line breaks and spaces, and inside a word when no space fits, as Japanese and Chinese
+     * text needs. Each line after the first makes the picture taller.
+     */
     private static List<String> footerLines(String footer, int width) {
         Graphics2D g = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB).createGraphics();
         try {
@@ -205,15 +208,25 @@ public final class TreeImageExporter {
             FontMetrics metrics = g.getFontMetrics();
             List<String> lines = new ArrayList<>();
             for (String paragraph : footer.split("\n")) {
-                String line = "";
-                for (String word : paragraph.split(" ")) {
-                    String longer = line.isEmpty() ? word : line + " " + word;
-                    if (!line.isEmpty() && metrics.stringWidth(longer) > width) {
-                        lines.add(line);
-                        line = word;
-                    } else line = longer;
+                StringBuilder line = new StringBuilder();
+                int afterSpace = -1;
+                for (int offset = 0; offset < paragraph.length(); ) {
+                    int point = paragraph.codePointAt(offset);
+                    offset += Character.charCount(point);
+                    line.appendCodePoint(point);
+                    if (point == ' ') {
+                        afterSpace = line.length();
+                        continue;
+                    }
+                    int added = Character.charCount(point);
+                    if (line.length() > added && metrics.stringWidth(line.toString()) > width) {
+                        int cut = afterSpace > 0 ? afterSpace : line.length() - added;
+                        lines.add(line.substring(0, cut).stripTrailing());
+                        line.delete(0, cut);
+                        afterSpace = -1;
+                    }
                 }
-                lines.add(line);
+                lines.add(line.toString().stripTrailing());
             }
             return lines;
         } finally {

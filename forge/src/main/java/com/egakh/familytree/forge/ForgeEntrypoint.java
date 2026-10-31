@@ -36,7 +36,10 @@ public final class ForgeEntrypoint {
         IEventBus events = MinecraftForge.EVENT_BUS;
         ForgePermissions permissions = new ForgePermissions();
         events.addListener(permissions::register);
-        events.addListener(EventPriority.LOWEST, permissions::loggedIn);
+        events.addListener(EventPriority.LOWEST, (PlayerEvent.PlayerLoggedInEvent event) -> {
+            permissions.loggedIn(event);
+            if (event.getEntity() instanceof ServerPlayer player) com.egakh.familytree.data.SaveNotice.joined(player);
+        });
         events.addListener(permissions::loggedOut);
         ServerPetAccess.configure(permissions);
         events.addListener((RegisterCommandsEvent event) -> FamilyTreeCommand.register(event.getDispatcher()));
@@ -56,9 +59,6 @@ public final class ForgeEntrypoint {
                 event.setCancellationResult(result);
                 event.setCanceled(true);
             }
-        });
-        events.addListener((PlayerEvent.PlayerLoggedInEvent event) -> {
-            if (event.getEntity() instanceof ServerPlayer player) com.egakh.familytree.data.SaveNotice.joined(player);
         });
         events.addListener((PlayerEvent.PlayerLoggedOutEvent event) -> {
             FamilyTreePackets.disconnect(event.getEntity().getUUID());
