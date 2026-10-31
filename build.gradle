@@ -19,6 +19,7 @@ if (project.hasProperty('smoke')) {
                 server()
                 source sourceSets.smoke
                 runDir "../../build/smoke-${stonecutter.current.version}"
+                vmArg '-Xmx2G'
                 programArgs 'nogui'
                 vmArg "-Dfamilytree.smoke.minimumHistory=${project.findProperty('smokeHistory') ?: '0'}"
             }
@@ -48,6 +49,7 @@ def fabricApiVersions = [
         '26.1.2': '0.155.3+26.1.2',
         '26.2'  : '0.154.1+26.2',
         '26.3'  : '0.161.0+26.3',
+        '26.4-snapshot-6': '0.165.1+26.4',
 ]
 def fabricApiVersion = fabricApiVersions[mcVersion]
 if (fabricApiVersion == null) {
@@ -55,7 +57,11 @@ if (fabricApiVersion == null) {
 }
 // The 1.21.8 and 1.21.10 jars also declare earlier patches they ran on. ALSO_RUNS_ON in release_manifest.py must match.
 def minecraftRanges = ['1.21.8': '>=1.21.6 <=1.21.8', '1.21.10': '>=1.21.9 <=1.21.10']
-def minecraftDep = minecraftRanges[mcVersion] ?: "=${mcVersion}"
+// Fabric Loader reads 26.1-snapshot-1 as 26.1-alpha.1 and 26.1-pre-1 as 26.1-pre.1.
+def fabricGameVersion = mcVersion.replaceFirst(/-snapshot-(\d+)$/, '-alpha.$1').replaceFirst(/-(pre|rc)-(\d+)$/, '-$1.$2')
+def minecraftDep = minecraftRanges[mcVersion] ?: "=${fabricGameVersion}"
+// Fabric API for 26.4 requires Loader 0.20.0. Other targets keep the tested minimum from gradle.properties.
+def loaderVersion = ['26.4-snapshot-6': '0.20.1'][mcVersion] ?: project.loader_version
 def obfuscated = mcVersion.startsWith('1.')
 def javaVersion = mcVersion == '1.20.1' ? 17 : obfuscated ? 21 : 25
 
@@ -84,6 +90,7 @@ def integrationVersions = [
                     journeymap: '26.2-6.0.10+fabric', xaero: 'fabric-26.2-26.6.2'],
         '26.3'   : [jade: '26.3.5+fabric', modmenu: '21.0.0',
                     journeymap: '26.3-6.0.10+fabric', xaero: 'fabric-26.3-26.6.2'],
+        '26.4-snapshot-6': [jade: '26.3.5+fabric', modmenu: '22.0.0-alpha.3'],
 ][mcVersion]
 if (integrationVersions == null) {
     throw new GradleException("No integration versions mapped for Minecraft ${mcVersion} — add them to build.gradle")
@@ -131,10 +138,10 @@ dependencies {
     minecraft "com.mojang:minecraft:${mcVersion}"
     loomx.applyMojangMappings()
     if (obfuscated) {
-        modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+        modImplementation "net.fabricmc:fabric-loader:${loaderVersion}"
         modImplementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
     } else {
-        implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+        implementation "net.fabricmc:fabric-loader:${loaderVersion}"
         implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
     }
     def integrationCompile = obfuscated ? 'modCompileOnly' : 'compileOnly'
@@ -183,9 +190,10 @@ test {
 processResources {
     inputs.property 'version', project.version
     inputs.property 'minecraft', minecraftDep
+    inputs.property 'loader', loaderVersion
 
     filesMatching('fabric.mod.json') {
-        expand 'version': project.version, 'minecraft': minecraftDep, 'java': "${javaVersion}"
+        expand 'version': project.version, 'minecraft': minecraftDep, 'java': "${javaVersion}", 'loader': loaderVersion
     }
     filesMatching('familytree.mixins.json') {
         expand 'java': "${javaVersion}"

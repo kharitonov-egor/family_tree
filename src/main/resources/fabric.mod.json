@@ -24,7 +24,7 @@
     "familytree.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.19.3",
+    "fabricloader": ">=${loader}",
     "fabric-api": "*",
     "minecraft": "${minecraft}",
     "java": ">=${java}"

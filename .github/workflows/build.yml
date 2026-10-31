@@ -24,6 +24,7 @@ jobs:
           - {loader: fabric, minecraft: '26.1.2'}
           - {loader: fabric, minecraft: '26.2'}
           - {loader: fabric, minecraft: '26.3'}
+          - {loader: fabric, minecraft: '26.4-snapshot-6'}
           - {loader: neoforge, minecraft: '1.21.1'}
           - {loader: neoforge, minecraft: '1.21.4'}
           - {loader: neoforge, minecraft: '1.21.5'}
