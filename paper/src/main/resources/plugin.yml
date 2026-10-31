@@ -1,0 +1,56 @@
+name: FamilyTree
+version: '${version}'
+main: com.egakh.familytree.plugin.FamilyTreePlugin
+api-version: '1.20'
+description: Keeps tamed and bred animals' family history. Players browse it in chest menus without installing anything.
+author: Egor Kharitonov
+website: https://modrinth.com/mod/familytree
+commands:
+  familytree:
+    description: Browse families in a chest menu, or list, locate, and edit recorded animals.
+    usage: /familytree [menu|list|scan|locate|info|pair|unpair|setage|setbirth|breed|prune|reload|settings]
+# Every node defaults to false here because Bukkit and LuckPerms treat a plugin.yml default as a set node.
+# Family Tree applies the defaults from config.yml to nodes no permission plugin sets.
+permissions:
+  familytree.use:
+    description: /familytree, list, info, and the client mod's screens. Everyone by default.
+    default: false
+  familytree.menu:
+    description: The chest menu. Everyone by default.
+    default: false
+  familytree.scan:
+    description: /familytree scan and Find existing pets. Everyone by default.
+    default: false
+  familytree.locate:
+    description: Locate your pets and add map waypoints. Everyone by default, operators with ownersCanLocate false.
+    default: false
+  familytree.rename:
+    description: Give your pets a Family Tree name. Everyone by default, operators with ownersCanRename false.
+    default: false
+  familytree.parents:
+    description: Add, change, or clear your pets' parents. Everyone by default, operators with ownersCanEditParents false.
+    default: false
+  familytree.age:
+    description: /familytree setage and setbirth. Everyone by default, operators with ownersCanSetAge false.
+    default: false
+  familytree.breed:
+    description: /familytree breed and Plan breeding in the chest menu. Everyone by default.
+    default: false
+  familytree.linkingstick:
+    description: Use the linking stick, which also adds animals other than pets. Everyone by default.
+    default: false
+  familytree.others.view:
+    description: Browse every player's pets. Set by viewPolicy, operators by default.
+    default: false
+  familytree.others.manage:
+    description: Locate, rename, and edit other players' pets. Operators by default.
+    default: false
+  familytree.prune:
+    description: /familytree prune. Operators by default.
+    default: false
+  familytree.reload:
+    description: /familytree reload. Operators by default.
+    default: false
+  familytree.settings:
+    description: /familytree settings. Operators by default.
+    default: false

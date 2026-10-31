@@ -204,6 +204,14 @@ Owners and server operators can locate or edit their pets. Linking two parents r
 
 ![config/familytree-server.properties with a comment above every setting](docs/media/server-config.webp)
 
+## Paper and Spigot servers
+
+Servers that run Paper, Spigot, or Purpur can use the Family Tree plugin instead of the mod. It is one jar, tested on ten Minecraft versions from 1.20.1 to 26.3, and players install nothing. [Family Tree for Paper and Spigot](docs/plugin.md) covers installing it, the tested versions, and how it differs from the mod.
+
+- It records the same animals, with the same `/familytree` commands, chest menus, permission nodes, settings, and 15 languages.
+- It keeps history in the mod's `familytree.dat`, so a world keeps its families when it moves between the mod and the plugin.
+- Players who have the client mod get its full screens on a plugin server.
+
 ## Languages
 
 Family Tree includes English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Russian, Ukrainian, German, French, Italian, Spanish (Spain and Mexico), Brazilian Portuguese, Polish, and Turkish. Everything except English was machine-translated. If a phrase reads wrong in your language, please [open an issue](https://github.com/kharitonov-egor/family_tree/issues) or send a pull request that edits `src/main/resources/assets/familytree/lang/<language>.json`. A test checks that every language file has the same keys and format arguments as `en_us.json`.
@@ -224,9 +232,10 @@ Install JDK 25, JDK 21, and JDK 17, then use the included Gradle wrapper. The 1.
 ./gradlew :26.2:build
 ./gradlew -p neoforge build
 ./gradlew -p forge build -Pminecraft=1.20.1
+./gradlew -p paper build
 ```
 
-Fabric jars are in `versions/<minecraft>/build/libs/`, NeoForge jars in `neoforge/build/<minecraft>/libs/`, and Forge jars in `forge/build/<minecraft>/libs/`. `buildAll` runs the shared tests for all twenty-one targets, including the Fabric 26.4-snapshot-6 build, which `./gradlew :26.4-snapshot-6:build` builds alone and which needs Fabric Loader 0.20.1. Stonecutter generates Fabric sources for each version. NeoForge and Forge compile the generated sources for their selected target with their own event and networking entrypoints. Do not edit generated files under `versions/`.
+Fabric jars are in `versions/<minecraft>/build/libs/`, NeoForge jars in `neoforge/build/<minecraft>/libs/`, Forge jars in `forge/build/<minecraft>/libs/`, and the Paper and Spigot plugin in `paper/build/libs/`. `buildAll` runs the shared tests for all twenty-one targets, including the Fabric 26.4-snapshot-6 build, which `./gradlew :26.4-snapshot-6:build` builds alone and which needs Fabric Loader 0.20.1. Stonecutter generates Fabric sources for each version. NeoForge and Forge compile the generated sources for their selected target with their own event and networking entrypoints. Do not edit generated files under `versions/`.
 
 See [runtime validation](docs/testing.md) for the separate server smoke tests and client demo. [CLAUDE.md](CLAUDE.md) covers the source layout and save compatibility rules.
 

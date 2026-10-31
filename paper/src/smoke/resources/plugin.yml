@@ -1,0 +1,6 @@
+name: FamilyTreeSmoke
+version: '1'
+main: com.egakh.familytree.plugin.smoke.SmokePlugin
+api-version: '1.20'
+depend: [FamilyTree]
+description: Development check for Family Tree. Never ship this.

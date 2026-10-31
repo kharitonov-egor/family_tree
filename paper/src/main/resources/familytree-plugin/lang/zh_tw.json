@@ -1,0 +1,4 @@
+{
+  "familytree.plugin.prompt.rename": "在聊天欄中輸入 %s 在家族樹中的新名字。輸入 - 恢復原名，輸入 cancel 取消。",
+  "familytree.plugin.prompt.search": "在聊天欄中輸入要搜尋的名字。輸入 - 顯示所有動物，輸入 cancel 取消。"
+}

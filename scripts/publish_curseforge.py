@@ -75,6 +75,9 @@ def main():
     published = json.loads(record.read_text()) if record.exists() else []
     done = {item['version'] for item in published}
     for item in manifest['files']:
+        if item['loader'] == 'plugin':
+            print('Skipping', item['filename'], '- CurseForge lists Bukkit plugins in a separate project')
+            continue
         if item['version'] in done:
             print('Already uploaded:', item['version'])
             continue

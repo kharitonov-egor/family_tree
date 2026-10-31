@@ -63,7 +63,7 @@ def main():
         versions = api.request('GET', f'project/{PROJECT}/version')
         published = []
         for item in manifest['files']:
-            loaders = [item['loader']] + (['quilt'] if args.quilt and item['loader'] == 'fabric' else [])
+            loaders = item.get('loaders') or [item['loader']] + (['quilt'] if args.quilt and item['loader'] == 'fabric' else [])
             path = args.manifest.parent / item['filename']
             content = path.read_bytes()
             assert hashlib.sha512(content).hexdigest() == item['sha512'], 'Release file changed after verification'
@@ -75,7 +75,8 @@ def main():
                 assert sorted(version['loaders']) == sorted(loaders)
             else:
                 metadata = {'project_id': PROJECT, 'version_number': item['version'],
-                    'name': f'Family Tree {manifest["mod_version"]} for {item["minecraft"]} {item["loader"].capitalize()}',
+                    'name': f'Family Tree {manifest["mod_version"]} for Paper and Spigot' if item['loader'] == 'plugin'
+                    else f'Family Tree {manifest["mod_version"]} for {item["minecraft"]} {item["loader"].capitalize()}',
                     'changelog': (ROOT / 'docs/releases' / (manifest['mod_version'] + '.md')).read_text(),
                     'dependencies': item['dependencies'], 'game_versions': item.get('game_versions', [item['minecraft']]),
                     'version_type': item['release_type'], 'loaders': loaders,

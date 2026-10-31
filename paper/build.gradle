@@ -1,0 +1,125 @@
+plugins {
+    id 'java'
+}
+
+def sharedProperties = new Properties()
+file('../gradle.properties').withInputStream { sharedProperties.load(it) }
+version = "${sharedProperties.mod_version}+plugin"
+group = sharedProperties.maven_group
+base.archivesName = 'familytree'
+
+// Spigot 1.20.1 is the oldest API the jar supports, so main code compiles against it and can't call newer methods by accident.
+def spigotApi = 'org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT'
+def paperApi = 'io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.withSourcesJar()
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 17
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
+    maven { url = 'https://hub.spigotmc.org/nexus/content/groups/public/' }
+}
+
+// Minecraft-free classes from the mod, compiled unchanged against the plugin's own AnimalRecord and HorseStats.
+def sharedJava = [
+        'FamilyTreeMod.java',
+        'breeding/BestPairs.java',
+        'breeding/BreedingPair.java',
+        'breeding/BreedingPlan.java',
+        'breeding/LlamaStrength.java',
+        'breeding/OffspringStats.java',
+        'breeding/VariantOdds.java',
+        'data/FarmRecords.java',
+        'menu/MenuText.java',
+        'naming/NameGenerator.java',
+        'naming/PetRenaming.java',
+        'network/RequestLimiter.java',
+        'permissions/ParentLinks.java',
+        'permissions/FamilyTreePermission.java',
+        'permissions/PetAccess.java',
+        'settings/ServerSettings.java',
+        'settings/SettingProblem.java',
+        'settings/SettingsReader.java',
+        'settings/TrackingRules.java',
+        'text/LangTables.java',
+        'util/AnimalCategory.java',
+        'util/Genealogy.java',
+        'util/HorseStatUnits.java',
+        'util/Kinship.java',
+        'util/PetNames.java',
+        'util/PetRelations.java',
+        'util/VariantRules.java',
+]
+def sharedSources = layout.buildDirectory.dir('generated/shared/java')
+def sharedResources = layout.buildDirectory.dir('generated/shared/resources')
+
+tasks.register('syncSharedSources', Sync) {
+    from('../src/main/java/com/egakh/familytree') { include sharedJava }
+    into sharedSources.map { it.dir('com/egakh/familytree') }
+}
+tasks.register('syncSharedResources', Sync) {
+    from('../src/main/resources') { include 'assets/familytree/lang/*.json', 'assets/familytree/icon.png' }
+    from('../LICENSE') { rename { 'LICENSE_familytree' } }
+    into sharedResources
+}
+
+sourceSets {
+    main {
+        java.srcDir sharedSources
+        resources.srcDir sharedResources
+    }
+    paper {
+        compileClasspath += main.output
+    }
+    smoke {
+        compileClasspath += main.output
+    }
+}
+
+configurations {
+    smokeCompileOnly.extendsFrom compileOnly
+}
+
+dependencies {
+    compileOnly spigotApi
+    compileOnly 'org.slf4j:slf4j-api:2.0.9'
+    paperCompileOnly paperApi
+    testImplementation spigotApi
+    testImplementation 'org.slf4j:slf4j-api:2.0.9'
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('compileJava') { dependsOn 'syncSharedSources' }
+tasks.named('processResources') {
+    dependsOn 'syncSharedResources'
+    inputs.property 'version', project.version
+    filesMatching('plugin.yml') { expand version: project.version }
+}
+tasks.named('sourcesJar') {
+    dependsOn 'syncSharedSources', 'syncSharedResources'
+    from sourceSets.paper.allSource
+}
+
+jar {
+    from sourceSets.paper.output
+}
+
+// Development-only plugin that checks tracking on a real server. It never enters the release jar.
+tasks.register('smokeJar', Jar) {
+    archiveFileName = 'familytree-smoke.jar'
+    from sourceSets.smoke.output
+}
+tasks.named('assemble') { dependsOn 'smokeJar' }
+
+test {
+    useJUnitPlatform()
+    systemProperty 'familytree.repository', rootProject.projectDir.parentFile.absolutePath
+}

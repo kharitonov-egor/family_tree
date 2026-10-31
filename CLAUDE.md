@@ -94,10 +94,21 @@ Tooltips and waypoints show nothing a player couldn't see in Family Tree's own s
 
 All new player-facing text uses translation keys in `assets/familytree/lang/en_us.json`. Add keys for new errors rather than raw English messages. Add each new key to all 15 language files; `LangParityTest` requires the same keys and format arguments everywhere. Use Minecraft's own translations, such as `entity.minecraft.wolf` or `death.attack.*`, for game nouns and death messages. Clear client entity previews when disconnecting.
 
+## Paper and Spigot plugin
+
+`paper/` is a separate Gradle build for one plugin jar that runs on Spigot, Paper, and Paper forks from 1.20.1 to 26.3. `docs/plugin.md` records why it uses only the Bukkit API. Build it with `./gradlew -p paper build`; `buildAll` runs that too.
+
+- It compiles the Minecraft-free classes listed in `sharedJava` in `paper/build.gradle` straight from `src/main/java`, against its own `AnimalRecord` and `HorseStats` with the same methods. Keep those files free of Minecraft imports. When a shared class needs a new record method, add it to `paper/src/main/java/com/egakh/familytree/data/` too.
+- `storage/RecordNbt.java` mirrors `AnimalRecord.CODEC` field for field. A new saved field goes into its `KNOWN` set, `encode`, and `decode`. `StoreCompatibilityTest` reads files the mod wrote and must write back the same NBT.
+- `network/Payloads.java` mirrors the mod's payload codecs. `WireParityTest` compares its bytes with `WireFormatTest` and fails when those change. A new channel or field needs the same change in both.
+- Compile against Spigot 1.20.1 and reach APIs that changed shape later, such as `Cat.Type`, `Attribute`, and `InventoryView`, through `track/Compat.java`. Paper-only code lives in `paper/src/paper`.
+- Plugin-only strings are in `paper/src/main/resources/familytree-plugin/lang/`, in all 15 languages.
+- `scripts/plugin_server.py` and `scripts/plugin_client_check.py` run real servers and an unmodded client. List a server version in `PLUGIN_GAME_VERSIONS` in `scripts/release_manifest.py` only after both pass on it.
+
 ## Testing and publication
 
 Run `buildAll` after changing Minecraft APIs. Development-only source sets `src/smoke` and `src/demo` stay outside release jars. `docs/testing.md` describes server, client, and real gameplay checks.
 
 Commit the tested source, then run `python scripts/release_manifest.py`. It checks exact metadata, Java bytecode, icon, license, and development-class exclusions. It copies jars and source jars into `build/releases/<version>/` and records SHA-512 hashes and the source commit. Publish those copies without rebuilding.
 
-Modrinth project ID is `CVQKDAe7`. Fabric API dependency ID is `P7dR8mSH`. Publish one version per game and loader. Follow `docs/MODRINTH_API.md` or `scripts/publish_modrinth.py`; the PAT lives in ignored `.env`. Never print or commit it. Daily public download counts require no token and no player telemetry.
+Modrinth project ID is `CVQKDAe7`. The plugin jar is published to the same project with the paper, spigot, and purpur loaders; `publish_curseforge.py` skips it because CurseForge lists Bukkit plugins in a separate project. Fabric API dependency ID is `P7dR8mSH`. Publish one version per game and loader. Follow `docs/MODRINTH_API.md` or `scripts/publish_modrinth.py`; the PAT lives in ignored `.env`. Never print or commit it. Daily public download counts require no token and no player telemetry.
