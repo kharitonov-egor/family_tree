@@ -33,6 +33,16 @@ public final class HorseStatUnits {
             return base == null || !Double.isFinite(base) ? null : convert.apply(base);
         }
 
+        /** The value in Minecraft's attribute units, or null when it is unknown. */
+        public Double base(HorseStats stats) {
+            Double base = stats == null ? null : raw.apply(stats);
+            return base == null || !Double.isFinite(base) ? null : base;
+        }
+
+        public double toPlayerUnits(double base) {
+            return convert.apply(base);
+        }
+
         public String format(double value) {
             return String.format(Locale.ROOT, "%." + decimals + "f", value);
         }

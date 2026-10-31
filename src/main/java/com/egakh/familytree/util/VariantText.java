@@ -40,6 +40,18 @@ public final class VariantText {
         return pet == null ? null : label(pet.speciesId(), pet.variantId());
     }
 
+    public static MutableComponent horseCoat(String coat) {
+        return Component.translatableWithFallback("familytree.variant.horse." + coat, VariantRules.humanize(coat));
+    }
+
+    public static MutableComponent horseMarkings(String markings) {
+        return Component.translatableWithFallback("familytree.variant.markings." + markings, VariantRules.humanize(markings));
+    }
+
+    public static MutableComponent woolColor(String color) {
+        return Component.translatableWithFallback("color.minecraft." + color, VariantRules.humanize(color));
+    }
+
     /** Prefers the origin saved at birth. Without one, compares current variants only for species that keep theirs for life. */
     public static VariantRules.Outcome outcome(AnimalRecord pet, Function<UUID, AnimalRecord> lookup) {
         if (pet.variantOrigin() != null) return VariantRules.Outcome.parse(pet.variantOrigin());

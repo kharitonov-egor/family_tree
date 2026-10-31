@@ -28,11 +28,20 @@ public final class TreeRenderer {
     private static final int TEXT_STATS = 0xFFDCE6F0;
     private static final String STATS_SEPARATOR = " \u00B7 ";
     private static final int EDGE_COLOR = 0xFF7C8DA8;
+    /** Cards and links on the path between two compared animals. */
+    public static final int RELATION_COLOR = 0xFF7CE0B4;
 
     private TreeRenderer() {}
 
     public static void drawNode(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node node,
                                 long currentWorldDay, long currentEpochMillis, boolean isFocus, boolean collapsed,
+                                int generation, Function<UUID, AnimalRecord> lookup,
+                                double panX, double panY, double zoom) {
+        drawNode(gfx, font, node, currentWorldDay, currentEpochMillis, isFocus, false, collapsed, generation, lookup, panX, panY, zoom);
+    }
+
+    public static void drawNode(GuiGraphicsExtractor gfx, Font font, TreeLayout.Node node,
+                                long currentWorldDay, long currentEpochMillis, boolean isFocus, boolean related, boolean collapsed,
                                 int generation, Function<UUID, AnimalRecord> lookup,
                                 double panX, double panY, double zoom) {
         int x = (int) Math.round(node.x * zoom + panX);
@@ -42,11 +51,12 @@ public final class TreeRenderer {
         AnimalRecord r = node.record;
 
         int bg = r.deceased() ? BG_DECEASED : BG_ALIVE;
-        int border = isFocus ? BORDER_FOCUS : (r.deceased() ? BORDER_DECEASED : BORDER_ALIVE);
+        int border = isFocus ? BORDER_FOCUS : related ? RELATION_COLOR : (r.deceased() ? BORDER_DECEASED : BORDER_ALIVE);
 
         // The background is opaque, so two fills draw the bordered card that four borders would.
         gfx.fill(x, y, x + w, y + h, border);
-        if (w > 2 && h > 2) gfx.fill(x + 1, y + 1, x + w - 1, y + h - 1, bg);
+        int inset = related && w > 6 && h > 6 ? 2 : 1;
+        if (w > 2 && h > 2) gfx.fill(x + inset, y + inset, x + w - inset, y + h - inset, bg);
 
         int textColor = r.deceased() ? TEXT_DECEASED : TEXT_PRIMARY;
         boolean hasFace = PetFaceRenderer.hasFace(r);
@@ -203,6 +213,11 @@ public final class TreeRenderer {
 
     public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Node parent, TreeLayout.Node child,
                                 double panX, double panY, double zoom) {
+        drawEdge(gfx, parent, child, panX, panY, zoom, EDGE_COLOR, 1);
+    }
+
+    public static void drawEdge(GuiGraphicsExtractor gfx, TreeLayout.Node parent, TreeLayout.Node child,
+                                double panX, double panY, double zoom, int color, int thickness) {
         int scaledNodeWidth = TreeViewport.nodeWidth(zoom);
         int scaledNodeHeight = TreeViewport.nodeHeight(zoom);
         int px = (int) Math.round(parent.x * zoom + panX + scaledNodeWidth / 2.0);
@@ -211,19 +226,19 @@ public final class TreeRenderer {
         int cy = (int) Math.round(child.y * zoom + panY);
 
         int midY = (py + cy) / 2;
-        drawHLine(gfx, Math.min(px, cx), Math.max(px, cx), midY);
-        drawVLine(gfx, px, py, midY);
-        drawVLine(gfx, cx, midY, cy);
+        drawHLine(gfx, Math.min(px, cx), Math.max(px, cx), midY, color, thickness);
+        drawVLine(gfx, px, py, midY, color, thickness);
+        drawVLine(gfx, cx, midY, cy, color, thickness);
     }
 
-    private static void drawHLine(GuiGraphicsExtractor gfx, int x1, int x2, int y) {
-        gfx.fill(x1, y, x2 + 1, y + 1, EDGE_COLOR);
+    private static void drawHLine(GuiGraphicsExtractor gfx, int x1, int x2, int y, int color, int thickness) {
+        gfx.fill(x1, y, x2 + thickness, y + thickness, color);
     }
 
-    private static void drawVLine(GuiGraphicsExtractor gfx, int x, int y1, int y2) {
+    private static void drawVLine(GuiGraphicsExtractor gfx, int x, int y1, int y2, int color, int thickness) {
         int a = Math.min(y1, y2);
         int b = Math.max(y1, y2);
-        gfx.fill(x, a, x + 1, b + 1, EDGE_COLOR);
+        gfx.fill(x, a, x + thickness, b + 1, color);
     }
 
     private static String trimToWidth(Font font, String text, int maxWidth) {

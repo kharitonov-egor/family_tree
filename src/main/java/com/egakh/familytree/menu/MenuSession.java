@@ -1,5 +1,7 @@
 package com.egakh.familytree.menu;
 
+import com.egakh.familytree.breeding.BreedingPair;
+import com.egakh.familytree.breeding.BreedingPlan;
 import com.egakh.familytree.command.FamilyTreeCommand;
 import com.egakh.familytree.data.AnimalRecord;
 import com.egakh.familytree.data.FamilyTreeState;
@@ -16,6 +18,7 @@ import com.egakh.familytree.text.ServerText;
 import com.egakh.familytree.util.AnimalCategory;
 import com.egakh.familytree.util.DeathMessages;
 import com.egakh.familytree.util.HorseStatUnits;
+import com.egakh.familytree.util.Kinship;
 import com.egakh.familytree.util.PetRelations;
 import com.egakh.familytree.util.TimeUtil;
 import com.egakh.familytree.util.VariantText;
@@ -47,7 +50,7 @@ final class MenuSession {
     private static final int CHILD_SLOTS = 18;
     private static final int PREVIOUS = 45, LEFT = 46, LEFT_INNER = 47, LEFT_CENTER = 48, INFO = 49,
             RIGHT_CENTER = 50, RIGHT_INNER = 51, CLOSE = 52, NEXT = 53;
-    private static final int FOCUS = 22, PARENT_A = 10, PARENT_B = 16, CONFIRM = 38, CANCEL = 42;
+    private static final int FOCUS = 22, PARENT_A = 10, PARENT_B = 16, CONFIRM = 38, CANCEL = 42, PLAN = 24;
     private static final int[][] GRANDPARENTS = {{0, 2}, {6, 8}};
     private static final int TOOLTIP_COLUMNS = 40;
     private static final int MAX_QUERY = 64;
@@ -342,6 +345,8 @@ final class MenuSession {
                     ? pageLine(shownPage + 1, pages) : List.of(), manage ? null : "familytree.menu.view_only"), null);
             menu.put(RIGHT_INNER, button(Items.BOOK, text("familytree.menu.book"), hint("familytree.menu.book.hint")),
                     () -> openBook(petId));
+            if (!mates(pet).isEmpty()) menu.put(PLAN, button(Items.GOLDEN_CARROT, text("familytree.menu.plan"),
+                    wrappedLore("familytree.menu.plan.hint")), () -> { pickerPage = 0; showMates(petId); });
             menu.put(CLOSE, closeButton(), player::closeContainer);
             menu.fill(MenuItems.filler(), PAGE_SIZE, LockedChestMenu.SIZE);
             return menu;
@@ -430,6 +435,68 @@ final class MenuSession {
                 .filter(java.util.Objects::nonNull).toList();
         FamilyBook book = FamilyBook.build(language(), pet, this::view, kids, TimeUtil.currentWorldDay(player.level()));
         Menus.show(player, Component.literal(pet.name()), (id, inventory, ignored) -> new BookMenu(id, book.stack(), book.pages()));
+    }
+
+    // Breeding planner
+
+    private List<AnimalRecord> mates(AnimalRecord pet) {
+        if (pet == null || pet.deceased() || !BreedingPair.breeds(pet.speciesId())) return List.of();
+        List<AnimalRecord> mates = new ArrayList<>();
+        for (UUID id : visible) {
+            AnimalRecord other = view(id);
+            if (other == null || other.deceased() || other.id().equals(pet.id())) continue;
+            if (BreedingPair.canBreed(pet.speciesId(), other.speciesId())) mates.add(other);
+        }
+        return mates;
+    }
+
+    private void showMates(UUID petId) {
+        refreshAccess();
+        AnimalRecord pet = view(petId);
+        List<AnimalRecord> candidates = mates(pet);
+        if (pet == null) {
+            showBrowser();
+            return;
+        }
+        int pages = Math.max(1, (candidates.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        pickerPage = Math.max(0, Math.min(pickerPage, pages - 1));
+        int shownPage = pickerPage;
+        Menus.show(player, title("familytree.menu.plan.title", pet.name()), (id, inventory, ignored) -> {
+            LockedChestMenu menu = new LockedChestMenu(id, player, this::allowAction);
+            for (int i = 0; i < PAGE_SIZE && shownPage * PAGE_SIZE + i < candidates.size(); i++) {
+                AnimalRecord mate = candidates.get(shownPage * PAGE_SIZE + i);
+                UUID chosen = mate.id();
+                menu.put(i, petIcon(mate, null, "familytree.menu.plan.choose", false), () -> openPlan(petId, chosen));
+            }
+            if (candidates.isEmpty()) menu.put(FOCUS, wrapped(Items.PAPER, "familytree.menu.plan.none"), null);
+            if (shownPage > 0) menu.put(PREVIOUS, button(Items.ARROW, text("familytree.menu.previous"),
+                    pageLine(shownPage, pages)), () -> { pickerPage--; showMates(petId); });
+            if (shownPage < pages - 1) menu.put(NEXT, button(Items.ARROW, text("familytree.menu.next"),
+                    pageLine(shownPage + 2, pages)), () -> { pickerPage++; showMates(petId); });
+            menu.put(LEFT, button(Items.ARROW, text("familytree.screen.back"), List.of()), () -> { pickerPage = 0; showFamily(petId); });
+            menu.put(INFO, infoButton(text("familytree.menu.plan.title", pet.name()), List.of(), "familytree.menu.plan.hint"), null);
+            menu.put(CLOSE, closeButton(), player::closeContainer);
+            menu.fill(MenuItems.filler(), PAGE_SIZE, LockedChestMenu.SIZE);
+            return menu;
+        });
+        notice = null;
+    }
+
+    /** Kinship uses only animals this player may view, as the screens do. */
+    private void openPlan(UUID petId, UUID mateId) {
+        AnimalRecord pet = view(petId), mate = view(mateId);
+        if (pet == null || mate == null) {
+            showBrowser();
+            return;
+        }
+        Map<UUID, AnimalRecord> shown = new HashMap<>();
+        for (UUID id : visible) {
+            AnimalRecord record = view(id);
+            if (record != null) shown.put(id, record);
+        }
+        PlanBook book = PlanBook.build(language(), new BreedingPlan(pet, mate, new Kinship(shown)));
+        Menus.show(player, Component.literal(pet.name() + " × " + mate.name()),
+                (id, inventory, ignored) -> new BookMenu(id, book.stack(), book.pages()));
     }
 
     // Parent picker

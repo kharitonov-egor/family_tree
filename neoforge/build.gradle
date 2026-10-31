@@ -134,6 +134,7 @@ if (project.hasProperty('demo')) {
                 gameDirectory = file("../build/demo-neoforge-${mcVersion}")
                 systemProperty 'familytree.demo.gameplay', project.hasProperty('gameplay').toString()
                 systemProperty 'familytree.demo.horses', project.hasProperty('horses').toString()
+                systemProperty 'familytree.demo.planner', project.hasProperty('planner').toString()
                 systemProperty 'familytree.demo.animals', project.hasProperty('animals').toString()
                 systemProperty 'familytree.demo.farm', project.hasProperty('farm').toString()
                 if (project.hasProperty('moddedAnimal')) systemProperty 'familytree.demo.moddedAnimal', project.property('moddedAnimal').toString()

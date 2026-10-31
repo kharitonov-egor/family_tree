@@ -252,6 +252,7 @@ if (project.hasProperty('demo')) {
                 vmArg '-Djava.awt.headless=true'
                 vmArg "-Dfamilytree.demo.gameplay=${project.hasProperty('gameplay')}"
                 vmArg "-Dfamilytree.demo.horses=${project.hasProperty('horses')}"
+                vmArg "-Dfamilytree.demo.planner=${project.hasProperty('planner')}"
                 vmArg "-Dfamilytree.demo.animals=${project.hasProperty('animals')}"
                 vmArg "-Dfamilytree.demo.farm=${project.hasProperty('farm')}"
                 if (project.hasProperty('moddedAnimal')) vmArg "-Dfamilytree.demo.moddedAnimal=${project.property('moddedAnimal')}"
