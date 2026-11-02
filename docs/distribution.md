@@ -91,6 +91,12 @@ Modrinth has 21 matching versions, checked by version ID for hash, loaders, game
 
 CurseForge received the twenty mod files through the upload API, file IDs 9388183 to 9388214, with Quilt on the Fabric files. They go public after CurseForge's review. The plugin isn't on CurseForge, which lists Bukkit plugins in a separate project. The project description there still needs `docs/curseforge-description.md` pasted by hand.
 
+## Page trim, November 2
+
+The page now leads with "Track your pets' families" instead of "See who bred whom", which read as awkward. The body went from 2,777 words to 576: one image and a short paragraph per feature, a loader table, and links to the server, command, and release docs for the detail. Gallery captions are one sentence each. The page says "baby" or "baby horse" instead of "foal". The title stays "Family Tree: Animal Breeding & Lineage" for search. The summary keeps "pets", "horse", "farm animal", "horse breeding stats", and "servers".
+
+Modrinth was updated the same day. CurseForge still needs `docs/curseforge-description.md` pasted by hand, and its summary set to the one in `docs/modrinth_page.json`.
+
 ## Measurement decisions
 
 At 30 days, compare the actual download rate with the remaining target. The audit's 180-day deadline requires roughly 53 additional downloads a day from the baseline. If the rate stays below that, broader distribution is still needed. More code alone cannot establish that the target will be reached.

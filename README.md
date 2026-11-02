@@ -2,7 +2,7 @@
 
 [![Modrinth downloads](https://img.shields.io/modrinth/dt/familytree?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/familytree)
 
-See who bred whom in Minecraft. Family Tree records the parents of every pet and animal you breed, so you can follow a family across generations, check whether a foal beat its parents' speed, jump, and health, and see where a pink lamb or a brown panda got its color. It runs in singleplayer and on servers, including for players who join without the mod.
+Track your pets' families in Minecraft. Family Tree records the parents of every pet and animal you breed, so you can follow a family across generations, check whether a baby horse beat its parents' speed, jump, and health, and see where a pink lamb or a brown panda got its color. It runs in singleplayer and on servers, including for players who join without the mod.
 
 [Download on Modrinth](https://modrinth.com/mod/familytree/versions) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/family-tree/files). Fabric, NeoForge, and Forge builds are available.
 
@@ -10,7 +10,7 @@ See who bred whom in Minecraft. Family Tree records the parents of every pet and
 
 ![Panning across four generations of horses in the Family Tree screen](docs/media/tree-tour.webp)
 
-Four generations of horses in Minecraft 26.3. Vanilla AI bred every foal in an automated scene. The script tamed and named the eight founders and grew each foal up before the next generation. The [showcase clip](docs/launch/family-tree-showcase.mp4) and [vertical version](docs/launch/family-tree-showcase-vertical.mp4) are ready to share.
+Four generations of horses in Minecraft 26.3. Vanilla AI bred every baby in an automated scene. The script tamed and named the eight founders and grew each baby up before the next generation. The [showcase clip](docs/launch/family-tree-showcase.mp4) and [vertical version](docs/launch/family-tree-showcase-vertical.mp4) are ready to share.
 
 ![Alex's tree screen above Kai's chest menu, both showing Pepper's family on one server](docs/media/server-two-players.webp)
 
