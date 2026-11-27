@@ -1,7 +1,7 @@
 # Download progress
 
-Latest sample, 2026-11-26 UTC. Modrinth has 2,054 cumulative downloads and 13 followers. The 10,000-download target needs 7,946 more downloads.
+Latest sample, 2026-11-27 UTC. Modrinth has 2,076 cumulative downloads and 13 followers. The 10,000-download target needs 7,924 more downloads.
 
-Download change over seven days: 221.
+Download change over seven days: 208.
 
 These are platform downloads, including repeat downloads and upgrades. They do not count unique players. The daily workflow records public totals and per-version counts. No in-game telemetry is used. CurseForge counts are recorded separately in [distribution notes](../distribution.md#curseforge-listing).
